@@ -92,7 +92,7 @@ public class JwtBearerDeployedGuardBootTests
             using var host = BuildHost(
                 environmentName: "Staging",
                 requireHttpsMetadata: true,
-                authority: "http://id.example.test/realms/dotnetatlas");
+                inboundAuthority: "http://id.example.test/realms/dotnetatlas");
             await host.StartAsync(TestContext.Current.CancellationToken);
         };
 
@@ -137,7 +137,7 @@ public class JwtBearerDeployedGuardBootTests
         // Act
         var boot = async () =>
         {
-            using var host = BuildHost(environmentName: "Staging", requireHttpsMetadata: true, authority: "");
+            using var host = BuildHost(environmentName: "Staging", requireHttpsMetadata: true, inboundAuthority: "");
             await host.StartAsync(TestContext.Current.CancellationToken);
         };
 
@@ -158,7 +158,7 @@ public class JwtBearerDeployedGuardBootTests
         // Act
         var boot = async () =>
         {
-            using var host = BuildHost(environmentName: "Testing", requireHttpsMetadata: false, authority: "");
+            using var host = BuildHost(environmentName: "Testing", requireHttpsMetadata: false, inboundAuthority: "");
             await host.StartAsync(TestContext.Current.CancellationToken);
             await host.StopAsync(TestContext.Current.CancellationToken);
         };
@@ -167,38 +167,76 @@ public class JwtBearerDeployedGuardBootTests
         await boot.Should().NotThrowAsync();
     }
 
+    [Fact]
+    [Trait("Category", "security")]
+    public async Task AddPlatformJwtBearer_WhenDeployedAndOnlyOutboundServiceAuthAuthoritySet_HostFailsToStart()
+    {
+        // The inbound Authority guard must NOT be satisfiable by the outbound ServiceAuthOptions.Authority
+        // (the realm this service fetches its own client-credentials token from). A deployed host that
+        // binds no inbound Authority but carries an https outbound authority must still fail closed at
+        // boot — proving the inbound trust anchor is sourced from Authentication:JwtBearer, not from the
+        // service's outbound identity. If the outbound https authority could satisfy the inbound guard,
+        // this host would boot and silently accept whatever realm ServiceAuth points at — the hazard
+        // this test pins shut.
+
+        // Act
+        var boot = async () =>
+        {
+            using var host = BuildHost(
+                environmentName: "Staging",
+                requireHttpsMetadata: true,
+                inboundAuthority: null,
+                serviceAuthAuthority: "https://outbound.example/realms/some-other-realm");
+            await host.StartAsync(TestContext.Current.CancellationToken);
+        };
+
+        // Assert
+        (await boot.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*Authority*");
+    }
+
     /// <summary>
     /// Builds a headless host wired through <see cref="JwtBearerConfigurator.AddPlatformJwtBearer"/>
-    /// in <paramref name="environmentName"/>. <see cref="ServiceAuthOptions"/> seeds
-    /// <paramref name="authority"/> (the JwtBearer Authority / ValidIssuer) inside the platform
-    /// Configure step; an https authority keeps the framework's own metadata-address guard satisfied
-    /// so <paramref name="requireHttpsMetadata"/> is the knob under test, while an http authority
-    /// exercises that framework guard. The configure delegate stands in for a BC's appsettings bind —
-    /// including flipping <c>RequireHttpsMetadata</c> back to the local-dev default, the exact
-    /// production foot-gun.
+    /// in <paramref name="environmentName"/>. <paramref name="inboundAuthority"/> is fed through the
+    /// configure delegate — the production path, standing in for a BC's <c>Authentication:JwtBearer</c>
+    /// appsettings bind; <c>null</c> binds no inbound Authority at all (the deployment-shaped base that
+    /// ships no dev-only http Authority). An https authority keeps the framework's own metadata-address
+    /// guard satisfied so <paramref name="requireHttpsMetadata"/> is the knob under test, while an http
+    /// authority exercises that framework guard. <paramref name="serviceAuthAuthority"/> populates the
+    /// OUTBOUND <see cref="ServiceAuthOptions.Authority"/> only — it must never influence inbound
+    /// validation. The delegate also flips <c>RequireHttpsMetadata</c> back to the caller's value, the
+    /// exact production foot-gun a BC's bind can reintroduce.
     /// </summary>
     private static IHost BuildHost(
         string environmentName,
         bool requireHttpsMetadata,
-        string authority = "https://id.example.test/realms/dotnetatlas")
+        string? inboundAuthority = "https://id.example.test/realms/dotnetatlas",
+        string? serviceAuthAuthority = null)
     {
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
         {
             EnvironmentName = environmentName,
         });
 
-        builder.Services.Configure<ServiceAuthOptions>(options =>
+        if (serviceAuthAuthority is not null)
         {
-            options.Authority = authority;
-            options.ClientId = "platform-tests";
-            options.ClientSecret = "dev-secret";
-            options.ServiceName = "platform-tests-service";
-        });
+            builder.Services.Configure<ServiceAuthOptions>(options =>
+            {
+                options.Authority = serviceAuthAuthority;
+                options.ClientId = "platform-tests";
+                options.ClientSecret = "dev-secret";
+                options.ServiceName = "platform-tests-service";
+            });
+        }
 
         builder.Services.AddPlatformJwtBearer(options =>
         {
             options.RequireHttpsMetadata = requireHttpsMetadata;
             options.TokenValidationParameters.ValidAudience = "platform-tests-service";
+            if (inboundAuthority is not null)
+            {
+                options.Authority = inboundAuthority;
+            }
         });
 
         return builder.Build();

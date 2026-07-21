@@ -128,6 +128,48 @@ public class JwtBearerConfiguratorTests
         options.RequireHttpsMetadata.Should().Be(expectedRequireHttpsMetadata);
     }
 
+    [Fact]
+    [Trait("Category", "security")]
+    public void AddPlatformJwtBearer_DoesNotSeedInboundTrustAnchorFromServiceAuthOptions()
+    {
+        // The inbound token-validation trust anchor (Authority + ValidIssuer) is "whose tokens do I
+        // accept". ServiceAuthOptions.Authority is a DIFFERENT concern — "which Keycloak do I fetch MY
+        // OWN client-credentials token from" (outbound). The platform must never derive the first from
+        // the second: a BC that binds no inbound Authority (the deployment-shaped base that ships no
+        // dev-only http Authority) must NOT silently inherit the outbound realm as its inbound anchor.
+        // The non-deployed (Development) tier keeps the deployed ValidateOnStart guards no-op so the
+        // seeding — not a guard throw — is what this test observes; the deployed fail-closed consequence
+        // is pinned by JwtBearerDeployedGuardBootTests.
+        const string outboundAuthority = "https://outbound.example/realms/some-other-realm";
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IHostEnvironment>(
+            new StubHostEnvironment { EnvironmentName = Environments.Development });
+        services.Configure<ServiceAuthOptions>(o =>
+        {
+            o.Authority = outboundAuthority;
+            o.ClientId = "platform-tests";
+            o.ClientSecret = "dev-secret";
+            o.ServiceName = TestAudience;
+        });
+
+        // The BC configure delegate pins only the inbound audience — it binds NO inbound Authority,
+        // standing in for a base appsettings that ships no Authority key.
+        services.AddPlatformJwtBearer(o => o.TokenValidationParameters.ValidAudience = TestAudience);
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>()
+            .Get(JwtBearerDefaults.AuthenticationScheme);
+
+        using var _ = new AssertionScope();
+        options.Authority.Should().BeNull(
+            "inbound Authority must come from Authentication:JwtBearer, not the outbound ServiceAuth realm");
+        options.TokenValidationParameters.ValidIssuer.Should().BeNull(
+            "ValidIssuer must not be derived from ServiceAuthOptions.Authority — issuer validation leans " +
+            "on the OIDC discovery issuer via the Authority-built ConfigurationManager");
+    }
+
     private static JwtBearerOptions BuildPlatformJwtBearerOptions(
         Action<JwtBearerOptions>? extraConfigure = null,
         string? environmentName = null)
@@ -136,20 +178,18 @@ public class JwtBearerConfiguratorTests
         services.AddLogging();
         services.AddSingleton<IHostEnvironment>(
             new StubHostEnvironment { EnvironmentName = environmentName ?? Environments.Production });
-        // Authority drives ValidIssuer; reuse it as the token issuer below.
-        services.Configure<ServiceAuthOptions>(o =>
-        {
-            o.Authority = StubHostEnvironment.Issuer;
-            o.ClientId = "platform-tests";
-            o.ClientSecret = "dev-secret";
-            o.ServiceName = TestAudience;
-        });
 
-        // SUT — the BC's configure delegate pins ValidAudience, exactly as appsettings binding does.
-        // extraConfigure lets a test simulate a hostile bind (e.g. flipping validation booleans off).
+        // SUT — the BC's configure delegate stands in for the appsettings bind: it supplies the inbound
+        // Authority + audience (the platform no longer seeds them from ServiceAuthOptions). ValidIssuer
+        // is pinned here to stand in for the OIDC discovery issuer a live Authority's ConfigurationManager
+        // would supply — a unit test has no Keycloak to fetch it from, and the token below is signed with
+        // the same issuer. extraConfigure lets a test simulate a hostile bind (e.g. flipping validation
+        // booleans off).
         services.AddPlatformJwtBearer(o =>
         {
+            o.Authority = StubHostEnvironment.Issuer;
             o.TokenValidationParameters.ValidAudience = TestAudience;
+            o.TokenValidationParameters.ValidIssuer = StubHostEnvironment.Issuer;
             extraConfigure?.Invoke(o);
         });
 

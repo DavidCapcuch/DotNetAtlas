@@ -196,8 +196,11 @@ public sealed class TokenExchangeKeycloakTests : IAsyncLifetime
         var jwks = await _http.GetStringAsync(
             $"{_baseUrl}/realms/{Realm}/protocol/openid-connect/certs", ct);
 
-        // Mirrors Basket's effective JwtBearer TokenValidationParameters (services/Basket appsettings +
-        // JwtBearerConfigurator): ValidAudience=basket-service, ValidIssuer=the realm, all five flags true.
+        // Mirrors Basket's effective JwtBearer validation (services/Basket appsettings +
+        // JwtBearerConfigurator): ValidAudience=basket-service, all five flags true, iss checked against
+        // the realm. Basket leaves ValidIssuer null and validates iss against the realm's OIDC discovery
+        // issuer; pinning ValidIssuer=the realm here is the equivalent check without a live
+        // ConfigurationManager to fetch that discovery document.
         var parameters = new TokenValidationParameters
         {
             ValidateIssuer = true,

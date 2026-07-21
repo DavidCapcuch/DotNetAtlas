@@ -2,30 +2,35 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Platform.ServiceDefaults.Auth;
 
 /// <summary>
 /// Inbound-side helper for validating OAuth2 bearer tokens (ADR-0010). Wires an
-/// <see cref="AuthenticationBuilder"/> with defaults derived from
-/// <see cref="ServiceAuthOptions"/>; callers override via the optional configure delegate.
+/// <see cref="AuthenticationBuilder"/> with an immutable validation floor; the BC supplies its own
+/// inbound trust anchor (Authority + audience) through the optional configure delegate — never
+/// derived from <see cref="ServiceAuthOptions"/>, which is this service's OUTBOUND identity.
 /// </summary>
 public static class JwtBearerConfigurator
 {
     /// <summary>
-    /// Registers authentication and a JWT-bearer scheme with:
+    /// Registers authentication and a JWT-bearer scheme. The platform seeds only the
+    /// environment-derived <c>RequireHttpsMetadata</c>, the five validation booleans (<c>true</c>),
+    /// and a 5-minute <c>ClockSkew</c> (ADR-0010). The inbound trust anchor is the BC's own:
     /// <list type="bullet">
-    /// <item><description><c>Authority</c> = <see cref="ServiceAuthOptions.Authority"/></description></item>
-    /// <item><description><c>ValidIssuer</c> = <see cref="ServiceAuthOptions.Authority"/></description></item>
-    /// <item><description><c>ValidateIssuer</c> / <c>ValidateAudience</c> / <c>ValidateLifetime</c> = <c>true</c></description></item>
-    /// <item><description><c>ClockSkew</c> = 5 minutes per ADR-0010</description></item>
+    /// <item><description><c>Authority</c> — from the BC's <c>Authentication:JwtBearer:Authority</c>
+    /// bind; <b>not</b> seeded from <see cref="ServiceAuthOptions"/> (this service's outbound identity).</description></item>
+    /// <item><description><c>ValidIssuer</c> — left <c>null</c>; <c>iss</c> validates against the OIDC
+    /// discovery issuer the <c>Authority</c>-built ConfigurationManager fetches.</description></item>
+    /// <item><description><c>ValidAudience</c> — the BC pins it under
+    /// <c>Authentication:JwtBearer:TokenValidationParameters:ValidAudience</c>; omitting it fails
+    /// closed (<c>ValidateAudience=true</c> + <c>null</c> rejects every token).</description></item>
     /// </list>
-    /// <c>ValidAudience</c> is intentionally <b>not</b> defaulted here — each BC must pin it
-    /// explicitly under <c>Authentication:JwtBearer:TokenValidationParameters:ValidAudience</c>
-    /// in <c>appsettings.json</c>. The BC's <paramref name="configure"/> callback binds that
-    /// section in step 2 below.
+    /// Deriving <c>Authority</c> / <c>ValidIssuer</c> from <see cref="ServiceAuthOptions"/> would
+    /// conflate inbound trust with outbound identity, so neither is — for the same reason
+    /// <c>ValidAudience</c> isn't (ADR-0010, 2026-05-27 amendment): an <c>AddServiceAuth</c> realm can
+    /// never silently become an edge's inbound anchor.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -33,45 +38,37 @@ public static class JwtBearerConfigurator
     /// </para>
     /// <list type="number">
     /// <item><description>
-    /// <b>Configure</b> seeds <see cref="JwtBearerOptions"/> from
-    /// <see cref="ServiceAuthOptions"/> (Authority, ValidIssuer = Authority, all five
-    /// validation booleans <c>true</c>, ClockSkew per ADR-0010). <c>ValidAudience</c> is
-    /// left at its <see cref="TokenValidationParameters"/> default (<c>null</c>) so the
-    /// BC's appsettings is the single source of truth.
+    /// <b>Configure</b> seeds the environment-derived <c>RequireHttpsMetadata</c>, the five
+    /// validation booleans (<c>true</c>), and <c>ClockSkew</c>. It reads no
+    /// <see cref="ServiceAuthOptions"/>: <c>Authority</c>, <c>ValidIssuer</c>, and <c>ValidAudience</c>
+    /// are all left for the BC to supply (or leave <c>null</c>).
     /// </description></item>
     /// <item><description>
-    /// The BC's <paramref name="configure"/> callback runs inside this Configure
-    /// step. BCs typically <c>configuration.Bind("Authentication:JwtBearer", options)</c>
-    /// here, which can override <b>any</b> field — including silently flipping a
-    /// validation boolean to <c>false</c> via a typo'd env var or a malformed
-    /// appsettings override. The bind is also where <c>ValidAudience</c> arrives from
-    /// the BC's <c>Authentication:JwtBearer:TokenValidationParameters:ValidAudience</c>
-    /// key; if a BC forgets to set it, <c>ValidateAudience=true</c> + <c>ValidAudience=null</c>
-    /// rejects every token at runtime (fails closed).
+    /// The BC's <paramref name="configure"/> callback runs inside this Configure step — typically
+    /// <c>configuration.Bind("Authentication:JwtBearer", options)</c> — supplying <c>Authority</c>
+    /// and <c>ValidAudience</c>. The bind can override <b>any</b> field, including silently flipping a
+    /// validation boolean to <c>false</c> via a typo'd env var; phase 3 re-pins those.
     /// </description></item>
     /// <item><description>
-    /// <b>PostConfigure</b> runs <i>after</i> the BC's <c>configuration.Bind</c>
-    /// (and any other Configure callback) and re-pins the five security-critical
-    /// booleans (<c>ValidateIssuer / ValidateAudience / ValidateLifetime /
-    /// ValidateIssuerSigningKey / RequireSignedTokens</c>) to <c>true</c>. This
-    /// is the immutable security floor — no appsettings, env var, or BC-specific
-    /// override can opt out of validation, per #223.
+    /// <b>PostConfigure</b> re-pins the five security-critical booleans (<c>ValidateIssuer /
+    /// ValidateAudience / ValidateLifetime / ValidateIssuerSigningKey / RequireSignedTokens</c>) to
+    /// <c>true</c> after the BC's bind — the immutable security floor no appsettings, env var, or
+    /// BC-specific override can opt out of, per #223.
     /// </description></item>
     /// <item><description>
-    /// <b>Deployed guard</b> (<c>ValidateOnStart</c>) asserts <c>RequireHttpsMetadata</c> in
-    /// <see cref="HostEnvironmentExtensions.IsDeployedEnvironment"/> environments — the one
-    /// invariant the floor cannot cover, because <c>RequireHttpsMetadata</c> is a
-    /// <see cref="JwtBearerOptions"/> property (not a <see cref="TokenValidationParameters"/>
-    /// boolean) that the BC's <c>Bind</c> can flip back to the local-dev default of <c>false</c>.
-    /// A deployed host that would fetch OIDC metadata / JWKS over plain HTTP <b>fails to boot</b>
-    /// (ADR-0009 item 10); no-op in Development / Testing.
+    /// <b>Deployed guards</b> (<c>ValidateOnStart</c>) fail a deployed host's boot when it would
+    /// fetch OIDC metadata / JWKS over plain HTTP (<c>RequireHttpsMetadata=false</c>,
+    /// <see cref="AssertDeployedRequireHttpsMetadata"/>) or has no inbound <c>Authority</c> at all
+    /// (<see cref="AssertDeployedAuthorityConfigured"/>) — the two invariants the boolean floor
+    /// cannot cover, because both are <see cref="JwtBearerOptions"/> members a <c>Bind</c> can leave
+    /// at their local-dev defaults. No-op in
+    /// <see cref="HostEnvironmentExtensions.IsDeployedEnvironment"/>-false tiers. See ADR-0009 item 10.
     /// </description></item>
     /// </list>
     /// <para>
-    /// Net result: the <c>ValidAudience</c> / <c>ValidIssuer</c> <i>strings</i>
-    /// are configurable per BC (so a BC can validate against multiple audiences,
-    /// migrate authorities, etc.), but the boolean "are we validating at all"
-    /// flags are non-negotiable.
+    /// Net result: <c>Authority</c> / <c>ValidAudience</c> are configurable per BC (migrate realms,
+    /// validate multiple audiences), issuer validation follows the realm's own discovery document,
+    /// and the "are we validating at all" booleans are non-negotiable.
     /// </para>
     /// </remarks>
     /// <param name="services">The DI container.</param>
@@ -86,19 +83,24 @@ public static class JwtBearerConfigurator
             .AddJwtBearer();
 
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
-            .Configure<IOptions<ServiceAuthOptions>, IHostEnvironment>((jwt, serviceAuth, env) =>
+            .Configure<IHostEnvironment>((jwt, env) =>
             {
-                var opts = serviceAuth.Value;
-                jwt.Authority = opts.Authority;
+                // Inbound Authority + ValidIssuer are NOT seeded here — they are "whose tokens do I
+                // accept", a concern the BC owns entirely through its Authentication:JwtBearer bind
+                // (Authority) and the OIDC discovery issuer that Authority's ConfigurationManager
+                // fetches (ValidIssuer left null). Deriving either from the outbound
+                // ServiceAuthOptions.Authority — "which Keycloak do I fetch MY OWN token from" — would
+                // conflate inbound trust with outbound identity and let the AddServiceAuth realm
+                // silently become this edge's inbound anchor (the same fail-open the 2026-05-27
+                // ADR-0010 amendment removed for ValidAudience). A deployed edge that binds no
+                // Authority fails closed at boot via AssertDeployedAuthorityConfigured below.
+                //
                 // Non-deployed tiers (Development laptop/compose runs and the Testing fixtures, per
                 // the HostEnvironmentExtensions taxonomy) reach Keycloak over plain HTTP on
                 // localhost:9011 or run against a cleared authority, so the metadata-discovery
                 // handshake must accept HTTP there; only deployed clusters require HTTPS metadata.
-                // This value only survives for a caller that does NOT bind
-                // "Authentication:JwtBearer": every shipped edge binds it through the configure
-                // callback below, so each service's appsettings overlay is what actually supplies
-                // its tier value. Keyed on IsDeployedEnvironment() rather than !IsDevelopment() so
-                // that unbound fallback still separates Testing from a deployed cluster — pairing
+                // Keyed on IsDeployedEnvironment() rather than !IsDevelopment() so that an unbound
+                // fallback still separates Testing from a deployed cluster — pairing
                 // RequireHttpsMetadata=true with an http:// Authority is rejected by the framework's
                 // own JwtBearerPostConfigureOptions when ValidateOnStart materializes it at boot.
                 jwt.RequireHttpsMetadata = env.IsDeployedEnvironment();
@@ -133,7 +135,6 @@ public static class JwtBearerConfigurator
                     ValidateIssuerSigningKey = true,
                     RequireSignedTokens = true,
                     ClockSkew = TimeSpan.FromMinutes(5),
-                    ValidIssuer = opts.Authority,
                 };
 
                 configure?.Invoke(jwt);
