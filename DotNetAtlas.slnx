@@ -4,7 +4,6 @@
   <Folder Name="/docs/design decisions/" />
   <Folder Name="/pipeline/" />
   <Folder Name="/pipeline/ci/">
-    <File Path=".github/workflows/build-and-push-docker-image.yml" />
     <File Path=".github/workflows/build-dotnet.yml" />
     <File Path=".github/workflows/determine-git-version.yml" />
     <File Path=".github/workflows/docker-image-build-push-sign.yml" />

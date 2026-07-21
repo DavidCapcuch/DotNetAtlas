@@ -1,4 +1,21 @@
-name: Reusable - Build and Publish Docker Image
+name: Reusable - Build and Publish Docker Images
+
+# One matrix leg per Dockerfile that `docker-compose.yaml` builds. The `outbox-relay-*` compose
+# services share a single Dockerfile and therefore a single image — they differ only by
+# configuration, so a compose service is not automatically a matrix leg. `.devcontainer/Dockerfile`
+# is the one Dockerfile compose does not reference, and it must never be published. The
+# `verify-matrix` job enforces that correspondence; the list below is not self-checking.
+#
+# Signing and attestation run INSIDE the matrix leg rather than as downstream jobs: every leg of
+# a matrix writes to the same job-output namespace, so a downstream job reading `needs.*.outputs`
+# would see whichever leg finished last and silently sign one image while nine went unsigned
+# under a green check.
+#
+# No job here declares `permissions`. A called workflow may only DOWNGRADE the caller's
+# `GITHUB_TOKEN`, and requesting a scope the caller withheld fails the entire run at validation
+# time — before any job starts. Declaring `packages: write` here would therefore break the
+# build-only caller, which correctly grants nothing beyond `contents: read`. Each caller grants
+# exactly what its trigger warrants and these jobs inherit it.
 
 on:
   workflow_call:
@@ -15,21 +32,80 @@ on:
       informationalVersion:
         required: true
         type: string
+      publish:
+        description: >-
+          Push, sign, and attest the built images. The caller decides this from its trigger —
+          the callee must not sniff `github.ref`, which reads as the pull-request merge ref when
+          this workflow is reached through the PR pipeline.
+        required: false
+        default: false
+        type: boolean
 
 jobs:
-  build-and-push-image:
+  # An image name is a published artifact identifier, not a function of its Dockerfile path:
+  # `services/Catalog/Catalog.Api` → `catalog-api`, `platform/Platform.OutboxRelay.WorkerService`
+  # → `outbox-relay`, `saga/SagaOrchestrators` → `saga`. No derivation covers those, so the matrix
+  # below must list them. The cost is drift — a new bounded context's Dockerfile with no leg is
+  # simply never published, and nothing else in the pipeline would notice. This job is what makes
+  # the header's invariant fail loudly instead.
+  verify-matrix:
     runs-on: ubuntu-22.04
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      packages: write
-    outputs:
-      tags: ${{ steps.meta.outputs.tags }}
-      digest: ${{ steps.build-and-push-image.outputs.digest }}
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+      - name: Every publishable Dockerfile has a matrix leg
+        run: |
+          set -euo pipefail
+          git ls-files '*Dockerfile' | grep -v '^\.devcontainer/' | sort > /tmp/tracked
+          grep -E '^ +dockerfile: ' .github/workflows/docker-image-build-push-sign.yml \
+            | awk '{print $2}' | sort > /tmp/declared
+          echo "'-' = a leg whose Dockerfile is gone; '+' = a Dockerfile with no leg (never published)."
+          diff -u --label declared /tmp/declared --label tracked /tmp/tracked
+
+  build-image:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    strategy:
+      # A rotted Dockerfile in one service must not mask the state of the others. Trade-off: on a
+      # publish run the surviving legs still push and sign, so a failed leg leaves that version
+      # partially released in GHCR. Cancelling instead would not help — legs that already pushed
+      # stay pushed.
+      fail-fast: false
+      matrix:
+        include:
+          - image: catalog-api
+            dockerfile: services/Catalog/Catalog.Api/Dockerfile
+          - image: basket-api
+            dockerfile: services/Basket/Basket.Api/Dockerfile
+          - image: ordering-api
+            dockerfile: services/Ordering/Ordering.Api/Dockerfile
+          - image: inventory-api
+            dockerfile: services/Inventory/Inventory.Api/Dockerfile
+          - image: invoicing-api
+            dockerfile: services/Invoicing/Invoicing.Api/Dockerfile
+          - image: notifications-api
+            dockerfile: services/Notifications/Notifications.Api/Dockerfile
+          - image: payments-api
+            dockerfile: services/Payments/Payments.Api/Dockerfile
+          - image: bff-api
+            dockerfile: src/EShop.BFF/EShop.BFF.Api/Dockerfile
+          - image: saga
+            dockerfile: saga/SagaOrchestrators/Dockerfile
+          - image: outbox-relay
+            dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+      - name: Resolve image reference
+        id: image
+        # GHCR rejects upper-case paths and `github.repository` is mixed-case. `metadata-action`
+        # lower-cases what it emits, but `attest-build-provenance` takes `subject-name` verbatim.
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}/${IMAGE}" >> "$GITHUB_OUTPUT"
       - name: Log in to GHCR
+        if: inputs.publish
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef #v3.6.0
         with:
           registry: ghcr.io
@@ -41,72 +117,62 @@ jobs:
         id: meta
         uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f # v5.8.0
         with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=raw,value=${{ inputs.semVer }}
-            type=raw,value=latest,enable=${{ github.event_name != 'pull_request' }}
-      - name: Build and push Docker image
+          images: ${{ steps.image.outputs.name }}
+          # Immutable tags only — there is deliberately no `latest`. Ten images are published by ten
+          # independent legs, so a floating tag cannot be moved across the set atomically: one failed
+          # leg would leave `latest` describing a mix of versions that never existed as a coherent
+          # build. Consumers pin `v<semVer>`, which the release workflow mints only after every image
+          # for that version is in GHCR, and which a cosign signature and provenance attestation
+          # cover. `docker-compose.yaml` already pins every third-party image by digest for the same
+          # reason.
+          tags: type=raw,value=${{ inputs.semVer }}
+      - name: Build Docker image
         id: build-and-push-image
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 #v6.18.0
         with:
           context: .
-          file: ./Dockerfile
+          file: ${{ matrix.dockerfile }}
           build-args: |
             VERSION=${{ inputs.semVer }}
             ASSEMBLY_VERSION=${{ inputs.assemblySemVer }}
             FILE_VERSION=${{ inputs.assemblySemFileVer }}
             INFORMATIONAL_VERSION=${{ inputs.informationalVersion }}
-          push: true
+          push: ${{ inputs.publish }}
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  sign-image:
-    needs: [build-and-push-image]
-    runs-on: ubuntu-22.04
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-    steps:
-      - name: Log in to GHCR
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef #v3.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # `mode=max` exports the intermediate `build` stage, where the restore layer lives;
+          # `mode=min` cannot, because that stage is absent from the final image. Each Dockerfile
+          # resolves packages into a real image directory (`ENV NUGET_PACKAGES=/nuget-packages`),
+          # not a BuildKit cache mount — `type=gha` exports layer diffs but never cache mounts — so
+          # the restore layer is exported here and a source-only change is a cache hit that restores
+          # the package graph instead of re-downloading it. Cost: the restore layer carries the
+          # package set (~850 MB/image), so ten `mode=max` entries consume a large share of the
+          # ~10 GB repository-wide LRU budget — watch for release builds going cold if entries evict.
+          #
+          # Written on publish runs only. Per-image scopes stop the legs OVERWRITING each other, but
+          # eviction is LRU across one 10 GB repository-wide budget regardless of scope — so letting
+          # every PR write ten `mode=max` entries would evict the entries `main` depends on and
+          # leave the release path building cold anyway. PRs read; releases write.
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: ${{ inputs.publish && format('type=gha,scope={0},mode=max', matrix.image) || '' }}
       - name: Install cosign
+        if: inputs.publish
         uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # v3.10.0
         with:
           cosign-release: 'v2.2.4'
       - name: Sign the published Docker image
+        if: inputs.publish
+        # Sign the digest, never the tag. A tag is a mutable pointer; a signature made against one
+        # says nothing about the bytes a later pull resolves to.
         env:
-          TAGS: ${{ needs.build-and-push-image.outputs.tags }}
-          DIGEST: ${{ needs.build-and-push-image.outputs.digest }}
-        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
-
-  attest-image:
-    needs: [build-and-push-image]
-    runs-on: ubuntu-22.04
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      packages: write
-      attestations: write
-      id-token: write
-    steps:
-      - name: Log in to GHCR
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef #v3.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ${{ steps.image.outputs.name }}
+          DIGEST: ${{ steps.build-and-push-image.outputs.digest }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
       - name: Generate artifact attestation
+        if: inputs.publish
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
         with:
-          subject-name: ghcr.io/${{ github.repository }}
-          subject-digest: ${{ needs.build-and-push-image.outputs.digest }}
+          subject-name: ${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.build-and-push-image.outputs.digest }}
           push-to-registry: true

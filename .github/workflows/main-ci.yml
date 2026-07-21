@@ -2,17 +2,12 @@ name: CI Main pipeline
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - 'v*'
   workflow_call:
     secrets:
       SONAR_TOKEN:
         required: true
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
   OTEL_SDK_DISABLED: true
 
 permissions:
@@ -58,13 +53,15 @@ jobs:
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  docker-image-build-push-sign:
+  # Build-only: proves every Dockerfile still builds before merge, and publishes nothing.
+  # Publishing is `main-release-tag.yml`'s job — it is the workflow that owns a release.
+  # The `contents: read` grant below is what ENFORCES that, not just documents it: a called
+  # workflow can only downgrade the caller's token, so the build cannot reach GHCR even if a
+  # future edit to the callee asks it to.
+  docker-image-build:
     needs: [determine-version, test-with-coverage]
     permissions:
       contents: read
-      packages: write
-      id-token: write
-      attestations: write
     uses: ./.github/workflows/docker-image-build-push-sign.yml
     with:
       semVer: ${{ needs.determine-version.outputs.semVer }}

@@ -1,8 +1,24 @@
 name: Create Release tag on Main
 
+# This workflow owns a release: it mints the version tag AND publishes the images carrying that
+# version. Publishing cannot instead hang off a `on: push: tags: ['v*']` trigger, because the tag
+# below is pushed with `GITHUB_TOKEN` and GitHub suppresses workflow runs for events raised by that
+# token to prevent recursion — such a trigger never fires at all.
+
 on:
   push:
     branches: [main]
+
+# Serialise releases. GitVersion derives the next version from the repository's tag state, so two
+# runs computing concurrently see different tag sets and can produce versions that don't reflect
+# merge order. Never `cancel-in-progress`: cancelling mid-publish leaves a version half-pushed.
+#
+# Consequence to accept: GitHub keeps at most ONE pending run per group, so three merges landing in
+# quick succession drop the middle one — that commit is never published and never tagged, and the
+# next merge simply mints the next version. Not every commit on `main` gets its own release.
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -11,8 +27,39 @@ jobs:
   determine-version:
     uses: ./.github/workflows/determine-git-version.yml
 
+  # Gate the release on the exact commit being signed. PR CI tested the pull-request merge ref,
+  # which is a different sha than the one a squash merge lands here — so a green PR is evidence
+  # about a commit that no longer exists. Signing an image whose commit was never tested asserts
+  # provenance the pipeline did not earn.
+  test-with-coverage:
+    permissions:
+      contents: read
+      actions: write
+    uses: ./.github/workflows/test-with-coverage.yml
+    with:
+      configuration: Release
+
+  publish-images:
+    needs: [determine-version, test-with-coverage]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/docker-image-build-push-sign.yml
+    with:
+      semVer: ${{ needs.determine-version.outputs.semVer }}
+      assemblySemVer: ${{ needs.determine-version.outputs.assemblySemVer }}
+      assemblySemFileVer: ${{ needs.determine-version.outputs.assemblySemFileVer }}
+      informationalVersion: ${{ needs.determine-version.outputs.informationalVersion }}
+      publish: true
+
+  # The tag is minted only after every image for this version is in GHCR, so `v<semVer>` means
+  # "images for this version exist" rather than promising them. A failed leg therefore leaves no
+  # tag at all: the next merge mints the next version and moves on, instead of stranding a tag
+  # whose images were never published.
   create-release-tag:
-    needs: [determine-version]
+    needs: [determine-version, publish-images]
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
