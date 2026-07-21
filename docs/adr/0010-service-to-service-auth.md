@@ -144,11 +144,11 @@ Creating a `ServiceAuth` section without a matching `AddServiceAuth(...)` call i
 
 Net: the **strings** (`ValidAudience`, `ValidIssuer`) are configurable per BC; the **booleans** are not.
 
-### Keycloak audience lives on the client SCOPE, not the caller (corrected 2026-05-27)
+### Audience names the callee, not the caller
 
-**Principle (RFC 9068 / RFC 8707):** an access token's `aud` claim identifies the **resource being called** (the callee), and each resource server validates that its own name is in `aud`. The audience is therefore a property of *what you're accessing*, not *who you are*.
+**Principle (RFC 9068 / RFC 8707):** an access token's `aud` claim identifies the **resource being called** (the callee), and each resource server validates that its own name is in `aud`. The audience is therefore a property of *what you're accessing*, not *who you are* — **no client in this realm stamps its own `clientId`.** Two mechanisms stamp the callee; both obey that principle.
 
-**Implementation:** each resource **client scope** in `keycloak/realm-export.json` carries an `oidc-audience-mapper` stamping the owning service as the audience:
+**Default mechanism — the resource's client scope.** Each resource **client scope** in `keycloak/realm-export.json` carries an `oidc-audience-mapper` stamping the owning service as the audience:
 
 | Scope | `aud` added |
 |---|---|
@@ -161,9 +161,19 @@ Net: the **strings** (`ValidAudience`, `ValidIssuer`) are configurable per BC; t
 
 So a caller requesting `catalog.read` gets `aud: catalog-service` regardless of which client it is — exactly what catalog-service validates. Requesting multiple scopes yields a multi-valued `aud` array (one entry per resource). A token with no resource scope carries no `aud` and is valid at no resource (fail-closed).
 
-**Service clients carry NO per-client audience mapper.** The earlier design stamped every client with an `audience-self` mapper emitting `aud: "<own-clientId>"`. That was wrong for callers: a token basket sent to catalog carried `aud: basket-service`, which catalog-service rejects. Removing `audience-self` and moving audience to the scope fixes the latent cross-service breakage (verified 2026-05-27: `basket-service` + `catalog.read` → `aud: catalog-service`). The only client that self-audiences is the user-facing app client (the SPA / web client the user signs into — distinct from the `bff` service-account client, which carries outbound BC scopes but no self-audience mapper) — there the app *is* the resource the user token targets. No client in the realm self-audiences today:
+**Second mechanism — a client-level mapper, where the access path has no scope to carry the audience.** Service clients carry none; their audience always arrives with the requested scope. But three shapes leave a path with no scope on it, and there a client-level `oidc-audience-mapper` is the *only* possible audience source:
 
-**Do not delete the scope-level audience mappers, and do not re-add per-client `audience-self`.** Keycloak's `client_credentials` grant emits no `aud` by default; without the scope mapper a token reaches a resource with no audience and `ValidateAudience=true` rejects it silently. A warning comment sits above the realm-export mount in `docker-compose.yaml`.
+- **Role-only admin endpoints.** [Role vs scope canonical model](#amendment-2026-05-30--role-vs-scope-canonical-model) deliberately defines no `ordering.write` / `invoicing.write` scope for the ship / deliver / resend actions, and the BCs' `ordering.read` / `invoicing.read` are service-delegation scopes not provisioned to the human-admin client (granting them there would be dead config). So the admin's token has no scope carrying that audience, and without a client-level mapper those endpoints are unreachable through a real human login — `ValidateAudience` rejects *before* the role gate ever runs.
+- **The scope-less bell hub.** Notifications has no client and no scope; the user's own token reaches the hub through YARP verbatim and must itself carry `aud: notifications-service`.
+- **The token-exchange holder constraint.** Standard Token Exchange v2 only exchanges a `subject_token` carrying the requester (`bff`) in its `aud` — a requester relationship no resource scope expresses.
+
+The two mechanisms differ in one way that matters: a scope mapper fires **per request** (a caller gets only the audiences it asked for), while a client-level mapper is **unconditional** — it widens *every* token that client issues. Which clients carry which today, and why each is bounded as it is, live in [service-scope-matrix.md](../../src/keycloak/service-scope-matrix.md).
+
+**Invariant — a client-level audience must be bounded to the resources that client is meant to reach directly.** The dev-tooling swagger client reaches the role-only admin endpoints directly, so it carries `ordering-service` and `invoicing-service`. **A consumer-facing client must not carry those two** — Ordering and Invoicing enforce no read-scope policy on their buyer-scoped reads, so a *user* token audienced for them reopens the direct consumer→BC path that the [BFF's token exchange](#amendment-2026-06-06--bff-token-exchange-for-buyer-scoped-callees) closes; consumer order/invoice reads go through the BFF, never direct.
+
+The other two client-level audiences are **not** dev-only — a real user-facing client carries them exactly as the dev client does: `aud: bff` (the BFF is the consumer's inbound edge and the [token-exchange holder](#amendment-2026-06-06--bff-token-exchange-for-buyer-scoped-callees) — `ValidAudience = bff`) and `aud: notifications-service` (the bell, keyed on the token's own `sub`, so no service-account intermediary can mis-resolve the owner). Which client carries which, and the standing SPA obligation, live in [service-scope-matrix.md](../../src/keycloak/service-scope-matrix.md).
+
+**Do not delete the scope-level audience mappers, and do not add a per-client `audience-self` mapper.** Keycloak's `client_credentials` grant emits no `aud` by default; without the scope mapper a token reaches a resource with no audience and `ValidateAudience=true` rejects it silently. And a caller's token audienced for *itself* is rejected by every callee it is sent to. A warning comment sits above the realm-export mount in `docker-compose.yaml`.
 
 ### Test framework no longer masks misconfiguration
 
@@ -323,7 +333,7 @@ token was not end-to-end proof.
   correct.
 - Consumer access to buyer-scoped BCs is **BFF-mediated** — there is no direct consumer→BC path.
   So the user-facing app client provisions **no** BC scope and a user JWT never carries
-  a BC audience; the BFF's exchanged token is the only token those BCs accept. (This is why the
+  a buyer-scoped BC audience; the BFF's exchanged token is the only token those BCs accept. (This is why the
   scope question raised by [#323](https://github.com/DavidCapcuch/DotNetAtlas/issues/323) does not
   recur on the app client: the gap is closed by routing through the BFF, not by widening the user
   token's audience.) The BFF therefore fronts the full basket surface — read, item mutations, and

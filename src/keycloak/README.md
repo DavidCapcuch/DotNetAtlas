@@ -26,7 +26,7 @@ docker compose --profile full up -d keycloak
 | Client ID | Type | Purpose |
 |---|---|---|
 | `dotnetatlas-swagger` | Public | Swagger UI PKCE flow for the bounded-context APIs + the in-app **bell** SignalR hub. No secret shipped to the browser. Stamps a multi-valued `aud` **unconditionally** for `bff` (token-exchange subject) + `ordering-service` / `invoicing-service` (role-only admin endpoints) + `notifications-service` (bell hub). Catalog/Inventory/Payments audiences ride the admin's requested optional scope (`catalog.write` / `inventory.write` / `payments.read`); Basket gets none (100% BFF-mediated). See [service-scope-matrix.md](service-scope-matrix.md). |
-| `catalog-service`, `basket-service`, `ordering-service`, `bff` | Confidential | Service-account clients (`serviceAccountsEnabled: true`, client-credentials) with a committed dev secret. The three `*-service` ones validate `aud: {bc}-service`; `bff` is caller-only (no self-audience). |
+| `catalog-service`, `basket-service`, `ordering-service`, `bff` | Confidential | Service-account clients (`serviceAccountsEnabled: true`, client-credentials) with a committed dev secret. The three `*-service` ones validate `aud: {bc}-service`; `bff` validates `aud: bff` on inbound user JWTs (stamped by the user-facing client's `audience-bff` mapper), while its own outbound tokens are audienced for the callee — it carries no self-audience mapper. |
 | `inventory-service`, `payments-service`, `invoicing-service` | Confidential | Inbound-only (`serviceAccountsEnabled: false`, no secret); validate `aud: {bc}-service` stamped by the resource client-scope mapper. See [service-scope-matrix.md](service-scope-matrix.md). |
 
 > **On the Swagger token's audiences.** `dotnetatlas-swagger` stamps a BC `aud` **unconditionally** only
@@ -38,8 +38,9 @@ docker compose --profile full up -d keycloak
 > 100% BFF-mediated). This unconditional set is a deliberate dev-only convenience for Try-it-out (incl.
 > pasting the `access_token` into a WebSocket client against `/hubs/v1/notifications`, since the bell is not
 > a Swagger surface); it is acceptable only because this is a public, browser-only tooling client with no
-> service privileges. **Never copy this onto a real SPA/service client** — a production user-facing client
-> stamps `notifications-service` only and requests resource scopes per call. See
+> service privileges. **Never copy this whole set onto a real SPA/service client** — a production user-facing
+> client stamps `bff` (its BFF edge) and `notifications-service` (the bell), requesting resource scopes per call;
+> it must **not** carry the human-admin `ordering-service` / `invoicing-service` audiences. See
 > [service-scope-matrix.md](service-scope-matrix.md).
 
 ROPC (Resource Owner Password Credentials) is disabled on every client in this
