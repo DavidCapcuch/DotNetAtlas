@@ -74,9 +74,3 @@ follows - do not copy-paste this file into a real environment:
 | `webOrigins`, `redirectUris`, post-logout URIs | Replace the committed `localhost` Swagger callbacks/origins (the per-BC `:5100-5106` / `:8100-8106` ports) with the real deployed origins. Never use `"+"` or `"*"`. |
 | `bruteForceProtected` (already on) | Keep on. Tune `failureFactor` / `waitIncrementSeconds` per your threat model. |
 | Bootstrap admin (`admin` / `admin` via `KC_BOOTSTRAP_ADMIN_*`) | Set to random strong values, then rotate the first admin credential immediately after realm import. |
-
-## Security review reference
-
-See the plan at `~/.claude/plans/can-you-check-the-zany-cake.md` (auth flow
-security review) for the full finding list and rationale behind each delta
-above.
