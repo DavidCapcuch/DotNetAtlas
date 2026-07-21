@@ -161,6 +161,7 @@ public static class JwtBearerConfigurator
         // forces the check at boot rather than lazily on the first authenticated request.
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
             .PostConfigure<IHostEnvironment>(AssertDeployedRequireHttpsMetadata)
+            .PostConfigure<IHostEnvironment>(AssertDeployedAuthorityConfigured)
             .ValidateOnStart();
 
         return builder;
@@ -181,6 +182,38 @@ public static class JwtBearerConfigurator
                 "discovery and JWKS are fetched over TLS. Set " +
                 "'Authentication:JwtBearer:RequireHttpsMetadata' to true and point 'Authority' at an " +
                 "https:// OIDC endpoint. See ADR-0009 'Taking this to production'.");
+        }
+    }
+
+    /// <summary>
+    /// Throws <see cref="InvalidOperationException"/> when a deployed host has no OIDC authority to
+    /// validate tokens against. Covers the one gap the framework's own metadata-address check cannot
+    /// see: that check only rejects an address that is <i>present but plaintext</i>, so with neither
+    /// <c>Authority</c> nor <c>MetadataAddress</c> it builds no configuration manager, the host
+    /// <b>boots cleanly</b>, and every authenticated request fails afterwards instead. Reachable when
+    /// an edge's <c>Authority</c> is explicitly blanked (an empty env-var override) or its appsettings
+    /// omits the key — base <c>appsettings.json</c> ships a Development-tier <c>http://</c> value, so
+    /// the ordinary forgot-to-override case is already caught at boot by the framework check. No-op
+    /// outside deployed environments — the test fixtures' <c>ConfigureJwtBearerForTests</c>
+    /// deliberately clears both values.
+    /// </summary>
+    /// <remarks>
+    /// Only presence is asserted, not the scheme: in a deployed environment
+    /// <see cref="AssertDeployedRequireHttpsMetadata"/> guarantees <c>RequireHttpsMetadata</c> is
+    /// <c>true</c>, and the framework's own post-configure then rejects any non-https address. A
+    /// scheme check here would be a branch that can never trip.
+    /// </remarks>
+    private static void AssertDeployedAuthorityConfigured(JwtBearerOptions options, IHostEnvironment environment)
+    {
+        if (environment.IsDeployedEnvironment()
+            && string.IsNullOrWhiteSpace(options.Authority)
+            && string.IsNullOrWhiteSpace(options.MetadataAddress))
+        {
+            throw new InvalidOperationException(
+                "Inbound JWT validation needs an OIDC authority in deployed environments, but " +
+                "'Authentication:JwtBearer:Authority' and 'MetadataAddress' are both empty. Set " +
+                "'Authentication:JwtBearer:Authority' to an https:// OIDC realm URL. See ADR-0009 " +
+                "'Taking this to production'.");
         }
     }
 }

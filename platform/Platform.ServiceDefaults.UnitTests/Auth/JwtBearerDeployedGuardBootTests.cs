@@ -123,6 +123,50 @@ public class JwtBearerDeployedGuardBootTests
         await boot.Should().NotThrowAsync();
     }
 
+    [Fact]
+    [Trait("Category", "security")]
+    public async Task AddPlatformJwtBearer_WhenDeployedAndAuthorityMissing_HostFailsToStart()
+    {
+        // The framework's own metadata-address guard only fires when an Authority is PRESENT but
+        // plaintext — with no Authority at all it builds no ConfigurationManager, boots cleanly, and
+        // defers failure to the first authenticated request. Base appsettings ships a Development-tier
+        // http Authority, so the ordinary forgot-to-override case is caught by the framework check;
+        // this guard covers the residual case simulated here — an Authority explicitly blanked by an
+        // empty override (or omitted entirely) — keeping that host failing closed at boot, not on 500s.
+
+        // Act
+        var boot = async () =>
+        {
+            using var host = BuildHost(environmentName: "Staging", requireHttpsMetadata: true, authority: "");
+            await host.StartAsync(TestContext.Current.CancellationToken);
+        };
+
+        // Assert
+        (await boot.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*Authority*");
+    }
+
+    [Fact]
+    [Trait("Category", "security")]
+    public async Task AddPlatformJwtBearer_WhenTestingEnvironmentAndAuthorityMissing_HostStarts()
+    {
+        // Env-gate for the Authority guard. The nine fixtures that call ConfigureJwtBearerForTests
+        // deliberately CLEAR Authority and MetadataAddress to stop the handler reaching for a
+        // non-existent Keycloak, so enforcing presence outside deployed environments would fail
+        // every one of them at boot.
+
+        // Act
+        var boot = async () =>
+        {
+            using var host = BuildHost(environmentName: "Testing", requireHttpsMetadata: false, authority: "");
+            await host.StartAsync(TestContext.Current.CancellationToken);
+            await host.StopAsync(TestContext.Current.CancellationToken);
+        };
+
+        // Assert
+        await boot.Should().NotThrowAsync();
+    }
+
     /// <summary>
     /// Builds a headless host wired through <see cref="JwtBearerConfigurator.AddPlatformJwtBearer"/>
     /// in <paramref name="environmentName"/>. <see cref="ServiceAuthOptions"/> seeds
