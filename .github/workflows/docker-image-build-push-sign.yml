@@ -146,9 +146,11 @@ jobs:
           # resolves packages into a real image directory (`ENV NUGET_PACKAGES=/nuget-packages`),
           # not a BuildKit cache mount — `type=gha` exports layer diffs but never cache mounts — so
           # the restore layer is exported here and a source-only change is a cache hit that restores
-          # the package graph instead of re-downloading it. Cost: the restore layer carries the
-          # package set (~850 MB/image), so ten `mode=max` entries consume a large share of the
-          # ~10 GB repository-wide LRU budget — watch for release builds going cold if entries evict.
+          # the package graph instead of re-downloading it. Cost: `mode=max` exports the whole
+          # `build`+`publish` stage — the restore layer (the bulk, ~700 MB/image) plus the source-copy
+          # and R2R publish layers — so ten images together likely exceed the ~10 GB repository-wide
+          # LRU budget. Eviction is expected, not just possible, and gha emits no eviction event —
+          # it surfaces only as a release leg's restore step going cold.
           #
           # Written on publish runs only. Per-image scopes stop the legs OVERWRITING each other, but
           # eviction is LRU across one 10 GB repository-wide budget regardless of scope — so letting
