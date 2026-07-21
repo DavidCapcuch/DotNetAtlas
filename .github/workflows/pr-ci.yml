@@ -27,12 +27,12 @@ jobs:
 
   run-ci:
     needs: [enforce-format]
+    # No registry or signing scopes: PR CI builds images to prove the Dockerfiles still work and
+    # publishes nothing. Granting them here would silently re-arm publishing the moment the callee
+    # asked for it.
     permissions:
       contents: write
       pages: write
-      packages: write
-      id-token: write
-      attestations: write
       actions: write
     uses: ./.github/workflows/main-ci.yml
     secrets:
