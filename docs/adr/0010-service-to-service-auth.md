@@ -63,7 +63,7 @@ A subtle but important point: Option 1 lets us teach **scopes** explicitly. A to
 - Same Keycloak, same terminology as user auth — lower cognitive load.
 - Tokens carry `azp` (calling service identity) which feeds audit columns (e.g., `admin_audit.actor_service_id`).
 - Scopes enforce least privilege on HTTP: a caller lacking the required scope is rejected by the BC's `AddJwtBearer` policy (e.g. only callers with the `admin` role AND the `inventory.write` scope can hit the Inventory `Receive`/`Adjust` admin endpoints).
-- New services adopt with `builder.Services.AddServiceAuth("catalog-service").WithScopes("inventory.read")` in `Platform.ServiceDefaults`.
+- New services adopt with two `Platform.ServiceDefaults` calls: `builder.Services.AddServiceAuth("basket-service")` registers the outbound host once, and each typed client attaches the callee scope via `IHttpClientBuilder.AddServiceAuth("catalog.read")`.
 - Tokens are short-lived (≤ 5 min by default); revocation happens naturally via expiry.
 
 ### Negative
@@ -81,7 +81,7 @@ A subtle but important point: Option 1 lets us teach **scopes** explicitly. A to
 
 - **Realm setup** (in `keycloak/realm-export.json`):
   - One client per service reachable over authenticated HTTP: `catalog-service`, `basket-service`, `ordering-service`, `inventory-service`, `payments-service`, `invoicing-service`, `bff`. Two BCs are deliberately absent from that list: the Checkout saga, which exposes only unauthenticated health probes and otherwise interacts over Kafka (which carries no service token); and `Notifications`, whose bell hub does validate `notifications-service` but which nothing calls service-to-service — an audience value with no client and no scope behind it ([service-scope-matrix.md](../../src/keycloak/service-scope-matrix.md) § `notifications`).
-  - All are `publicClient: false`. The four outbound-active clients (`catalog-service`, `basket-service`, `ordering-service`, `bff`) set `serviceAccountsEnabled: true` with a client secret stored as env var `KEYCLOAK__SERVICE_CLIENT_SECRET__<service>`; the three inbound-only clients (`inventory-service`, `payments-service`, `invoicing-service`) are `serviceAccountsEnabled: false` with no secret — their `aud: <bc>-service` is stamped by the resource client-scope's `oidc-audience-mapper`, not a service account (see the 2026-05-27 amendment's outbound-active vs inbound-only table).
+  - All are `publicClient: false`. The two outbound-active clients (`basket-service`, `bff`) set `serviceAccountsEnabled: true` with a client secret stored as env var `KEYCLOAK__SERVICE_CLIENT_SECRET__<service>`; the five inbound-only clients (`catalog-service`, `ordering-service`, `inventory-service`, `payments-service`, `invoicing-service`) are `serviceAccountsEnabled: false` with no secret — their `aud: <bc>-service` is stamped by the resource client-scope's `oidc-audience-mapper`, not a service account (see the 2026-05-27 amendment's outbound-active vs inbound-only table). Outbound-active means the BC's own code calls `AddServiceAuth` to make cross-BC HTTP calls (Basket → Catalog; the BFF → the BCs it fronts); Catalog and Ordering are HTTP callees only — their clients exist to own an audience, not to mint tokens.
   - Scopes defined per target service: `catalog.read`, `catalog.write`, `inventory.read`, `inventory.write`, etc.
   - Service-to-scope matrix is documented in `keycloak/service-scope-matrix.md` (co-authored with this ADR).
 
@@ -129,10 +129,12 @@ This collapses BCs into two well-defined shapes:
 
 | Shape | Calls `services.AddServiceAuth("<bc>-service")`? | `ServiceAuth` section in `appsettings.json`? | `Authentication.JwtBearer.TokenValidationParameters.ValidAudience` |
 |---|---|---|---|
-| **Outbound-active** (e.g. Basket, Catalog, Ordering) | Yes | Yes — `ServiceName` must equal `ValidAudience` | Required — set to `"<bc>-service"` |
-| **Inbound-only** (e.g. Inventory, Invoicing, Payments) | No | **No — section must be omitted entirely** | Required — set to `"<bc>-service"` |
+| **Outbound-active** (Basket, BFF) | Yes | Yes — `ServiceName` must equal `ValidAudience` | Required — `"<bc>-service"` (the BFF is the exception: it pins its user-facing `"bff"` audience) |
+| **Inbound-only** (Catalog, Ordering, Inventory, Invoicing, Payments) | No | **No — section must be omitted entirely** | Required — set to `"<bc>-service"` |
 
 Creating a `ServiceAuth` section without a matching `AddServiceAuth(...)` call is disallowed: the section is inert without the DI call, and any "pre-provisioned for future outbound calls" config introduces drift risk. Add the section the day an outbound HTTP client lands.
+
+The same rule applies one layer down, in the realm: a Keycloak client that sets `serviceAccountsEnabled: true` and carries a client secret **without a matching `AddServiceAuth` consumer** is the realm-layer form of the same dead config — an unrotated live credential no code can use. So `serviceAccountsEnabled` tracks the outbound-active set exactly (`basket-service`, `bff`); an inbound-only BC's client stays `serviceAccountsEnabled: false` with no secret, existing only to own its `aud` via the resource scope's `oidc-audience-mapper`. Flip the client to a service account the day its BC's code calls `AddServiceAuth`, not before.
 
 ### Defense-in-depth: three-phase options pipeline
 
@@ -183,7 +185,7 @@ This amendment caught Inventory's silent breakage during its own implementation:
 
 ### Consequences
 
-- Audit a BC's category in 30 seconds: grep its `AuthenticationDependencyInjection.cs` for `services.AddServiceAuth(serviceName:`. Yes → outbound-active. No → inbound-only.
+- Audit the outbound-active set in 30 seconds: `grep -rn '"ServiceAuth"' --include='appsettings*.json' .` — it returns exactly `Basket.Api` and `EShop.BFF.Api`, and nothing else. The section is the reliable signal (the `:135` invariant makes section-and-`AddServiceAuth`-call mutually implied, and `ServiceAuthOptions` is `[Required]`-validated so a section without a live secret fails boot), robust to which composition-root file the DI call lives in and to named-vs-positional arguments — unlike grepping for the `AddServiceAuth` call itself, which also matches the unrelated `IHttpClientBuilder.AddServiceAuth(scope)` per-client overload and misses calls made outside `AuthenticationDependencyInjection.cs` (the BFF's lives in `InfrastructureDependencyInjection.cs`).
 - A BC that exposes inbound HTTP without setting `ValidAudience` cannot accept any token. The platform layer no longer hides the misconfiguration behind a fallback.
 - The `service-scope-matrix.md` companion document still lists every service's outbound scopes; what it does NOT do is imply that every entry corresponds to a wired `AddServiceAuth(...)` call. Wire it explicitly per service.
 - Neither shape covers a BC whose only HTTP surface is the unauthenticated health/metrics endpoints: `OutboxRelay` and `SagaOrchestrators` carry all business traffic over Kafka, so there is no inbound `ValidAudience` to pin and no outbound `ServiceAuth` section to add.
@@ -258,7 +260,7 @@ already satisfies the corresponding read policy.
 - Every human-admin endpoint is reachable by an `admin` user through the swagger client, and every
   role gate is pinned by a negative test (correct scope / authenticated non-admin → 403).
 - The `service-scope-matrix.md` companion documents the swagger client's admin-scope provisioning
-  and Payments' human-admin reachability alongside the seven per-BC clients (four service-account, three inbound-only).
+  and Payments' human-admin reachability alongside the seven per-BC clients (two service-account, five inbound-only).
 
 ## Amendment 2026-06-06 — BFF token exchange for buyer-scoped callees
 
