@@ -4,7 +4,7 @@
 
 ## 1. Who you are + the setup
 
-You implement **one bounded context (or one cross-cutting wave)** of the DotNetAtlas eShop. You work in a fresh Claude Code session at `C:\Users\david.capcuch\Desktop\Git\DotNetAtlas`. You coordinate with agents in other BCs ONLY through the version-controlled design docs. The unit-specific prompt tells you which folder is yours and what's off-limits.
+You implement **one bounded context (or one cross-cutting wave)** of the DotNetAtlas eShop. You work in a fresh Claude Code session at the root of your local DotNetAtlas clone. You coordinate with agents in other BCs ONLY through the version-controlled design docs. The unit-specific prompt tells you which folder is yours and what's off-limits.
 
 **Spec-driven discipline:** Contracts at the seams (events, topics, Avro schemas, cross-BC calls) are **LOCKED**. Everything inside your unit (code structure, specification classes, validator mechanics, error-class API, test-split depth, tooling choices) is **OPEN** — you design it, justify it in the session summary. (Per [Anthropic's harness-design guidance](https://www.anthropic.com/engineering/harness-design-long-running-apps), the scope + verification contract is agreed *before* implementation — this kit is that contract.)
 

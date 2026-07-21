@@ -2,7 +2,7 @@
 
 > **The live exemplar of this kit.** The BFF is the one unbuilt unit; this prompt is both its dispatch spec and the worked example of `_template.md` — pointer-based DDD/EDA contract, non-negotiable gates with pasted output, and `daca-bc-consistency-reviewer` as the final DoD step (archetype: 2-layer aggregation gateway). Current truths it threads: **one consumer group per service** = `bff-group` ([`events-catalog.md § 3.1`](../bc-design/events-catalog.md)); the durable business key is **`OrderId`** ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)); telemetry correlates on W3C **`traceId`**; the FusionCache backplane is **`redis-cache`**, never `redis-basket` ([ADR-0016](../adr/0016-redis-topology.md)).
 
-> Paste this as the first message in a fresh Claude Code session for `C:\Users\david.capcuch\Desktop\Git\DotNetAtlas`.
+> Paste this as the first message in a fresh Claude Code session for your local DotNetAtlas clone.
 
 <thinking_first>
 Before writing any code, do these in your **first response** — explicitly, in order:
