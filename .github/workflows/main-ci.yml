@@ -7,9 +7,6 @@ on:
       SONAR_TOKEN:
         required: true
 
-env:
-  OTEL_SDK_DISABLED: true
-
 permissions:
   contents: read
 

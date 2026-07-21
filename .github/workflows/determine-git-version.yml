@@ -29,13 +29,12 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+      # GitVersion reads git history, not the restored project graph — so no `dotnet restore` here,
+      # and no NuGet cache to prime. The SDK is still needed: the GitVersion tool runs on .NET.
       - name: Setup .NET SDK (10.0.100)
         uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v5
         with:
           dotnet-version: "10.0.100"
-          cache: true
-          cache-dependency-path: "**/packages.lock.json"
-      - run: dotnet restore --locked-mode
       - name: Install GitVersion
         uses: gittools/actions/gitversion/setup@b82e662a7199df56ac962118e506d9efb9830f82 #v4.1.0
         with:
