@@ -2,6 +2,7 @@
     <!-- Project-specific packages only (common test packages in ../../test/Directory.Build.props) -->
     <ItemGroup>
         <FrameworkReference Include="Microsoft.AspNetCore.App"/>
+        <PackageReference Include="Microsoft.AspNetCore.TestHost"/>
         <PackageReference Include="Microsoft.Extensions.Http.Resilience"/>
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer"/>
         <PackageReference Include="OpenFeature"/>

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NSwag;
 using NSwag.AspNetCore;
 
@@ -68,35 +69,67 @@ public static class SwaggerDependencyInjection
                     new AuthDescriptionOperationProcessor(
                         options.Services.GetRequiredService<IAuthorizationPolicyProvider>()));
 
-                var authority = configuration[$"{SwaggerConfigSections.JwtBearerConfigSection}:Authority"]
-                    ?? throw new InvalidOperationException(
-                        $"'{SwaggerConfigSections.JwtBearerConfigSection}:Authority' must be configured "
-                        + "for the Swagger OAuth2 flow.");
-                var tokenUrl = $"{authority}/protocol/openid-connect/token";
-                var authorizationUrl = $"{authority}/protocol/openid-connect/auth";
-
-                settings.AddAuth(nameof(OpenApiSecuritySchemeType.OAuth2), new OpenApiSecurityScheme
+                var authority = configuration[$"{SwaggerConfigSections.JwtBearerConfigSection}:Authority"];
+                var oauth2Scheme = BuildOAuth2Scheme(authority, scopes);
+                if (oauth2Scheme is null)
                 {
-                    Type = OpenApiSecuritySchemeType.OAuth2,
-                    Flows = new OpenApiOAuthFlows
-                    {
-                        AuthorizationCode = new OpenApiOAuthFlow
-                        {
-                            AuthorizationUrl = authorizationUrl,
-                            TokenUrl = tokenUrl,
-                            RefreshUrl = tokenUrl,
-                            Scopes = scopes.ToDictionary(s => s.Key, s => s.Value),
-                        },
-                    },
-                    Flow = OpenApiOAuth2Flow.AccessCode,
-                    Description =
-                        "IMPORTANT NOTE: If you do not specify any scope in the authentication request, "
-                        + "the generated access token gets all scopes the specified client_id is authorized for.",
-                });
+                    options.Services.GetService<ILoggerFactory>()?
+                        .CreateLogger(typeof(SwaggerDependencyInjection).FullName!)
+                        .LogWarning(
+                            "Swagger OAuth2 flow disabled: '{ConfigKey}' is not configured. The OpenAPI "
+                            + "document is served without an Authorize button.",
+                            $"{SwaggerConfigSections.JwtBearerConfigSection}:Authority");
+                    return;
+                }
+
+                settings.AddAuth(nameof(OpenApiSecuritySchemeType.OAuth2), oauth2Scheme);
             };
         });
 
         return services;
+    }
+
+    /// <summary>
+    /// Builds the Keycloak OAuth2 Authorization-Code + PKCE security scheme, deriving the
+    /// authorization/token endpoints from <paramref name="authority"/>. Returns <c>null</c> when
+    /// <paramref name="authority"/> is absent or blank so the OpenAPI document is served without an
+    /// Authorize button rather than failing generation: a deployed tier that has dropped
+    /// <c>Authentication:JwtBearer:Authority</c> still gets a usable document (paths + schemas), and
+    /// developer/test tiers — which always configure the authority — keep the full OAuth2 flow.
+    /// </summary>
+    /// <param name="authority">The Keycloak realm authority, e.g. <c>https://…/realms/dotnetatlas</c>.</param>
+    /// <param name="scopes">Scope-name to description map advertised by the flow.</param>
+    /// <returns>The configured scheme, or <c>null</c> when no authority is available.</returns>
+    internal static OpenApiSecurityScheme? BuildOAuth2Scheme(
+        string? authority,
+        IReadOnlyDictionary<string, string> scopes)
+    {
+        if (string.IsNullOrWhiteSpace(authority))
+        {
+            return null;
+        }
+
+        var tokenUrl = $"{authority}/protocol/openid-connect/token";
+        var authorizationUrl = $"{authority}/protocol/openid-connect/auth";
+
+        return new OpenApiSecurityScheme
+        {
+            Type = OpenApiSecuritySchemeType.OAuth2,
+            Flows = new OpenApiOAuthFlows
+            {
+                AuthorizationCode = new OpenApiOAuthFlow
+                {
+                    AuthorizationUrl = authorizationUrl,
+                    TokenUrl = tokenUrl,
+                    RefreshUrl = tokenUrl,
+                    Scopes = scopes.ToDictionary(s => s.Key, s => s.Value),
+                },
+            },
+            Flow = OpenApiOAuth2Flow.AccessCode,
+            Description =
+                "IMPORTANT NOTE: If you do not specify any scope in the authentication request, "
+                + "the generated access token gets all scopes the specified client_id is authorized for.",
+        };
     }
 
     /// <summary>

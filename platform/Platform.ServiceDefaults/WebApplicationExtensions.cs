@@ -10,10 +10,38 @@ using Prometheus;
 namespace Platform.ServiceDefaults;
 
 /// <summary>
-/// Extension methods for WebApplication to configure health check endpoints.
+/// Extension methods for WebApplication host wiring — health-check endpoints and the
+/// environment-gated exception surface.
 /// </summary>
 public static class WebApplicationExtensions
 {
+    /// <summary>
+    /// Wires the environment-appropriate exception surface. Deployed tiers
+    /// (<see cref="HostEnvironmentExtensions.IsDeployedEnvironment"/>) get the platform
+    /// <c>UseExceptionHandler</c> — a redacted ProblemDetails response via the registered
+    /// exception handler / <c>IProblemDetailsService</c>. Developer tiers (Development/Testing) get
+    /// the developer exception page with full diagnostics. Gated on <c>IsDeployedEnvironment()</c>
+    /// so a stack-trace page can never ship to a deployed cluster — the same deployed redaction the
+    /// platform exception handler and health-check response writer already apply.
+    /// </summary>
+    /// <param name="app">The web application.</param>
+    /// <returns>The web application for chaining.</returns>
+    public static WebApplication UsePlatformExceptionHandling(this WebApplication app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        if (app.Environment.IsDeployedEnvironment())
+        {
+            app.UseExceptionHandler();
+        }
+        else
+        {
+            app.UseDeveloperExceptionPage();
+        }
+
+        return app;
+    }
+
     /// <summary>
     /// Maps health check endpoints with appropriate filters.
     /// Maps liveness endpoint at /api/healthz and readiness endpoint at /api/readiness.

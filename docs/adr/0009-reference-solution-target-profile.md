@@ -120,6 +120,10 @@ A reader who later needs production shape gets the best of both: the pattern is 
 
     **Outbound service tokens (deployed):** the same TLS requirement applies to the outbound backchannel on every *outbound-active* edge — the services that call `services.AddServiceAuth(...)` (Basket and the BFF today). `ServiceAuth__Authority` must be a reachable `https://` OIDC realm URL; base `appsettings.json` ships `http://localhost`. The token endpoint derived from it receives the client-credentials `client_secret` and the RFC 8693 exchanged user tokens, so a plaintext Authority POSTs those secrets in the clear. The platform `AddServiceAuth` guard trips at **startup** (the existing `ValidateOnStart` on `ServiceAuthOptions`) — the outbound symmetry of the inbound guard above; no-op in Development / Testing, and the same internal-plaintext-metadata topology stays out of scope (relax the platform guard to accept it). See [ADR-0010](0010-service-to-service-auth.md).
 
+11. **Dev surfaces (Swagger UI + developer exception page):** both gate on `IsDeployedEnvironment()` (true for any environment name other than `Development` / `Testing`), **not** a literal `Production` check — so a deployed tier named `Staging` or `Dev` never leaks the API surface, schemas, or stack traces. Both are off on *every* deployed tier and served only in Development / Testing:
+    - **Developer exception page** — matches `PlatformExceptionHandler`'s deployed redaction; deployed diagnostics go to structured logs → Seq / Jaeger, not an HTTP stack-trace page. Wired once via the platform `app.UsePlatformExceptionHandling()`.
+    - **Swagger UI** — each host serves it only when `!app.Environment.IsDeployedEnvironment()`; the OpenAPI document is registered unconditionally, but the UI middleware (and the landing-page link) are gated, so a deployed tier 404s cleanly.
+
 ## Related Decisions
 
 - [ADR-0001](0001-centralized-saga-orchestration.md) — centralized saga placement fits single-AZ profile

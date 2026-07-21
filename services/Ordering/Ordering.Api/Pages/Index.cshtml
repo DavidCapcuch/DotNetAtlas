@@ -1,5 +1,6 @@
 @page
 @model Ordering.Api.Pages.IndexModel
+@using Platform.ServiceDefaults
 @{
     ViewData["Title"] = Model.Title;
 }
@@ -15,7 +16,7 @@
 <h1>@Model.Title</h1>
 <h3>Deployment: @Model.Env.EnvironmentName</h3>
 
-@if (!Model.Env.IsProduction())
+@if (!Model.Env.IsDeployedEnvironment())
 {
     <h3><a href="/swagger" target="_blank" rel="noopener noreferrer">Swagger</a></h3>
 }
