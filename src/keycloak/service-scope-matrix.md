@@ -1,6 +1,6 @@
 # Service-to-Service Auth — Client ↔ Scope Matrix
 
-Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Credentials](../../docs/adr/0010-service-to-service-auth.md) and the `clientScopes` + 7 per-BC clients (4 service-account, 3 inbound-only) defined in [realm-export.json](realm-export.json).
+Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Credentials](../../docs/adr/0010-service-to-service-auth.md) and the `clientScopes` + 7 per-BC clients (2 service-account, 5 inbound-only) defined in [realm-export.json](realm-export.json).
 
 ## Conventions
 
@@ -66,13 +66,12 @@ Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Cred
 
 ## 2. Per-service blocks
 
-All 7 per-BC clients are `publicClient: false`. Four — `catalog`, `basket`, `ordering`, `bff` — set `serviceAccountsEnabled: true`, use only the client-credentials grant (standard/direct-access/implicit flows disabled), and carry a committed dev secret. The other three — `inventory`, `payments`, `invoicing` — are `serviceAccountsEnabled: false` with no secret: they expose only inbound endpoints, so their `aud: <bc>-service` identity comes from the resource client-scope's `oidc-audience-mapper` (see Audience above), not a service account.
+All 7 per-BC clients are `publicClient: false`. Two — `basket`, `bff` — set `serviceAccountsEnabled: true`, use only the client-credentials grant (standard/direct-access/implicit flows disabled), and carry a committed dev secret, because their BCs make outbound cross-BC HTTP calls (`AddServiceAuth`). The other five — `catalog`, `ordering`, `inventory`, `payments`, `invoicing` — are `serviceAccountsEnabled: false` with no secret: they expose only inbound endpoints, so their `aud: <bc>-service` identity comes from the resource client-scope's `oidc-audience-mapper` (see Audience above), not a service account. A client flips to a service account the day its BC's code calls `AddServiceAuth`, not before — a service account + secret with no consumer is dead config (ADR-0010 §amendment 2026-05-27).
 
 ### `catalog-service`
 
 - **Audience:** `catalog-service`
-- **Outbound (acquirable via `optionalClientScopes`):** `catalog.write`
-  - `catalog.write` — reserved for administrative write paths that treat Catalog's own API as a service callee.
+- **Outbound:** none — Catalog v1 makes no cross-BC HTTP calls, so its client is `serviceAccountsEnabled: false` (inbound-only) with no secret and no `optionalClientScopes`. `catalog.write` is a **human-admin** scope obtained through the `dotnetatlas-swagger` client (§`dotnetatlas-swagger`), not an outbound scope on this client.
 - **Inbound (must validate on `AddJwtBearer`):** `catalog.read` (reads); **`admin` role + `catalog.write` scope** (writes)
   - Any service calling `GET /api/v1/catalog/...` with a service-account token must present `catalog.read` (a token bearing `catalog.write` also satisfies the read policy). The admin write/mutation endpoints (CreateProduct, UpdateProductPrice, Discontinue, Reactivate, CreateCategory, ReparentCategory, admin product search, DescribeProduct) require the **`admin` realm role AND the `catalog.write` scope** (defense-in-depth, mirroring `inventory-service`; see [`AuthPolicies`](../../services/Catalog/Catalog.Api/Common/Authorization/AuthPolicies.cs)). An admin obtains the scope by requesting `catalog.write` through the `dotnetatlas-swagger` client; the role gate blocks non-admins.
 - **Cross-refs:** `bff.md §3.1` (BFF → Catalog reads), `basket.md` (Basket ACL → Catalog).
@@ -89,7 +88,7 @@ All 7 per-BC clients are `publicClient: false`. Four — `catalog`, `basket`, `o
 ### `ordering-service`
 
 - **Audience:** `ordering-service`
-- **Outbound:** none — order-state-change notifications are published via the Kafka outbox (no service token).
+- **Outbound:** none — order-state-change notifications are published via the Kafka outbox (no service token); the client is `serviceAccountsEnabled: false` (inbound-only) with no secret.
 - **Inbound:** `ordering.read` (reads — audience only, not a scope policy); **`admin` role only** (admin writes)
   - The BFF reads orders with an `ordering.read`-scoped token, but Ordering enforces **no read-scope policy** — `ordering.read`'s only job here is to stamp `aud: ordering-service`. The order-read endpoints (`GetOrderById`, `GetOrdersByBuyer`) set no `Policies(...)`; ownership is enforced **in the handler** (buyer-self from the JWT `sub`, cross-buyer → 404). That `sub`-dependence is why the BFF's order reads use **RFC 8693 token exchange** to preserve the buyer `sub` ([ADR-0010 § BFF token exchange](../../docs/adr/0010-service-to-service-auth.md#amendment-2026-06-06--bff-token-exchange-for-buyer-scoped-callees)), not a plain service token. The admin endpoints (MarkOrderShipped, MarkOrderDelivered) are **role-only** — they are pure human-admin actions with no service-delegation dimension, so no `ordering.write` scope is defined (ADR-0010 §"Role vs scope canonical model"). An admin reaches them with the `admin` role obtained through the `dotnetatlas-swagger` client. Saga commands enter via Kafka on `ordering.order-commands`; no application-layer scope check on that path (ADR-0009 single-trust-zone).
 - **Cross-refs:** `bff.md §3.3`, `events-catalog.md §2` (Ordering Commands).
@@ -216,9 +215,9 @@ would gate nothing while stamping an audience with no policy behind it — the d
 
 ### Dev-only secrets
 
-`realm-export.json` commits four literal client secrets of the form `dev-<service>-secret-rotate-in-prod` — one per service-account client (`catalog`, `basket`, `ordering`, `bff`). **These are acceptable ONLY for local Docker dev** — every non-local environment MUST regenerate each secret.
+`realm-export.json` commits two literal client secrets of the form `dev-<service>-secret-rotate-in-prod` — one per service-account client (`basket`, `bff`). **These are acceptable ONLY for local Docker dev** — every non-local environment MUST regenerate each secret.
 
-**Why committed literal (and not templated):** Keycloak's `--import-realm` does not perform `${ENV_VAR}` substitution on realm-export.json. Committing placeholders would require adding a pre-mount substitution layer (custom entrypoint or `envsubst` preprocessing); that complexity is out of Wave 0 scope. The pattern matches every committed service-client secret in `realm-export.json` (e.g. `catalog-service` → `dev-catalog-service-secret-rotate-in-prod`).
+**Why committed literal (and not templated):** Keycloak's `--import-realm` does not perform `${ENV_VAR}` substitution on realm-export.json. Committing placeholders would require adding a pre-mount substitution layer (custom entrypoint or `envsubst` preprocessing); that complexity is out of Wave 0 scope. The pattern matches every committed service-client secret in `realm-export.json` (e.g. `basket-service` → `dev-basket-service-secret-rotate-in-prod`).
 
 ### Rotating a service secret
 
@@ -232,7 +231,7 @@ Via `kcadm.sh` (scripted):
 docker exec -it keycloak9011 /opt/keycloak/bin/kcadm.sh \
   config credentials --server http://localhost:8080 --realm master --user admin --password admin
 docker exec -it keycloak9011 /opt/keycloak/bin/kcadm.sh \
-  update "clients/$(docker exec keycloak9011 /opt/keycloak/bin/kcadm.sh get clients -r dotnetatlas -q clientId=catalog-service --fields id --format csv --noquotes | tail -1)/client-secret" \
+  update "clients/$(docker exec keycloak9011 /opt/keycloak/bin/kcadm.sh get clients -r dotnetatlas -q clientId=basket-service --fields id --format csv --noquotes | tail -1)/client-secret" \
   -r dotnetatlas -s value=<new-secret>
 ```
 
@@ -242,12 +241,10 @@ Services read their own secret from the env-var pattern:
 
 | Service | Env var | Value source |
 |---|---|---|
-| `catalog-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__CATALOG` | compose `.env` (dev) or vault (prod) |
-| `basket-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__BASKET` | ″ |
-| `ordering-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__ORDERING` | ″ |
+| `basket-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__BASKET` | compose `.env` (dev) or vault (prod) |
 | `bff` | `KEYCLOAK__SERVICE_CLIENT_SECRET__BFF` | ″ |
 
-> Only the four `serviceAccountsEnabled: true` clients have a secret. `inventory` / `payments` / `invoicing` are inbound-only (`serviceAccountsEnabled: false`), acquire no token, and need no `KEYCLOAK__SERVICE_CLIENT_SECRET__*` env var.
+> Only the two `serviceAccountsEnabled: true` clients (`basket`, `bff`) have a secret. `catalog` / `ordering` / `inventory` / `payments` / `invoicing` are inbound-only (`serviceAccountsEnabled: false`), acquire no token, and need no `KEYCLOAK__SERVICE_CLIENT_SECRET__*` env var.
 
 Wave 0 **M7** wires these env-vars into per-service `appsettings.*.json` + compose `environment` blocks.
 
@@ -301,20 +298,23 @@ curl -s "http://localhost:9011/admin/realms/dotnetatlas/clients/$SW/protocol-map
   -H "Authorization: Bearer $TOKEN" \
   | python -c "import sys,json;auds=sorted(m['config']['included.client.audience'] for m in json.load(sys.stdin) if m['protocolMapper']=='oidc-audience-mapper');print('swagger audiences:',auds);print('exactly the 4 expected:',auds==['bff','invoicing-service','notifications-service','ordering-service']);print('no bypass audiences:',not ({'basket-service','catalog-service','inventory-service','payments-service'} & set(auds)))"
 
-# Service-account token for catalog-service with scope catalog.write
+# Service-account token minted as basket-service asking for the catalog.read scope.
+# Caller (basket-service) != callee (catalog-service) on purpose: it proves the aud
+# rides the requested scope's mapper, not the caller identity — a check catalog-service
+# asking for catalog.write could not make (there caller and callee coincide).
 curl -s -X POST http://localhost:9011/realms/dotnetatlas/protocol/openid-connect/token \
   -d 'grant_type=client_credentials' \
-  -d 'client_id=catalog-service' \
-  -d 'client_secret=dev-catalog-service-secret-rotate-in-prod' \
-  -d 'scope=catalog.write' \
+  -d 'client_id=basket-service' \
+  -d 'client_secret=dev-basket-service-secret-rotate-in-prod' \
+  -d 'scope=catalog.read' \
   | python -c "import sys,json,base64;t=json.load(sys.stdin)['access_token'];p=t.split('.')[1];p+='='*(4-len(p)%4);d=json.loads(base64.urlsafe_b64decode(p));print('azp',d.get('azp'),'aud',d.get('aud'),'scope',d.get('scope'))"
 ```
 
-Expected result on the catalog-service check: `azp catalog-service aud catalog-service scope <...> catalog.write` — the `aud` claim confirms the `catalog.write` scope's `audience-catalog-service` mapper fired. (Cross-service check: mint as `basket-service` with `scope=catalog.read` → `aud catalog-service`, proving the audience follows the scope/callee, not the caller.) The swagger-mapper check prints exactly the four unconditional audiences `['bff', 'invoicing-service', 'notifications-service', 'ordering-service']` with `exactly the 4 expected: True` and `no bypass audiences: True` — the bell hub (`notifications-service`) and the role-only Ordering/Invoicing admin endpoints stay reachable through a real human login, while basket/catalog/inventory/payments are NOT stamped unconditionally ([§ Notifications](#notifications-in-app-bell--user-facing-not-a-service-client)).
+Expected result on the basket-service check: `azp basket-service aud catalog-service scope <...> catalog.read` — caller ≠ callee, so the `aud` claim proves the `catalog.read` scope's `audience-catalog-service` mapper stamps the **callee**, not the caller. The swagger-mapper check prints exactly the four unconditional audiences `['bff', 'invoicing-service', 'notifications-service', 'ordering-service']` with `exactly the 4 expected: True` and `no bypass audiences: True` — the bell hub (`notifications-service`) and the role-only Ordering/Invoicing admin endpoints stay reachable through a real human login, while basket/catalog/inventory/payments are NOT stamped unconditionally ([§ Notifications](#notifications-in-app-bell--user-facing-not-a-service-client)).
 
 ---
 
 ## 5. Open follow-ups (Wave 0 DoD or later)
 
-1. **Wave 0 M7** — wire the four `KEYCLOAK__SERVICE_CLIENT_SECRET__*` env vars (`catalog`, `basket`, `ordering`, `bff`) into compose `environment` blocks and per-service `appsettings.*.json` so `ClientCredentialsTokenHandler` (from M3) can acquire tokens at runtime.
+1. **Wave 0 M7** — wire the two `KEYCLOAK__SERVICE_CLIENT_SECRET__*` env vars (`basket`, `bff`) into compose `environment` blocks and per-service `appsettings.*.json` so `ClientCredentialsTokenHandler` (from M3) can acquire tokens at runtime.
 2. **Secret rotation playbook** — formalize the kcadm.sh rotation recipe above into a runbook when production infra is in scope.
