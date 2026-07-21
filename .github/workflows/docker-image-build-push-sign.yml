@@ -156,6 +156,13 @@ jobs:
           # eviction is LRU across one 10 GB repository-wide budget regardless of scope — so letting
           # every PR write ten `mode=max` entries would evict the entries `main` depends on and
           # leave the release path building cold anyway. PRs read; releases write.
+          #
+          # Kept on `type=gha` rather than `type=registry` (GHCR sits outside this budget): two blockers
+          # outweigh dodging eviction. Non-release builds hold `contents:read` with no `docker login`
+          # (main-ci.yml / pr-ci.yml withhold `packages` deliberately), so a private GHCR cache ref 401s
+          # to a cold build — worse than the free `type=gha` read — and fork PRs cannot read it at all.
+          # GHCR also never GCs untagged versions, so ten `mode=max` refs would accumulate unpruned. The
+          # only cross-release layer is restore anyway (R2R publish re-runs every build), so the gain is small.
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: ${{ inputs.publish && format('type=gha,scope={0},mode=max', matrix.image) || '' }}
       - name: Install cosign
