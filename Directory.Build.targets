@@ -1,0 +1,9 @@
+<Project>
+    <!--
+      `appsettings.Testing.json` relaxes security settings for in-process test fixtures.
+      Shipping the file makes it potentially reachable, so it does not go in the image.
+    -->
+    <ItemGroup>
+        <Content Update="appsettings.Testing.json" CopyToPublishDirectory="Never"/>
+    </ItemGroup>
+</Project>

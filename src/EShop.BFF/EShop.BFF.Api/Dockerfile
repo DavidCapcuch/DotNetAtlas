@@ -17,11 +17,18 @@ ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace
 
+# Resolve packages into a real image directory, NOT a BuildKit cache mount. `type=gha` exports
+# layer filesystem diffs but never cache mounts, so packages left in a mount are re-downloaded on
+# every CI run. Writing them into an ordinary layer lets `mode=max` export the restore layer; a
+# source-only change is then a cache hit that restores the packages instead of re-fetching them.
+ENV NUGET_PACKAGES=/nuget-packages
+
 # NuGet config + tier-isolated CPM files. The BFF lives under src/, so its package versions
 # come from src/Directory.Packages.props; the Platform.* libs it references come from
 # platform/Directory.Packages.props. (There is no root Directory.Packages.props.)
 COPY NuGet.config .
 COPY Directory.Build.props .
+COPY Directory.Build.targets .
 COPY global.json .
 COPY platform/Directory.Packages.props platform/
 COPY src/Directory.Packages.props src/
@@ -46,15 +53,12 @@ COPY platform/Platform.SchemaRegistry.Contracts/packages.lock.json platform/Plat
 COPY src/EShop.BFF/EShop.BFF.Infrastructure/packages.lock.json src/EShop.BFF/EShop.BFF.Infrastructure/
 COPY src/EShop.BFF/EShop.BFF.Api/packages.lock.json src/EShop.BFF/EShop.BFF.Api/
 
-# Restore the API entry-point csproj — pulls every transitive ProjectReference + PackageReference.
-RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet restore --locked-mode -p:PublishReadyToRun=true src/EShop.BFF/EShop.BFF.Api/EShop.BFF.Api.csproj
+# The single explicit restore, on the csproj-only layer. Publish (FROM build) re-restores implicitly
+# against the already-populated /nuget-packages layer — a no-op — so no restore after the source COPY.
+RUN dotnet restore --locked-mode -p:PublishReadyToRun=true src/EShop.BFF/EShop.BFF.Api/EShop.BFF.Api.csproj
 
 # Copy the rest of the source.
 COPY --link . .
-WORKDIR /workspace/src/EShop.BFF/EShop.BFF.Api
-
-# Re-restore after the source copy so analyzers/source-generators settle.
-RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet restore --locked-mode -p:PublishReadyToRun=true EShop.BFF.Api.csproj
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
@@ -64,7 +68,7 @@ ARG FILE_VERSION=0.0.0.0
 ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace/src/EShop.BFF/EShop.BFF.Api
-RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet publish EShop.BFF.Api.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
+RUN dotnet publish EShop.BFF.Api.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
     -p:RestoreLockedMode=true -p:UseAppHost=false -p:PublishReadyToRun=true -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM base AS final

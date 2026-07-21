@@ -17,12 +17,19 @@ ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace
 
+# Resolve packages into a real image directory, NOT a BuildKit cache mount. `type=gha` exports
+# layer filesystem diffs but never cache mounts, so packages left in a mount are re-downloaded on
+# every CI run. Writing them into an ordinary layer lets `mode=max` export the restore layer; a
+# source-only change is then a cache hit that restores the packages instead of re-fetching them.
+ENV NUGET_PACKAGES=/nuget-packages
+
 # Copy NuGet config + tier-isolated CPM files (per CLAUDE.md: platform/).
 # OutboxRelay is platform-only — no services-tier dependencies, so services/Directory.Packages.props
 # is intentionally NOT copied. The platform-tier Directory.Packages.props supplies every
 # PackageReference pinned at that tier (OpenTelemetry.*, Confluent.Kafka, Apache.Avro, etc.).
 COPY NuGet.config .
 COPY Directory.Build.props .
+COPY Directory.Build.targets .
 COPY global.json .
 COPY platform/Directory.Packages.props platform/
 
@@ -45,15 +52,12 @@ COPY platform/Platform.ReliableMessaging.Outbox.EFCore/packages.lock.json platfo
 COPY platform/Platform.ServiceDefaults/packages.lock.json platform/Platform.ServiceDefaults/
 COPY platform/Platform.OutboxRelay.WorkerService/packages.lock.json platform/Platform.OutboxRelay.WorkerService/
 
-# Restore the WorkerService entry-point csproj — pulls every transitive ProjectReference + PackageReference.
-RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet restore --locked-mode -p:PublishReadyToRun=true platform/Platform.OutboxRelay.WorkerService/Platform.OutboxRelay.WorkerService.csproj
+# The single explicit restore, on the csproj-only layer. Publish (FROM build) re-restores implicitly
+# against the already-populated /nuget-packages layer — a no-op — so no restore after the source COPY.
+RUN dotnet restore --locked-mode -p:PublishReadyToRun=true platform/Platform.OutboxRelay.WorkerService/Platform.OutboxRelay.WorkerService.csproj
 
 # Copy the worker service source files
 COPY --link . .
-WORKDIR /workspace/platform/Platform.OutboxRelay.WorkerService
-
-# Ensure full restore after copying all sources (includes analyzers/source generators)
-RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet restore --locked-mode -p:PublishReadyToRun=true Platform.OutboxRelay.WorkerService.csproj
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
@@ -63,7 +67,7 @@ ARG FILE_VERSION=0.0.0.0
 ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace/platform/Platform.OutboxRelay.WorkerService
-RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet publish Platform.OutboxRelay.WorkerService.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
+RUN dotnet publish Platform.OutboxRelay.WorkerService.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
     -p:RestoreLockedMode=true -p:UseAppHost=false -p:PublishReadyToRun=true -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM base AS final

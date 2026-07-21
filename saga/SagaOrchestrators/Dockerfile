@@ -17,6 +17,12 @@ ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace
 
+# Resolve packages into a real image directory, NOT a BuildKit cache mount. `type=gha` exports
+# layer filesystem diffs but never cache mounts, so packages left in a mount are re-downloaded on
+# every CI run. Writing them into an ordinary layer lets `mode=max` export the restore layer; a
+# source-only change is then a cache hit that restores the packages instead of re-fetching them.
+ENV NUGET_PACKAGES=/nuget-packages
+
 # Copy NuGet config + tier-isolated CPM files (per CLAUDE.md: platform/ + saga/).
 # Saga lives in the `saga/` tier (alongside services/, platform/, test/), so its CPM file is
 # saga/Directory.Packages.props — NOT services/Directory.Packages.props. Both tier props files
@@ -24,6 +30,7 @@ WORKDIR /workspace
 # libs can resolve every PackageReference.
 COPY NuGet.config .
 COPY Directory.Build.props .
+COPY Directory.Build.targets .
 COPY global.json .
 COPY platform/Directory.Packages.props platform/
 COPY saga/Directory.Packages.props saga/
@@ -54,15 +61,12 @@ COPY saga/SagaOrchestrators/SagaOrchestrators.csproj saga/SagaOrchestrators/
 # Lock file must travel with the csproj graph for --locked-mode restore.
 COPY saga/SagaOrchestrators/packages.lock.json saga/SagaOrchestrators/
 
-# Restore the saga entry-point csproj — pulls every transitive ProjectReference + PackageReference.
-RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet restore --locked-mode -p:PublishReadyToRun=true saga/SagaOrchestrators/SagaOrchestrators.csproj
+# The single explicit restore, on the csproj-only layer. Publish (FROM build) re-restores implicitly
+# against the already-populated /nuget-packages layer — a no-op — so no restore after the source COPY.
+RUN dotnet restore --locked-mode -p:PublishReadyToRun=true saga/SagaOrchestrators/SagaOrchestrators.csproj
 
 # Copy the rest of the source.
 COPY --link . .
-WORKDIR /workspace/saga/SagaOrchestrators
-
-# Re-restore after the source copy so analyzers/source-generators/avro generators settle.
-RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet restore --locked-mode -p:PublishReadyToRun=true SagaOrchestrators.csproj
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
@@ -72,7 +76,7 @@ ARG FILE_VERSION=0.0.0.0
 ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace/saga/SagaOrchestrators
-RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet publish SagaOrchestrators.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
+RUN dotnet publish SagaOrchestrators.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
     -p:RestoreLockedMode=true -p:UseAppHost=false -p:PublishReadyToRun=true -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM base AS final

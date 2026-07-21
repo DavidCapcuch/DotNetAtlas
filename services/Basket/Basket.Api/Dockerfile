@@ -17,6 +17,12 @@ ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace
 
+# Resolve packages into a real image directory, NOT a BuildKit cache mount. `type=gha` exports
+# layer filesystem diffs but never cache mounts, so packages left in a mount are re-downloaded on
+# every CI run. Writing them into an ordinary layer lets `mode=max` export the restore layer; a
+# source-only change is then a cache hit that restores the packages instead of re-fetching them.
+ENV NUGET_PACKAGES=/nuget-packages
+
 # Copy NuGet config + tier-isolated CPM files (per CLAUDE.md: platform/ + services/).
 # Both tier props files MUST be in place before restore so the Basket API project graph
 # (Basket.{Domain,Application,Infrastructure,Api} + transitive Platform.* libs) can resolve
@@ -24,6 +30,7 @@ WORKDIR /workspace
 # platform-tier packages in platform/Directory.Packages.props.
 COPY NuGet.config .
 COPY Directory.Build.props .
+COPY Directory.Build.targets .
 COPY global.json .
 COPY platform/Directory.Packages.props platform/
 COPY services/Directory.Packages.props services/
@@ -43,6 +50,7 @@ COPY platform/Platform.KafkaFlow.DeadLetter/Platform.KafkaFlow.DeadLetter.csproj
 COPY platform/Platform.KafkaFlow.Inbox.EFCore/Platform.KafkaFlow.Inbox.EFCore.csproj platform/Platform.KafkaFlow.Inbox.EFCore/
 COPY platform/Platform.KafkaFlow.ProducerHeaders/Platform.KafkaFlow.ProducerHeaders.csproj platform/Platform.KafkaFlow.ProducerHeaders/
 COPY platform/Platform.ServiceDefaults/Platform.ServiceDefaults.csproj platform/Platform.ServiceDefaults/
+COPY platform/Platform.Api/Platform.Api.csproj platform/Platform.Api/
 
 # Copy Basket project files (project-references already handled above).
 COPY services/Basket/Basket.Domain/Basket.Domain.csproj services/Basket/Basket.Domain/
@@ -51,20 +59,18 @@ COPY services/Basket/Basket.Infrastructure/Basket.Infrastructure.csproj services
 COPY services/Basket/Basket.Api/Basket.Api.csproj services/Basket/Basket.Api/
 
 # Lock files must travel with the csproj graph for --locked-mode restore.
+COPY platform/Platform.Api/packages.lock.json platform/Platform.Api/
 COPY services/Basket/Basket.Domain/packages.lock.json services/Basket/Basket.Domain/
 COPY services/Basket/Basket.Application/packages.lock.json services/Basket/Basket.Application/
 COPY services/Basket/Basket.Infrastructure/packages.lock.json services/Basket/Basket.Infrastructure/
 COPY services/Basket/Basket.Api/packages.lock.json services/Basket/Basket.Api/
 
-# Restore the API entry-point csproj — pulls every transitive ProjectReference + PackageReference.
-RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet restore --locked-mode -p:PublishReadyToRun=true services/Basket/Basket.Api/Basket.Api.csproj
+# The single explicit restore, on the csproj-only layer. Publish (FROM build) re-restores implicitly
+# against the already-populated /nuget-packages layer — a no-op — so no restore after the source COPY.
+RUN dotnet restore --locked-mode -p:PublishReadyToRun=true services/Basket/Basket.Api/Basket.Api.csproj
 
 # Copy the rest of the source.
 COPY --link . .
-WORKDIR /workspace/services/Basket/Basket.Api
-
-# Re-restore after the source copy so analyzers/source-generators/avro generators settle.
-RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet restore --locked-mode -p:PublishReadyToRun=true Basket.Api.csproj
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
@@ -74,7 +80,7 @@ ARG FILE_VERSION=0.0.0.0
 ARG INFORMATIONAL_VERSION=0.0.0
 ARG RUNTIME_ID=linux-x64
 WORKDIR /workspace/services/Basket/Basket.Api
-RUN --mount=type=cache,target=/root/.nuget/packages,id=nuget dotnet publish Basket.Api.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
+RUN dotnet publish Basket.Api.csproj -c $BUILD_CONFIGURATION -r $RUNTIME_ID -o /app/publish \
     -p:RestoreLockedMode=true -p:UseAppHost=false -p:PublishReadyToRun=true -p:Version=$VERSION -p:AssemblyVersion=$ASSEMBLY_VERSION -p:FileVersion=$FILE_VERSION -p:InformationalVersion=$INFORMATIONAL_VERSION
 
 FROM base AS final
