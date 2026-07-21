@@ -140,11 +140,13 @@ The same rule applies one layer down, in the realm: a Keycloak client that sets 
 
 `Platform.ServiceDefaults.Auth.JwtBearerConfigurator.AddPlatformJwtBearer` keeps a three-phase pipeline so the security floor stays immutable even if a BC's `configuration.Bind` is misconfigured:
 
-1. **Configure** seeds `JwtBearerOptions` defaults from `ServiceAuthOptions` (Authority, `ValidIssuer = Authority`, the five validation booleans `true`, ClockSkew). `ValidAudience` is intentionally left at its `TokenValidationParameters` default (`null`) so the BC's appsettings binding is the sole source of truth.
-2. **BC's configure delegate** runs inside Configure — typically `configuration.Bind("Authentication:JwtBearer", options)` — and is where `ValidAudience` arrives. If a BC forgets the appsettings pin, this step doesn't set it and the runtime rejects every token (fail-closed).
+1. **Configure** seeds only the environment-derived `RequireHttpsMetadata`, the five validation booleans (`true`), and `ClockSkew`. It reads no `ServiceAuthOptions`: `Authority` and `ValidAudience` are the BC's to supply via the bind, and `ValidIssuer` is left `null` so `iss` validates against the realm's OIDC discovery issuer (see [the 2026-07-21 amendment](#amendment-2026-07-21--inbound-trust-anchor-decoupled-from-outbound-identity)).
+2. **BC's configure delegate** runs inside Configure — typically `configuration.Bind("Authentication:JwtBearer", options)` — and is where `Authority` and `ValidAudience` arrive. If a BC forgets the `ValidAudience` pin, this step doesn't set it and the runtime rejects every token (fail-closed).
 3. **PostConfigure** re-pins the five security booleans (`ValidateIssuer / ValidateAudience / ValidateLifetime / ValidateIssuerSigningKey / RequireSignedTokens`) to `true` after the BC's bind — the immutable security floor. No appsettings, env var, or BC-specific override can silently relax validation (per #223).
 
-Net: the **strings** (`ValidAudience`, `ValidIssuer`) are configurable per BC; the **booleans** are not.
+Net: the **anchors** (`Authority`, `ValidAudience`) are the BC's to configure and `ValidIssuer` follows the realm's discovery document; the **booleans** are not negotiable.
+
+This section covers the fail-closed *floor*. The deployed-environment boot guards — `RequireHttpsMetadata` and `Authority` presence, which the `AddPlatformJwtBearer` doc-comment counts as a fourth phase — are in [ADR-0009 item 10](0009-reference-solution-target-profile.md).
 
 ### Audience names the callee, not the caller
 
@@ -359,3 +361,60 @@ guard to accept it.
 
 The operator "taking to production" checklist for both auth backchannels (inbound JWT + outbound
 service token) is [ADR-0009 item 10](0009-reference-solution-target-profile.md).
+
+## Amendment 2026-07-21 — Inbound trust anchor decoupled from outbound identity
+
+### Context
+
+The [2026-05-27 amendment](#amendment-2026-05-27--fail-closed-audience-contract) removed the
+`ValidAudience = ServiceAuthOptions.ServiceName` derivation but left two siblings: `JwtBearerConfigurator`
+still seeded `jwt.Authority = ServiceAuthOptions.Authority` and `ValidIssuer = ServiceAuthOptions.Authority`
+in its Configure step. That is the same category error — the **inbound** trust anchor ("whose tokens do I
+accept") derived from the **outbound** service identity ("which Keycloak do I fetch my own
+client-credentials / RFC 8693 token from").
+
+Inert today only because every BC's base `appsettings.json` ships an explicit
+`Authentication:JwtBearer:Authority` that the bind overwrites the seed with. But latent **fail-open**:
+`Basket` and the `BFF` are the only two edges whose `ServiceAuthOptions.Authority` is non-empty (they call
+`AddServiceAuth`), so the moment base stops shipping the inbound `Authority` — the deferred
+deployment-shaped-base work — their inbound anchor silently falls back to the outbound `ServiceAuth:Authority`,
+and `AssertDeployedAuthorityConfigured` becomes structurally unreachable for exactly those two
+secret-holding edges. Point `ServiceAuth:Authority` at a different realm and the edge would begin accepting
+that realm's tokens with no inbound config saying so.
+
+### Decision (amendment)
+
+`JwtBearerConfigurator.AddPlatformJwtBearer`'s Configure step reads **no** `ServiceAuthOptions`:
+
+- **`Authority`** comes solely from the BC's `Authentication:JwtBearer` bind.
+- **`ValidIssuer`** is left `null`; `iss` validates against the realm's **OIDC discovery issuer** (the
+  `Authority`-built `ConfigurationManager`) — the mechanism the six inbound-only edges (Catalog, Ordering,
+  Inventory, Invoicing, Payments, Notifications) already relied on, now uniform across every edge including
+  Basket and BFF.
+- A deployed edge that binds no `Authority` still **fails closed at boot** via `AssertDeployedAuthorityConfigured`.
+
+Inbound and outbound auth are now fully independent option bindings; the inbound configurator no longer
+references `ServiceAuthOptions` at all.
+
+### Why issuer is not an explicit appsettings pin (unlike audience)
+
+`aud` and `iss` are not symmetric, so they resolve differently:
+
+- **`aud`** is a fact the service asserts about *itself* as a resource ("I am `catalog-service`") — not
+  derivable from the Authority, so it earns an explicit per-BC pin (the 2026-05-27 amendment).
+- **`iss`** is canonically the realm's *own advertised issuer*, already published at
+  `{Authority}/.well-known/openid-configuration`. An explicit `ValidIssuer` key would duplicate `Authority`
+  into a second must-stay-equal string — the exact drift smell 2026-05-27 removed — and would **reject valid
+  tokens** behind a reverse proxy (`KC_HOSTNAME`) where Keycloak's stamped `iss` differs from the internal
+  metadata URL. Relying on the discovery issuer validates against what Keycloak actually stamps. The
+  discovery document is fetched from the same HTTPS endpoint as the JWKS, so it adds no trust surface an
+  explicit pin would close.
+
+### Consequences
+
+- The outbound-active set (Basket, BFF) now validates `iss` the same way as the inbound-only BCs — one
+  mechanism, no per-shape special-casing.
+- The `AssertDeployedAuthorityConfigured` guard is reachable for every deployed edge, including the two
+  that hold client secrets — the deployment-shaped-base work can drop the dev-only `http://localhost`
+  `Authority` from base `appsettings.json` into the Development / Testing overlays without reopening a
+  fail-open.
