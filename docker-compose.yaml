@@ -1095,8 +1095,15 @@ services:
       # DO NOT delete those scope mappers — Keycloak's `client_credentials` default emits
       # NO `aud` claim, so without them every BC's `ValidateAudience=true` validator rejects
       # silently. Service clients deliberately have NO per-client audience mapper: a caller's
-      # token must be audienced for the CALLEE (from the scope), never for itself. Verified
-      # empirically against Keycloak 26.3 on 2026-05-27 (basket+catalog.read → aud catalog-service).
+      # token must be audienced for the CALLEE (from the scope), never for itself.
+      # The dev-tooling client `dotnetatlas-swagger` is the one client that stamps audiences
+      # client-level, and only where the access path carries no scope (the role-only admin
+      # endpoints, the bell hub, the token-exchange holder constraint). Unlike a scope mapper it
+      # fires on EVERY token that client issues — keep the set bounded; a consumer-facing client
+      # stamps only `bff` + `notifications-service`, never the human-admin `ordering-service` /
+      # `invoicing-service` (which would reopen the direct consumer→BC path token exchange closes).
+      # See docs/adr/0010-service-to-service-auth.md
+      # §"Audience names the callee, not the caller" + src/keycloak/service-scope-matrix.md.
       - ./src/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     ports:
       - "9011:8080"

@@ -7,7 +7,7 @@ Companion to [ADR-0010: Service-to-Service Authentication via OAuth2 Client Cred
 - **Realm:** `dotnetatlas` (NOT `eshop` — see drift note below).
 - **Issuer / Authority:** `http://localhost:9011/realms/dotnetatlas` (local dev).
 - **Scope naming:** dot-separated, `<bc>.<verb>` (e.g. `catalog.read`, `inventory.write`). Scopes gate inbound HTTP endpoints (e.g. `inventory.write` gates the Inventory `Receive`/`Adjust` admin endpoints; `catalog.write` gates Catalog mutations). Kafka command topics have no application-layer scope check — the trust boundary is the docker network per ADR-0009.
-- **Audience (RFC 9068/8707 — audience = the resource being called):** each resource **client scope** carries an `oidc-audience-mapper` stamping the owning service, so a token requesting `catalog.read` gets `"aud": "catalog-service"` no matter which client requested it; multiple scopes yield a multi-valued `aud` array. Each service validates `Audience = <this-service>` inbound. Service clients have **no** per-client `audience-self` mapper — a caller's token must be audienced for the callee, not itself (corrected 2026-05-27; see ADR-0010 §"Keycloak audience lives on the client SCOPE"). The exception is the user-facing app client (the SPA / web client the user signs into — distinct from the `bff` service-account client), where the app is the resource the user token targets — not in the realm today; it returns with the SPA/BFF build (the Weather sample that held this role was removed in #318).
+- **Audience (RFC 9068/8707 — audience = the resource being called):** each resource **client scope** carries an `oidc-audience-mapper` stamping the owning service, so a token requesting `catalog.read` gets `"aud": "catalog-service"` no matter which client requested it; multiple scopes yield a multi-valued `aud` array. Each service validates `Audience = <this-service>` inbound. Service clients have **no** per-client `audience-self` mapper — a caller's token must be audienced for the callee, not itself (see ADR-0010 §"Audience names the callee, not the caller"). The exception is the user-facing app client (the SPA / web client the user signs into — distinct from the `bff` service-account client), where the app is the resource the user token targets — not in the realm today; it returns with the SPA/BFF build (the Weather sample that held this role was removed in #318).
 - **Token endpoint:** `POST http://localhost:9011/realms/dotnetatlas/protocol/openid-connect/token` with `grant_type=client_credentials`, `client_id`, `client_secret`, `scope`.
 - **Production rotation:** dev-only secrets are committed literally in `realm-export.json` — **every service client secret must be rotated for any non-local environment.** See §3.
 
@@ -162,7 +162,8 @@ role + scope admin endpoints:
   (`catalog.write` / `inventory.write` / `payments.read`), whose own `oidc-audience-mapper` already stamps the
   callee `aud`, so an unconditional client-level one would be redundant. `basket-service` carries none either —
   basket is **100 % BFF-mediated**, no direct admin path. The role gate, not the audience, is what blocks
-  non-admins; the future SPA app client stamps **no** BC audience at all (Basket invariant above +
+  non-admins; the future SPA app client stamps **no resource-BC audience** at all — its only client-level
+  audiences are `bff` (BFF edge) and `notifications-service` (bell) (Basket invariant above +
   [ADR-0010 §2026-06-06](../../docs/adr/0010-service-to-service-auth.md#amendment-2026-06-06--bff-token-exchange-for-buyer-scoped-callees)).
 - **Subject (`sub`):** the client carries an explicit `oidc-sub-mapper` (`subject`) so the **access
   token** carries `sub`. This realm is scope-light — it has no Keycloak built-in `basic` client scope
@@ -199,11 +200,12 @@ would gate nothing while stamping an audience with no policy behind it — the d
   (`"Connection has no user identity."`). The `dotnetatlas-swagger` `subject` mapper (above) supplies it.
 - **Dev access / future SPA.** The swagger `audience-notifications` + `subject` mappers make a dev login
   usable against the bell (ADR-0010 driver #3, *laptop-testable*). The future SPA / user-facing app client
-  inherits the obligation — emit `sub` and stamp `aud: notifications-service`. **It must stamp
-  `notifications-service` *only*, not mirror the swagger client's broader dev audience set** — the swagger tool
-  still stamps `ordering-service` / `invoicing-service` (its role-only admin endpoints) and `bff`; copying those
-  onto a real SPA client would re-mint user tokens audienced for Ordering/Invoicing and reopen the direct-path
-  the BFF token exchange deliberately closes. Cross-origin browser reach additionally waits on the YARP edge's CORS policy
+  inherits the obligation — emit `sub` and stamp `aud: notifications-service` (the bell) alongside `aud: bff`
+  (its inbound BFF edge + the token-exchange holder constraint). **It must not, however, mirror the swagger
+  client's human-admin BC audiences** — the swagger tool also stamps `ordering-service` / `invoicing-service`
+  for its role-only admin endpoints, and carrying those on a real SPA client would re-mint user tokens audienced
+  for Ordering/Invoicing and reopen the direct consumer→BC path the BFF token exchange deliberately closes.
+  Cross-origin browser reach additionally waits on the YARP edge's CORS policy
   ([ADR-0035](../../docs/adr/0035-edge-owned-cors-yarp.md)).
 - **Counts:** `notifications-service` is an audience *value* only — it adds **no** client and **no** scope,
   so the 7 per-BC clients / 8 declared clients / 9 scopes above are unchanged.
