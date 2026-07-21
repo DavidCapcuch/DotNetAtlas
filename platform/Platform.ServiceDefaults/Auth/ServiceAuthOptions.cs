@@ -32,9 +32,10 @@ public sealed class ServiceAuthOptions
     public string ClientId { get; set; } = string.Empty;
 
     /// <summary>
-    /// Keycloak client-secret. Sourced from env var
-    /// <c>KEYCLOAK__SERVICE_CLIENT_SECRET__&lt;service&gt;</c> in production
-    /// (see ADR-0010 § Implementation Notes — Realm setup).
+    /// Keycloak client-secret for this service's client-credentials flow. Bound from the
+    /// <c>ServiceAuth:ClientSecret</c> configuration key; in deployed environments supply it via the
+    /// <c>ServiceAuth__ClientSecret</c> environment variable from a secret store (never commit it).
+    /// The Keycloak realm client is provisioned separately — see ADR-0010 § Implementation Notes.
     /// </summary>
     [Required]
     public string ClientSecret { get; set; } = string.Empty;
