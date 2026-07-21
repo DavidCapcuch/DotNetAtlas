@@ -986,8 +986,7 @@
       "platform.reliablemessaging.outbox.core": {
         "type": "Project",
         "dependencies": {
-          "OpenTelemetry.Api": "[1.15.3, )",
-          "Platform.Messaging.Abstractions": "[1.0.0, )"
+          "OpenTelemetry.Api": "[1.15.3, )"
         }
       },
       "platform.reliablemessaging.outbox.efcore": {
@@ -1693,36 +1692,6 @@
       }
     },
     "net10.0/linux-x64": {
-      "Gee.External.Capstone": {
-        "type": "Transitive",
-        "resolved": "2.3.0",
-        "contentHash": "2ap/rYmjtzCOT8hxrnEW/QeiOt+paD8iRrIcdKX0cxVwWLFa1e+JDBNeECakmccXrSFeBQuu5AV8SNkipFMMMw=="
-      },
-      "librdkafka.redist": {
-        "type": "Transitive",
-        "resolved": "2.14.0",
-        "contentHash": "jqmYswYUiW9So5lce1Upo/zm5V7p/kWaqnUqkP5Lar1Ekq2yLrORoDCJ1JIiVLD3xdVkavwqW9iFKHBfkTsS7w=="
-      },
-      "System.Diagnostics.EventLog": {
-        "type": "Transitive",
-        "resolved": "10.0.5",
-        "contentHash": "wugvy+pBVzjQEnRs9wMTWwoaeNFX3hsaHeVHFDIvJSWXp7wfmNWu3mxAwBIE6pyW+g6+rHa1Of5fTzb0QVqUTA=="
-      },
-      "System.Management": {
-        "type": "Transitive",
-        "resolved": "9.0.5",
-        "contentHash": "n6o9PZm9p25+zAzC3/48K0oHnaPKTInRrxqFq1fi/5TPbMLjuoCm/h//mS3cUmSy+9AO1Z+qsC/Ilt/ZFatv5Q==",
-        "dependencies": {
-          "System.CodeDom": "9.0.5"
-        }
-      },
-      "System.Security.Cryptography.Pkcs": {
-        "type": "Transitive",
-        "resolved": "10.0.8",
-        "contentHash": "2wOycCqMyg9Tu+SDP03FFwDEWBni/3xOKgt0bRXplOvyeIcUJmWO7m3gTCF2mIdtQLROLtOP5VwWRT8YBwP/bA=="
-      }
-    },
-    "net10.0/win-x64": {
       "Gee.External.Capstone": {
         "type": "Transitive",
         "resolved": "2.3.0",

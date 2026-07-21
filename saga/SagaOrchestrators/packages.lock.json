@@ -832,8 +832,7 @@
       "platform.reliablemessaging.outbox.core": {
         "type": "Project",
         "dependencies": {
-          "OpenTelemetry.Api": "[1.15.3, )",
-          "Platform.Messaging.Abstractions": "[1.0.0, )"
+          "OpenTelemetry.Api": "[1.15.3, )"
         }
       },
       "platform.reliablemessaging.outbox.efcore": {
@@ -961,13 +960,6 @@
       }
     },
     "net10.0/linux-x64": {
-      "librdkafka.redist": {
-        "type": "Transitive",
-        "resolved": "2.14.0",
-        "contentHash": "jqmYswYUiW9So5lce1Upo/zm5V7p/kWaqnUqkP5Lar1Ekq2yLrORoDCJ1JIiVLD3xdVkavwqW9iFKHBfkTsS7w=="
-      }
-    },
-    "net10.0/win-x64": {
       "librdkafka.redist": {
         "type": "Transitive",
         "resolved": "2.14.0",

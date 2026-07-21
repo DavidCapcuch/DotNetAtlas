@@ -12,7 +12,11 @@
         <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-        <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
+        <!-- Only linux-x64 ships (every image is linux/amd64, published `-r linux-x64`). Portable
+             native assets (e.g. librdkafka) still deploy from their packages regardless of this
+             list, so local Windows dev is unaffected; listing win-x64 only made the R2R restore
+             pull ~175 MB of unused win-x64 framework runtime packs into each image. -->
+        <RuntimeIdentifiers>linux-x64</RuntimeIdentifiers>
         <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
 
         <!-- For GitVersion-->
