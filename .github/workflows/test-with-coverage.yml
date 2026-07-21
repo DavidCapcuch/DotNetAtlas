@@ -30,11 +30,18 @@ jobs:
         env:
           CONFIGURATION: ${{ inputs.configuration }}
         run: dotnet build -c "$CONFIGURATION" --no-restore
-      - name: Cache Docker images
-        uses: AndreKurait/docker-cache@0fe76702a40db986d9663c24954fc14c6a6031b7 #0.6.0
-        continue-on-error: true
-        with:
-          key: docker-${{ runner.os }}-${{ hashFiles('platform/Platform.Test.Framework/**/*Container.cs') }}
+      # Docker-image caching is intentionally disabled. For this test set (postgres, redis,
+      # confluentinc/cp-kafka, cp-schema-registry — all Docker Hub) a save/load round-trip is at
+      # best parity with a registry pull: the job is dominated by container startup, not image
+      # transfer, and the cache-key input rarely changes. The one real benefit — insulation from
+      # Docker Hub rate limits — is better bought with a first-party `docker/login-action` + Hub
+      # token than with a single-maintainer fork of an unmaintained action. Re-enable only behind a
+      # measurement that shows a real win; if rate limits are the actual problem, add the login.
+      # - name: Cache Docker images
+      #   uses: AndreKurait/docker-cache@0fe76702a40db986d9663c24954fc14c6a6031b7 #0.6.0
+      #   continue-on-error: true
+      #   with:
+      #     key: docker-${{ runner.os }}-${{ hashFiles('platform/Platform.Test.Framework/**/*Container.cs') }}
       - name: Test with coverage
         env:
           CONFIGURATION: ${{ inputs.configuration }}
