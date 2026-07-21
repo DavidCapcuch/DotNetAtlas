@@ -1,5 +1,6 @@
 using FastEndpoints;
 using Platform.Api.Swagger;
+using Platform.ServiceDefaults;
 
 namespace Ordering.Api.Common;
 
@@ -44,7 +45,7 @@ internal static class FastEndpointsDependencyInjection
             config.Endpoints.RoutePrefix = "api";
         });
 
-        if (!app.Environment.IsProduction())
+        if (!app.Environment.IsDeployedEnvironment())
         {
             app.UsePlatformAuthSwaggerGen();
         }

@@ -29,14 +29,7 @@ try
 
     var app = builder.Build();
 
-    if (app.Environment.IsProduction())
-    {
-        app.UseExceptionHandler();
-    }
-    else
-    {
-        app.UseDeveloperExceptionPage();
-    }
+    app.UsePlatformExceptionHandling();
 
     app.UseStatusCodePages();
 

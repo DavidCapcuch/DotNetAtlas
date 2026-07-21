@@ -188,11 +188,6 @@
           "Microsoft.Extensions.Hosting": "10.0.5"
         }
       },
-      "Microsoft.AspNetCore.TestHost": {
-        "type": "Transitive",
-        "resolved": "10.0.5",
-        "contentHash": "PJEdrZnnhvxIEXzDdvdZ38GvpdaiUfKkZ99kudS8riJwhowFb/Qh26Wjk9smrCWcYdMFQmpN5epGiL4o1s8LYA=="
-      },
       "Microsoft.Bcl.AsyncInterfaces": {
         "type": "Transitive",
         "resolved": "9.0.3",
@@ -659,6 +654,12 @@
           "Microsoft.Extensions.Caching.Memory": "8.0.1",
           "Newtonsoft.Json": "13.0.1"
         }
+      },
+      "Microsoft.AspNetCore.TestHost": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.8, )",
+        "resolved": "10.0.8",
+        "contentHash": "HRH/XAke90wkHv9ykCsrvpVqvKOUt53jQzvHHIXrPIPZWAjyPq6B5/InCmPYWvme+WKMXD10rplMAitzNMtC3w=="
       },
       "Microsoft.EntityFrameworkCore": {
         "type": "CentralTransitive",
