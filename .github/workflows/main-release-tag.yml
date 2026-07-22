@@ -34,7 +34,6 @@ jobs:
   test-with-coverage:
     permissions:
       contents: read
-      actions: write
     uses: ./.github/workflows/test-with-coverage.yml
     with:
       configuration: Release
@@ -79,4 +78,22 @@ jobs:
           fi
           git tag -a "$TAG" -m "Release $TAG"
           git push origin "$TAG"
+
+  # Publish the coverage HTML for the released commit to GitHub Pages, reusing the artifacts from
+  # test-with-coverage above rather than re-running the suite. Depends only on the tests, so it runs
+  # in parallel with the release (publish-images / create-release-tag): coverage reflects the test
+  # verdict and publishes even if image publishing fails. PR runs get coverage in the step summary
+  # (publish-test-coverage.yml) and deliberately do not deploy a site.
+  publish-coverage:
+    needs: [test-with-coverage]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/publish-test-coverage.yml
+
+  deploy-coverage-site:
+    needs: [publish-coverage]
+    permissions:
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/publish-coverage-site.yml
 

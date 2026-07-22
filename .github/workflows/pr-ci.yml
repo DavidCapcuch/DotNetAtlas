@@ -27,13 +27,13 @@ jobs:
 
   run-ci:
     needs: [enforce-format]
-    # No registry or signing scopes: PR CI builds images to prove the Dockerfiles still work and
-    # publishes nothing. Granting them here would silently re-arm publishing the moment the callee
-    # asked for it.
+    # No registry, signing, or Pages scopes: PR CI builds images to prove the Dockerfiles still work
+    # and publishes nothing — coverage stays in the step summary, and the Pages site deploys only on
+    # the release path (main-release-tag.yml). No elevated scope at all: artifact uploads and cache
+    # writes authenticate via the runner token, not GITHUB_TOKEN. Granting more here would silently
+    # re-arm publishing the moment the callee asked for it.
     permissions:
-      contents: write
-      pages: write
-      actions: write
+      contents: read
     uses: ./.github/workflows/main-ci.yml
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

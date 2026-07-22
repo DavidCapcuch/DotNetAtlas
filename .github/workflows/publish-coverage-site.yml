@@ -1,25 +1,39 @@
-name: Reusable - Publish Coverage Site
+name: Reusable - Deploy Coverage Site
+
+# Deploys the coverage HTML to GitHub Pages via the native Actions path, not a force-pushed orphan
+# branch. That deliberately keeps this job free of `contents: write`: it publishes through the Pages
+# service, so it never needs to mutate a repo ref. Only the main/release path (main-release-tag.yml)
+# calls it, so Pages always reflects a main commit that passed the full test suite — the deploy
+# gates on the test verdict alone, not on the release jobs succeeding (see publish-coverage there).
+#
+# One-time repo setup (required — until set, deploy-pages fails with "Get Pages site failed"):
+#   Settings -> Pages -> Build and deployment -> Source = "GitHub Actions".
+# Expected outcome once set: each release publishes the report to
+# https://davidcapcuch.github.io/DotNetAtlas/ (the URL the README badge links to).
 
 on:
   workflow_call:
 
 jobs:
-  publish-site-coverage:
+  deploy-coverage-site:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     permissions:
-      contents: write
       pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Download Coverage Site artifact
+      - name: Download coverage site artifact
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
           name: coverage-site
           path: site
-      - name: Publish coverage site to coverage-reports branch
-        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e #v4
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: coverage-reports
-          publish_dir: site
-          force_orphan: true
+          path: site
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

@@ -20,7 +20,7 @@ jobs:
         with:
           reports: "artifacts/raw-coverage/**/*.cobertura.xml"
           targetdir: "${{ runner.temp }}/coveragereport"
-          reporttypes: "Cobertura;OpenCover;HtmlInline;MarkdownSummaryGithub"
+          reporttypes: "Cobertura;OpenCover;Html;MarkdownSummaryGithub"
           verbosity: "Info"
           title: "Code Coverage"
           tag: "${{ github.run_number }}_${{ github.run_id }}"
@@ -32,11 +32,18 @@ jobs:
           if [ -f "$RUNNER_TEMP/coveragereport/SummaryGithub.md" ]; then
             cat "$RUNNER_TEMP/coveragereport/SummaryGithub.md" >> "$GITHUB_STEP_SUMMARY"
           fi
-      - name: Upload Coverage Site artifact (single index.html)
+      # Upload the WHOLE report dir, not just index.html. The report is multi-page — index.html
+      # plus one detail page per class plus shared CSS/JS — so an index-only artifact 404s every
+      # drilldown once served (true under HtmlInline too: the dir is the fix, not the type). The
+      # type is Html not HtmlInline so those pages share one external css/js rather than inlining
+      # assets into every page — leaner for a served site now that the whole dir ships.
+      # deploy-coverage-site serves this dir's root, where index.html sits, so the Pages URL
+      # resolves. The Cobertura/OpenCover/Markdown siblings ride along unlinked and harmless.
+      - name: Upload Coverage Site artifact (full HTML report)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: coverage-site
-          path: ${{ runner.temp }}/coveragereport/index.html
+          path: ${{ runner.temp }}/coveragereport
           retention-days: 7
       - name: Upload OpenCover coverage XML
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
