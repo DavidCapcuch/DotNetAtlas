@@ -235,19 +235,6 @@ docker exec -it keycloak9011 /opt/keycloak/bin/kcadm.sh \
   -r dotnetatlas -s value=<new-secret>
 ```
 
-### Env-var convention (consumed by `ClientCredentialsTokenHandler`, Wave 0 M3)
-
-Services read their own secret from the env-var pattern:
-
-| Service | Env var | Value source |
-|---|---|---|
-| `basket-service` | `KEYCLOAK__SERVICE_CLIENT_SECRET__BASKET` | compose `.env` (dev) or vault (prod) |
-| `bff` | `KEYCLOAK__SERVICE_CLIENT_SECRET__BFF` | ″ |
-
-> Only the two `serviceAccountsEnabled: true` clients (`basket`, `bff`) have a secret. `catalog` / `ordering` / `inventory` / `payments` / `invoicing` are inbound-only (`serviceAccountsEnabled: false`), acquire no token, and need no `KEYCLOAK__SERVICE_CLIENT_SECRET__*` env var.
-
-Wave 0 **M7** wires these env-vars into per-service `appsettings.*.json` + compose `environment` blocks.
-
 ### Re-importing the realm after editing `realm-export.json`
 
 Keycloak's `--import-realm` flag runs only on first container start when the `keycloak` Postgres database has no `dotnetatlas` realm. To re-apply edits:
@@ -316,5 +303,4 @@ Expected result on the basket-service check: `azp basket-service aud catalog-ser
 
 ## 5. Open follow-ups (Wave 0 DoD or later)
 
-1. **Wave 0 M7** — wire the two `KEYCLOAK__SERVICE_CLIENT_SECRET__*` env vars (`basket`, `bff`) into compose `environment` blocks and per-service `appsettings.*.json` so `ClientCredentialsTokenHandler` (from M3) can acquire tokens at runtime.
-2. **Secret rotation playbook** — formalize the kcadm.sh rotation recipe above into a runbook when production infra is in scope.
+1. **Secret rotation playbook** — formalize the kcadm.sh rotation recipe above into a runbook when production infra is in scope.
