@@ -16,11 +16,11 @@ namespace Basket.Infrastructure.ExternalServices.Catalog;
 /// propagates automatically via OpenTelemetry's HttpClient instrumentation.
 /// </summary>
 /// <remarks>
-/// Caller MUST have invoked <c>services.AddServiceAuth("basket-service")</c>
-/// before calling this extension — it registers the delegating handler that
-/// <c>IHttpClientBuilder.AddServiceAuth(scope)</c> attaches. That
-/// service-collection-level registration lives in <c>Program.cs</c>;
-/// this extension is intentionally not yet wired from the host.
+/// Requires <c>services.AddServiceAuth("basket-service")</c> to be registered
+/// on the same collection — it provides the delegating handler that this
+/// extension's <c>IHttpClientBuilder.AddServiceAuth(scope)</c> attaches to the
+/// typed client. Basket registers it in <c>AddBasketAuthentication</c>
+/// (ADR-0010), wired from <c>Program.cs</c>.
 /// </remarks>
 public static class CatalogClientDependencyInjection
 {
