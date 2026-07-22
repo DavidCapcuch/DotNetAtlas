@@ -28,21 +28,17 @@ jobs:
     needs: [build-dotnet]
     permissions:
       contents: read
-      actions: write
     uses: ./.github/workflows/test-with-coverage.yml
     with:
       configuration: Release
 
+  # Coverage on PR/dispatch stops here: publish-test-coverage.yml writes the report to the job's
+  # step summary. Deploying a Pages site is the release path's job (main-release-tag.yml) so the
+  # published site reflects main, not "whichever PR ran last". sonar-cloud consumes this job's
+  # `coverage` artifact, so it must stay.
   publish-coverage:
     needs: [test-with-coverage]
     uses: ./.github/workflows/publish-test-coverage.yml
-
-  push-coverage-site:
-    needs: [publish-coverage]
-    permissions:
-      contents: write
-      pages: write
-    uses: ./.github/workflows/publish-coverage-site.yml
 
   sonar-cloud:
     needs: [publish-coverage]
