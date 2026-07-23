@@ -16,6 +16,14 @@ public class PaymentEventMapperTests
 {
     private const string GatewayTransactionId = "gw-tx-abc";
 
+    /// <summary>
+    /// Scale pinned by every money field across the Payments Avro contracts (<c>decimal(19,4)</c>).
+    /// Asserted explicitly: <see cref="AvroDecimal"/> value-equality is not reliably scale-sensitive,
+    /// so a mapper emitting the domain decimal's own scale instead of 4 (which Avro rejects at encode
+    /// time) would slip past the value oracle alone.
+    /// </summary>
+    private const int MoneyScale = 4;
+
     private static readonly DateTimeOffset Now = new(2026, 4, 26, 12, 0, 0, TimeSpan.Zero);
     private static readonly Guid PaymentId = Guid.CreateVersion7();
     private static readonly Guid BuyerId = Guid.CreateVersion7();
@@ -53,6 +61,7 @@ public class PaymentEventMapperTests
             avro.UserId.Should().Be(BuyerId);
             avro.AuthorizationId.Should().Be(GatewayTransactionId);
             avro.Amount.Should().Be(new AvroDecimal(99.9900m));
+            avro.Amount.Scale.Should().Be(MoneyScale);
             avro.Currency.Should().Be("USD");
             avro.AuthorizedAtUtc.Should().Be(Now.UtcDateTime);
             avro.ExpiresAtUtc.Should().Be(gatewayExpiry.UtcDateTime);
@@ -193,6 +202,7 @@ public class PaymentEventMapperTests
             avro.PaymentTransactionId.Should().Be(PaymentId);
             avro.AuthorizationId.Should().Be(GatewayTransactionId);
             avro.Amount.Should().Be(new AvroDecimal(100.0000m));
+            avro.Amount.Scale.Should().Be(MoneyScale);
             avro.Currency.Should().Be("USD");
             avro.CapturedAtUtc.Should().Be(Now.UtcDateTime);
         }
@@ -262,6 +272,7 @@ public class PaymentEventMapperTests
             avro.RefundTransactionId.Should().NotBe(avro.PaymentTransactionId);
             second.RefundTransactionId.Should().NotBe(avro.RefundTransactionId);
             avro.RefundedAmount.Should().Be(new AvroDecimal(50.0000m));
+            avro.RefundedAmount.Scale.Should().Be(MoneyScale);
             avro.Currency.Should().Be("USD");
             avro.RefundedAtUtc.Should().Be(Now.UtcDateTime);
         }
@@ -295,6 +306,7 @@ public class PaymentEventMapperTests
             avro.UserId.Should().Be(BuyerId);
             avro.PaymentTransactionId.Should().Be(PaymentId);
             avro.Amount.Should().Be(new AvroDecimal(149.9900m));
+            avro.Amount.Scale.Should().Be(MoneyScale);
             avro.Currency.Should().Be("USD");
             avro.CompletedAtUtc.Should().Be(Now.UtcDateTime);
         }
