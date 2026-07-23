@@ -22,6 +22,13 @@ public static class ProductErrors
             message: "A discontinued product cannot be re-priced.",
             errorCode: "Product.CannotRepriceDiscontinued");
 
+    public static ConflictError CannotChangePriceCurrency(string currentCurrency, string attemptedCurrency)
+        => new ConflictError(
+            entityName: "Product",
+            message: $"A product's price currency is fixed at creation ('{currentCurrency}') and cannot "
+                     + $"be changed to '{attemptedCurrency}'; reprice in the original currency.",
+            errorCode: "Product.CannotChangePriceCurrency");
+
     public static ConflictError CannotModifyDiscontinued()
         => new ConflictError(
             entityName: "Product",

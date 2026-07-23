@@ -156,7 +156,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
 - **Flow:**
   1. Load product: `_dbContext.Products.FirstOrDefaultAsync(p => p.Id == productId, ct)`. If null, return `Result.Fail(ProductErrors.NotFound)`.
   2. Build `Money.Create(newPrice.Amount, newPrice.Currency)`; cascade `Result.Fail` on invalid.
-  3. Call `product.UpdatePrice(money, _timeProvider.GetUtcNow())`. Surface any `Result.Fail` (e.g. `CannotRepriceDiscontinued`).
+  3. Call `product.UpdatePrice(money, _timeProvider.GetUtcNow())`. Surface any `Result.Fail` (e.g. `CannotRepriceDiscontinued`, `CannotChangePriceCurrency`).
   4. `await _dbContext.SaveChangesAsync(ct);`.
 - **Emits internal event(s):** `ProductPriceChangedDomainEvent` (if price actually changed; no-op otherwise). Handler fan-out:
   - `ProductPriceChangedProjectionDomainEventHandler` — UPDATE `PriceAmount`, `LastUpdatedAtUtc`.

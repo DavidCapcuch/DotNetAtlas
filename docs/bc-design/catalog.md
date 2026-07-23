@@ -56,7 +56,7 @@ Both aggregates derive from [`AggregateRoot<TId>`](../../platform/Platform.Share
 Each method returns `Result`/`Result<T>` for user-actionable domain errors (following the guidance in `CLAUDE.md`: result pattern for expected errors, exceptions only for bugs). `DataIntegrityException` is thrown only when the caller reached a branch that should be impossible (e.g., transitioning a status in a way `CanTransitionTo` explicitly forbids).
 
 - `UpdatePrice(Money newPrice, DateTimeOffset utcNow) : Result`
-  - **Precondition:** `Status != Discontinued` (discontinued products are read-only for price changes). Returns `Result.Fail(ProductErrors.CannotRepriceDiscontinued())` otherwise.
+  - **Preconditions:** `Status != Discontinued` (discontinued products are read-only for price changes; `Result.Fail(ProductErrors.CannotRepriceDiscontinued())` otherwise), and `newPrice.Currency == Price.Currency` — a product's price currency is fixed for its lifetime per [ADR-0002](../adr/0002-pricing-in-catalog.md) (flat, single-currency per product), so a currency change returns `Result.Fail(ProductErrors.CannotChangePriceCurrency(...))` rather than assigning it and emitting a `ProductPriceChangedEvent` whose single `Currency` field would mislabel `OldPriceAmount`.
   - **Effect:** Compares `newPrice` to current `Price`; if identical (same amount and currency), no-op returning `Result.Ok()`. Otherwise assigns and raises `ProductPriceChangedDomainEvent { ProductId, OldPrice, NewPrice, OccurredOnUtc }`.
 - `Describe(ProductDescription newDescription) : Result`
   - **Precondition:** `Status != Discontinued`.

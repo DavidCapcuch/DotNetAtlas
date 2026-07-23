@@ -133,6 +133,15 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
             return Result.Fail(ProductErrors.CannotRepriceDiscontinued());
         }
 
+        // ADR-0002: a product's price is single-currency for its lifetime. A reprice changes the
+        // amount, never the currency — a currency change is rejected rather than silently emitting a
+        // ProductPriceChangedEvent whose single Currency field would mislabel the old-price amount.
+        if (newPrice.Currency != Price.Currency)
+        {
+            return Result.Fail(
+                ProductErrors.CannotChangePriceCurrency(Price.Currency.Name, newPrice.Currency.Name));
+        }
+
         if (newPrice == Price)
         {
             return Result.Ok();
