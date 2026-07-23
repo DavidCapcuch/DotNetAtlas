@@ -89,6 +89,8 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/publish-test-coverage.yml
+    with:
+      publish-site: true
 
   deploy-coverage-site:
     needs: [publish-coverage]
