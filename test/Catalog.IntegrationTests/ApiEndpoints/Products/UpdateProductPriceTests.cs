@@ -2,7 +2,6 @@ using System.Net;
 using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Api.Endpoints.Products.CreateProduct;
 using Catalog.Api.Endpoints.Products.UpdateProductPrice;
-using Catalog.Application.Common.Contracts;
 using Catalog.IntegrationTests.Common;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
@@ -26,7 +25,7 @@ public class UpdateProductPriceTests : BaseIntegrationTest
         var request = new UpdateProductPriceRequest
         {
             Id = productId,
-            NewPrice = new MoneyDto { Amount = 24.50m, Currency = "EUR" },
+            NewAmount = 24.50m,
         };
 
         var response = await HttpClientRegistry.WriteClient
@@ -51,48 +50,12 @@ public class UpdateProductPriceTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task WhenCurrencyDiffersFromProduct_Returns409_AndNothingPersisted()
-    {
-        // Product is seeded in EUR (CatalogTestData default); repricing into USD is a currency
-        // change, which ADR-0002's single-currency-per-product invariant forbids.
-        var (_, productId) = await SeedCategoryAndProductAsync(originalAmount: 19.99m);
-
-        var request = new UpdateProductPriceRequest
-        {
-            Id = productId,
-            NewPrice = new MoneyDto { Amount = 24.50m, Currency = "USD" },
-        };
-
-        var (response, problemDetails) = await HttpClientRegistry.WriteClient
-            .PUTAsync<UpdateProductPriceEndpoint, UpdateProductPriceRequest, ProblemDetails>(request);
-
-        using (new AssertionScope())
-        {
-            response.StatusCode.Should().Be(HttpStatusCode.Conflict);
-            problemDetails.Errors.Should().ContainSingle(e => e.Code == "Product.CannotChangePriceCurrency");
-
-            // Nothing persisted: projection price stays at the seeded amount, no price-changed outbox row.
-            var projectedPrice = await DbContext.ProductSearchView.AsNoTracking()
-                .Where(r => r.ProductId == productId)
-                .Select(r => r.PriceAmount)
-                .SingleAsync(TestContext.Current.CancellationToken);
-            projectedPrice.Should().Be(19.99m);
-
-            var priceChangedRows = await DbContext.Set<OutboxMessage>()
-                .Where(m => m.KafkaKey == productId.ToString()
-                            && m.Type == typeof(Catalog.Products.ProductPriceChangedEvent).FullName)
-                .CountAsync(TestContext.Current.CancellationToken);
-            priceChangedRows.Should().Be(0);
-        }
-    }
-
-    [Fact]
     public async Task WhenProductMissing_Returns404()
     {
         var request = new UpdateProductPriceRequest
         {
             Id = Guid.CreateVersion7(),
-            NewPrice = new MoneyDto { Amount = 1m, Currency = "EUR" },
+            NewAmount = 1m,
         };
 
         var (response, problemDetails) = await HttpClientRegistry.WriteClient

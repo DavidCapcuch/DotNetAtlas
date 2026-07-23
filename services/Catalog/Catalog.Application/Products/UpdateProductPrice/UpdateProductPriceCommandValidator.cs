@@ -8,14 +8,6 @@ public class UpdateProductPriceCommandValidator : AbstractValidator<UpdateProduc
     {
         RuleFor(x => x.ProductId).NotEmpty();
 
-        RuleFor(x => x.NewPrice)
-            .NotNull()
-            .ChildRules(price =>
-            {
-                price.RuleFor(p => p.Amount).GreaterThan(0m);
-                price.RuleFor(p => p.Currency)
-                    .NotEmpty()
-                    .Matches("^[A-Z]{3}$");
-            });
+        RuleFor(x => x.NewAmount).GreaterThan(0m);
     }
 }

@@ -41,7 +41,7 @@ internal sealed class UpdateProductPriceEndpoint : Endpoint<UpdateProductPriceRe
         var command = new UpdateProductPriceCommand
         {
             ProductId = request.Id,
-            NewPrice = request.NewPrice,
+            NewAmount = request.NewAmount,
         };
 
         var result = await _handler.HandleAsync(command, ct);

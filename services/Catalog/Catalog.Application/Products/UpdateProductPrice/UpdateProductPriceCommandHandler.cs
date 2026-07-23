@@ -39,13 +39,12 @@ public sealed class UpdateProductPriceCommandHandler : ICommandHandler<UpdatePro
             return Result.Fail(ProductErrors.NotFound(command.ProductId));
         }
 
-        var priceResult = Money.Create(command.NewPrice.Amount, command.NewPrice.Currency);
-        if (priceResult.IsFailed)
-        {
-            return priceResult.ToResult();
-        }
+        // ADR-0002: a product's price currency is fixed for its lifetime. A reprice supplies only the
+        // amount and reuses the product's existing currency — Money.Create with a non-null CurrencyCode
+        // cannot fail, so there is no currency-parse failure to cascade here.
+        var newPrice = Money.Create(command.NewAmount, product.Price.Currency).Value;
 
-        var updateResult = product.UpdatePrice(priceResult.Value, _timeProvider.GetUtcNow());
+        var updateResult = product.UpdatePrice(newPrice, _timeProvider.GetUtcNow());
         if (updateResult.IsFailed)
         {
             return updateResult;

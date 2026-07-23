@@ -144,19 +144,21 @@ Each service below lists its inbound command topic (where applicable) and the Ka
   ```
   {
     "productId": "Guid (from route)",
-    "newPrice": { "amount": "decimal (> 0)", "currency": "string (ISO 4217)" }
+    "newAmount": "decimal (> 0)"
   }
   ```
+  A reprice carries only the amount — the price currency is fixed for the product's lifetime
+  (ADR-0002) and is not an input. The handler reuses the product's existing currency, so a
+  currency change is unrepresentable at this endpoint.
 - **Response:** 204 No Content on success; 404 on missing product; 422 on VO validation failure; 409 if product is `Discontinued`.
 - **Handler class:** `UpdateProductPriceCommandHandler`.
 - **Validator rules:**
   - `ProductId` — NotEmpty.
-  - `NewPrice.Amount` — GreaterThan(0).
-  - `NewPrice.Currency` — Matches `^[A-Z]{3}$`.
+  - `NewAmount` — GreaterThan(0).
 - **Flow:**
   1. Load product: `_dbContext.Products.FirstOrDefaultAsync(p => p.Id == productId, ct)`. If null, return `Result.Fail(ProductErrors.NotFound)`.
-  2. Build `Money.Create(newPrice.Amount, newPrice.Currency)`; cascade `Result.Fail` on invalid.
-  3. Call `product.UpdatePrice(money, _timeProvider.GetUtcNow())`. Surface any `Result.Fail` (e.g. `CannotRepriceDiscontinued`, `CannotChangePriceCurrency`).
+  2. Build `Money.Create(newAmount, product.Price.Currency)` — reuses the product's fixed currency; cannot fail.
+  3. Call `product.UpdatePrice(money, _timeProvider.GetUtcNow())`. Surface any `Result.Fail` (e.g. `CannotRepriceDiscontinued`). The domain's `CannotChangePriceCurrency` guard remains as defense in depth but is unreachable via this endpoint because currency is not a caller input.
   4. `await _dbContext.SaveChangesAsync(ct);`.
 - **Emits internal event(s):** `ProductPriceChangedDomainEvent` (if price actually changed; no-op otherwise). Handler fan-out:
   - `ProductPriceChangedProjectionDomainEventHandler` — UPDATE `PriceAmount`, `LastUpdatedAtUtc`.
