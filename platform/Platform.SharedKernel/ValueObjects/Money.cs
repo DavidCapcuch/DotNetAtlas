@@ -6,13 +6,13 @@ namespace Platform.SharedKernel.ValueObjects;
 
 /// <summary>
 /// Monetary amount in a specific ISO 4217 currency.
-/// Shared-kernel value object (ADR-0015 / Wave 0 pin) — BCs use this directly instead of
+/// Shared-kernel value object (ADR-0036) — BCs use this directly instead of
 /// defining their own. Immutable, self-validating, equality-by-value.
 /// </summary>
 /// <remarks>
 /// Money is a currency-tagged signed decimal. Sign carries no intrinsic meaning at this
 /// layer — positivity is an aggregate-level invariant enforced by the BC that uses Money
-/// (e.g. <c>Product.Price > 0</c>, <c>OrderItem.Price > 0</c>, <c>PaymentTransaction.Amount.Amount > 0</c>).
+/// (e.g. <c>Product.Price > 0</c>, <c>OrderItem.UnitPrice > 0</c>, <c>PaymentTransaction.Amount.Amount > 0</c>).
 /// A credit-note line legitimately holds negative Money; an invoice line legitimately holds
 /// positive Money. Both are valid Money values.
 /// </remarks>

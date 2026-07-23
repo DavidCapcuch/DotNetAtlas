@@ -20,7 +20,7 @@ A frozen, point-in-time copy of the Catalog data that Basket cares about: `Sku`,
 The computed sum `Σ(item.Snapshot.Price × item.Quantity)` across all items in the basket. A value object. Not stored — projected on demand via the nullable `Basket.Total` getter, which returns `null` for an empty basket (a `BasketTotal` only ever wraps a strictly-positive amount). An empty basket cannot be checked out, so a total never appears in a `BasketCheckoutInitiatedEvent`.
 
 ### Money
-A `(decimal Amount, string Currency)` pair, currency as ISO 4217. Defined in `Platform.SharedKernel` (shared kernel) — the one value object Basket shares with Catalog and Ordering by design. Arithmetic across different currencies throws `DataIntegrityException` (not a `Result.Fail`): mixed-currency math is a bug, not a user error.
+A `(decimal Amount, CurrencyCode Currency)` pair, currency as ISO 4217. Defined in `Platform.SharedKernel` (shared kernel) — a value object Basket shares with Catalog and Ordering by design. Arithmetic across different currencies throws `InvalidOperationException` (not a `Result.Fail`): mixed-currency math is a bug, not a user error.
 
 ### Frozen-pricing contract
 The explicit rule that once a `ProductSnapshot` is placed in a basket, its price does not change until the user explicitly triggers `RefreshBasketPricesCommand`. Automatic refresh on Catalog price changes is **deliberately not implemented** — it would make checkout totals unpredictable for the user. Stale snapshots are the user's responsibility to resolve; checkout commits to whatever is currently in the basket.

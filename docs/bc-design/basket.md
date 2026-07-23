@@ -145,19 +145,15 @@ Computed from `Items.Sum(i => i.Snapshot.Price.Amount * i.Quantity)`. Not persis
 
 ### 3.4 `Money` — shared across Catalog, Basket, Ordering
 
-```text
-record Money(decimal Amount, string Currency)  // ISO 4217
-```
-
 **Location decision:** Money is defined in **`platform/Platform.SharedKernel/ValueObjects/Money.cs`** (shared kernel), not duplicated per BC. Rationale:
 
 - Money is a universal, stable concept with no BC-specific semantics. All three BCs (Catalog, Basket, Ordering) need to agree on the decimal+currency pair representation for checkout math to be consistent.
 - Avro schemas already encode money as `(bytes decimal, string currency)`; a shared `Money` type is the natural .NET counterpart on both publisher and consumer.
-- The type is intentionally anemic (no domain rules beyond validation of currency format and non-negative amount): no BC wants different Money rules.
+- The type is intentionally anemic (no domain rules beyond currency-format validation; sign is unconstrained — positivity is an aggregate concern): no BC wants different Money rules.
 
-This is the only value object promoted to the shared kernel for v1. Everything else lives in the owning BC.
+`Money` (with its `CurrencyCode` currency type) and `Address` are the value objects promoted to the shared kernel for v1 — the promotion criterion is [ADR-0036](../adr/0036-shared-kernel-value-objects.md). Everything else lives in the owning BC.
 
-`Money` operations: `Add(Money other)` throws if currencies differ (`Throw.If` with `DataIntegrityException`); `Multiply(int factor)` returns `Money` with same currency; static `Money.Zero(currency)`.
+`Money` is permissive on sign (positivity is enforced per aggregate); same-currency arithmetic (`Add` / `Subtract` / `+` / `-`) throws `InvalidOperationException` on a currency mismatch. The full operation surface is defined in `Money.cs`.
 
 ---
 
