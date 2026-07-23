@@ -26,6 +26,7 @@
 | `ProductErrors.CategoryIdRequired` | Catalog | User | 422 | N/A | No | No | [catalog.md § Product.Create](catalog.md) |
 | `ProductErrors.PriceMustBePositive` | Catalog | User | 422 | N/A | No | No | [catalog.md § Money](catalog.md) — price invariant |
 | `ProductErrors.CannotRepriceDiscontinued` | Catalog | User | 409 | N/A | No | No | [catalog.md § ChangePrice](catalog.md) (`Status != Discontinued`) |
+| `ProductErrors.CannotChangePriceCurrency(current, attempted)` | Catalog | User | 409 | N/A | No | No | [catalog.md § ChangePrice](catalog.md) — single-currency per product (ADR-0002) |
 | `ProductErrors.CannotModifyDiscontinued` | Catalog | User | 409 | N/A | No | No | [catalog.md § Describe](catalog.md) |
 | `ProductErrors.ReasonRequired` | Catalog | User | 422 | N/A | No | No | [catalog.md § Discontinue](catalog.md) |
 | `ProductErrors.ReactivationRequiresAdminFlag` | Catalog | User | 403 | N/A | No | No | [catalog.md § Reactivate](catalog.md) — policy / authorisation error |
@@ -156,6 +157,7 @@ Aggregate-level factories split per aggregate for locality. All return `Validati
 | `CategoryIdRequired()` | `ValidationError` | 422 |
 | `PriceMustBePositive()` | `ValidationError` | 422 |
 | `CannotRepriceDiscontinued()` | `ConflictError` | 409 |
+| `CannotChangePriceCurrency(string currentCurrency, string attemptedCurrency)` | `ConflictError` | 409 |
 | `CannotModifyDiscontinued()` | `ConflictError` | 409 |
 | `ReasonRequired()` | `ValidationError` | 422 |
 | `ReactivationRequiresAdminFlag()` | `ForbiddenError` | 403 |

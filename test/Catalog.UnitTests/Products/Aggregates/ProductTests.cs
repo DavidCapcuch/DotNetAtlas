@@ -172,6 +172,30 @@ public class ProductTests
     }
 
     [Fact]
+    public void UpdatePrice_WhenCurrencyDiffers_ReturnsCannotChangePriceCurrencyAndKeepsPrice()
+    {
+        // Arrange — a Product's price is single-currency for its lifetime (ADR-0002); repricing
+        // into a different currency is not a valid amount change and must be rejected.
+        var product = CreateActiveProduct();
+        _ = product.PopDomainEvents();
+        var originalPrice = product.Price;
+        var differentCurrency = Money.Create(20m, CurrencyCode.Eur).Value;
+
+        // Act
+        var result = product.UpdatePrice(differentCurrency, UtcNow);
+
+        // Assert
+        using (new AssertionScope())
+        {
+            result.Should().BeFailure();
+            result.Errors.Should().ContainSingle(e =>
+                ((DomainError)e).ErrorCode == "Product.CannotChangePriceCurrency");
+            product.Price.Should().Be(originalPrice);
+            product.PopDomainEvents().Should().BeEmpty();
+        }
+    }
+
+    [Fact]
     public void Describe_WhenStatusDiscontinued_ReturnsCannotModifyDiscontinued()
     {
         // Arrange
