@@ -1,4 +1,3 @@
-using Catalog.Application.Common.Contracts;
 using Catalog.Application.Products.UpdateProductPrice;
 using Catalog.Domain.Products.Events;
 using Catalog.UnitTests.Common;
@@ -16,15 +15,20 @@ public class UpdateProductPriceCommandHandlerTests
         new(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task Handle_ActiveProductWithNewPriceDiffering_UpdatesAndRaisesEvent()
+    public async Task Handle_ActiveProductWithNewAmountDiffering_UpdatesAmountKeepsCurrencyAndRaisesEvent()
     {
         // Arrange
         await using var db = FakeCatalogDbContext.Create();
         var category = CatalogFactories.RootCategory();
         db.Categories.Add(category);
-        var product = CatalogFactories.ActiveProduct(category);
+        // Seeded in a NON-default currency (EUR ≠ the factory default USD) so this test kills a
+        // handler that hardcodes a default currency instead of reusing the product's: such a mutant
+        // would build EUR-amount → USD Money, which Product.UpdatePrice rejects (ADR-0002 currency
+        // guard) → the reprice fails and BeSuccess() below flips red.
+        var product = CatalogFactories.ActiveProduct(category, currency: "EUR");
         db.Products.Add(product);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var originalCurrency = product.Price.Currency;
 
         var clock = new FakeTimeProvider(FixedUtc);
         var handler = new UpdateProductPriceCommandHandler(
@@ -35,7 +39,7 @@ public class UpdateProductPriceCommandHandlerTests
             new UpdateProductPriceCommand
             {
                 ProductId = product.Id,
-                NewPrice = new MoneyDto { Amount = 42m, Currency = "USD" },
+                NewAmount = 42m,
             },
             TestContext.Current.CancellationToken);
 
@@ -46,8 +50,10 @@ public class UpdateProductPriceCommandHandlerTests
             var refreshed = await db.Products.FirstAsync(
                 p => p.Id == product.Id, TestContext.Current.CancellationToken);
             refreshed.Price.Amount.Should().Be(42m);
+            refreshed.Price.Currency.Should().Be(originalCurrency);
             var raised = refreshed.PopDomainEvents().OfType<ProductPriceChangedDomainEvent>().Single();
             raised.NewPrice.Amount.Should().Be(42m);
+            raised.NewPrice.Currency.Should().Be(originalCurrency);
             raised.OccurredOnUtc.Should().Be(FixedUtc);
         }
     }
@@ -65,7 +71,7 @@ public class UpdateProductPriceCommandHandlerTests
             new UpdateProductPriceCommand
             {
                 ProductId = Guid.CreateVersion7(),
-                NewPrice = new MoneyDto { Amount = 1m, Currency = "USD" },
+                NewAmount = 1m,
             },
             TestContext.Current.CancellationToken);
 
@@ -93,7 +99,7 @@ public class UpdateProductPriceCommandHandlerTests
             new UpdateProductPriceCommand
             {
                 ProductId = product.Id,
-                NewPrice = new MoneyDto { Amount = 42m, Currency = "USD" },
+                NewAmount = 42m,
             },
             TestContext.Current.CancellationToken);
 
@@ -122,7 +128,7 @@ public class UpdateProductPriceCommandHandlerTests
             new UpdateProductPriceCommand
             {
                 ProductId = product.Id,
-                NewPrice = new MoneyDto { Amount = 9.99m, Currency = "USD" },
+                NewAmount = 9.99m,
             },
             TestContext.Current.CancellationToken);
 

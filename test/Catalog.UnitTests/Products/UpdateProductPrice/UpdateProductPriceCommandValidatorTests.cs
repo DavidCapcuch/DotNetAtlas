@@ -1,4 +1,3 @@
-using Catalog.Application.Common.Contracts;
 using Catalog.Application.Products.UpdateProductPrice;
 
 namespace Catalog.UnitTests.Products.UpdateProductPrice;
@@ -14,7 +13,7 @@ public class UpdateProductPriceCommandValidatorTests
         var cmd = new UpdateProductPriceCommand
         {
             ProductId = Guid.CreateVersion7(),
-            NewPrice = new MoneyDto { Amount = 9.99m, Currency = "USD" },
+            NewAmount = 9.99m,
         };
 
         // Act & Assert
@@ -28,7 +27,7 @@ public class UpdateProductPriceCommandValidatorTests
         var cmd = new UpdateProductPriceCommand
         {
             ProductId = Guid.Empty,
-            NewPrice = new MoneyDto { Amount = 1m, Currency = "USD" },
+            NewAmount = 1m,
         };
 
         // Act & Assert
@@ -42,21 +41,7 @@ public class UpdateProductPriceCommandValidatorTests
         var cmd = new UpdateProductPriceCommand
         {
             ProductId = Guid.CreateVersion7(),
-            NewPrice = new MoneyDto { Amount = 0m, Currency = "USD" },
-        };
-
-        // Act & Assert
-        _validator.Validate(cmd).IsValid.Should().BeFalse();
-    }
-
-    [Fact]
-    public void Validate_LowercaseCurrency_Fails()
-    {
-        // Arrange
-        var cmd = new UpdateProductPriceCommand
-        {
-            ProductId = Guid.CreateVersion7(),
-            NewPrice = new MoneyDto { Amount = 1m, Currency = "usd" },
+            NewAmount = 0m,
         };
 
         // Act & Assert
