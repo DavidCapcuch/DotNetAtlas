@@ -108,8 +108,8 @@ public class JwtBearerDeployedGuardBootTests
         // Env-gate, IsDevelopment() disjunct — the second half of
         // IsDeployedEnvironment() = !(IsDevelopment() || IsTesting()). Without this case a mutation
         // dropping IsDevelopment() survives the whole suite, yet would fail every laptop `dotnet run`
-        // and docker-compose boot (base appsettings ships RequireHttpsMetadata=true alongside an
-        // http Authority; the appsettings.Development.json overlay is what relaxes it).
+        // and docker-compose boot (base appsettings ships RequireHttpsMetadata=true and no Authority;
+        // the appsettings.Development.json overlay both relaxes the flag and supplies the dev http Authority).
 
         // Act
         var boot = async () =>
@@ -129,10 +129,11 @@ public class JwtBearerDeployedGuardBootTests
     {
         // The framework's own metadata-address guard only fires when an Authority is PRESENT but
         // plaintext — with no Authority at all it builds no ConfigurationManager, boots cleanly, and
-        // defers failure to the first authenticated request. Base appsettings ships a Development-tier
-        // http Authority, so the ordinary forgot-to-override case is caught by the framework check;
-        // this guard covers the residual case simulated here — an Authority explicitly blanked by an
-        // empty override (or omitted entirely) — keeping that host failing closed at boot, not on 500s.
+        // defers failure to the first authenticated request. Base appsettings is deployment-shaped and
+        // ships no Authority, so the ordinary forgot-to-override case — a deployed host whose config omits
+        // the key (or explicitly blanks it, as simulated here) — is caught by this guard; the framework
+        // check covers only the narrower case of an explicit plaintext Authority. Either way that host
+        // fails closed at boot, not on 500s.
 
         // Act
         var boot = async () =>
