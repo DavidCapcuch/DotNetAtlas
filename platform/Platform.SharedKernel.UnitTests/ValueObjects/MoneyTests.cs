@@ -198,6 +198,45 @@ public class MoneyTests
     }
 
     [Fact]
+    public void WithAmount_ReturnsSameCurrencyWithNewAmount()
+    {
+        // Arrange
+        var original = Money.Create(10m, CurrencyCode.Gbp).Value;
+
+        // Act
+        var repriced = original.WithAmount(99.99m);
+
+        // Assert
+        using (new AssertionScope())
+        {
+            repriced.Amount.Should().Be(99.99m);
+            repriced.Currency.Should().Be(CurrencyCode.Gbp);
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-100)]
+    public void WithAmount_WhenZeroOrNegative_StaysPermissive(decimal amount)
+    {
+        // WithAmount carries the aggregate's positivity rule nowhere — sign is a holder-aggregate
+        // concern (School B), so a guard here would duplicate Product.UpdatePrice's Amount > 0 check.
+
+        // Arrange
+        var original = Money.Create(10m, CurrencyCode.Eur).Value;
+
+        // Act
+        var repriced = original.WithAmount(amount);
+
+        // Assert
+        using (new AssertionScope())
+        {
+            repriced.Amount.Should().Be(amount);
+            repriced.Currency.Should().Be(CurrencyCode.Eur);
+        }
+    }
+
+    [Fact]
     public void OperatorPlus_WhenSameCurrency_SumsAmounts()
     {
         // Arrange

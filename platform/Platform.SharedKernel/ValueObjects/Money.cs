@@ -84,6 +84,13 @@ public sealed record Money : ValueObject
     public Money Negate() => new() { Amount = -Amount, Currency = Currency };
 
     /// <summary>
+    /// Returns a Money with the same currency and a new amount. Non-failing — the currency is
+    /// carried over unchanged (nothing is parsed, unlike <c>Create</c>), so it returns a bare
+    /// Money. Used by reprice-style flows that change an amount within a fixed currency.
+    /// </summary>
+    public Money WithAmount(decimal amount) => new() { Amount = amount, Currency = Currency };
+
+    /// <summary>
     /// Addition in the same currency.
     /// </summary>
     /// <param name="other">Other value.</param>
