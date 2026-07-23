@@ -7,15 +7,14 @@ using Microsoft.Extensions.Options;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.SharedKernel.Base.DomainEvents;
 using Platform.SharedKernel.Exceptions;
-using AvroProductDiscontinuedEvent = Catalog.Products.ProductDiscontinuedEvent;
 
 namespace Catalog.Application.Products.DiscontinueProduct;
 
 /// <summary>
-/// Domain-event handler that translates <see cref="ProductDiscontinuedDomainEvent"/> into
-/// the external <see cref="AvroProductDiscontinuedEvent"/> shape and enqueues it via the
-/// transactional outbox. Runs inside the command's UoW so the outbox row commits with the
-/// aggregate write (CQRS-on-Postgres atomicity per catalog.md § 9).
+/// Loads the discontinued product and enqueues the mapped external event via the transactional
+/// outbox on every <see cref="ProductDiscontinuedDomainEvent"/>. Runs inside the command's UoW so
+/// the outbox row commits with the aggregate write (CQRS-on-Postgres atomicity per catalog.md § 9).
+/// Field mapping lives in <see cref="ProductDiscontinuedMapper"/>.
 /// </summary>
 public sealed class ProductDiscontinuedOutboxPublisherDomainEventHandler
     : IDomainEventHandler<ProductDiscontinuedDomainEvent>
@@ -44,13 +43,7 @@ public sealed class ProductDiscontinuedOutboxPublisherDomainEventHandler
                 "Catalog.OutboxMissingProduct",
                 $"Product '{domainEvent.ProductId}' not found when publishing ProductDiscontinuedEvent.");
 
-        var avro = new AvroProductDiscontinuedEvent
-        {
-            ProductId = product.Id,
-            Sku = product.Sku.Value,
-            Reason = domainEvent.Reason,
-            DiscontinuedAtUtc = domainEvent.OccurredOnUtc.UtcDateTime,
-        };
+        var avro = product.ToProductDiscontinuedEvent(domainEvent);
 
         _outbox.AddOutboxMessage(_topics.CatalogProducts, product.Id.ToString(), avro);
 

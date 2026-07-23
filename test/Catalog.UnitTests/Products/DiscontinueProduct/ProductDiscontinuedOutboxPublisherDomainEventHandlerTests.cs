@@ -11,10 +11,15 @@ using AvroProductDiscontinuedEvent = Catalog.Products.ProductDiscontinuedEvent;
 
 namespace Catalog.UnitTests.Products.DiscontinueProduct;
 
+/// <summary>
+/// Orchestration coverage for <see cref="ProductDiscontinuedOutboxPublisherDomainEventHandler"/>:
+/// it loads the tracked aggregate and enqueues the mapped event on the correct topic keyed by the
+/// product id. Field-level mapping is owned by <see cref="ProductDiscontinuedMapperTests"/>.
+/// </summary>
 public class ProductDiscontinuedOutboxPublisherDomainEventHandlerTests
 {
     [Fact]
-    public async Task Handle_Discontinuation_EnqueuesAvroWithReasonAndSku()
+    public async Task Handle_Discontinuation_EnqueuesDiscontinuedEventOnProductsTopicKeyedById()
     {
         // Arrange
         await using var db = FakeCatalogDbContext.Create();
@@ -37,29 +42,24 @@ public class ProductDiscontinuedOutboxPublisherDomainEventHandlerTests
             }),
             NullLogger<ProductDiscontinuedOutboxPublisherDomainEventHandler>.Instance);
 
-        var occurredOn = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
-
         // Act
         await publisher.Handle(
             new ProductDiscontinuedDomainEvent
             {
                 ProductId = product.Id,
                 Reason = "Supplier EOL",
-                OccurredOnUtc = occurredOn,
+                OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
             },
             TestContext.Current.CancellationToken);
 
         // Assert
         var args = outbox.ReceivedCalls().Single().GetArguments();
-        args[0].Should().Be("catalog.products");
-        var avro = args[2].Should().BeOfType<AvroProductDiscontinuedEvent>().Subject;
-
         using (new AssertionScope())
         {
+            args[0].Should().Be("catalog.products");
+            args[1].Should().Be(product.Id.ToString());
+            var avro = args[2].Should().BeOfType<AvroProductDiscontinuedEvent>().Subject;
             avro.ProductId.Should().Be(product.Id);
-            avro.Sku.Should().Be(product.Sku.Value);
-            avro.Reason.Should().Be("Supplier EOL");
-            avro.DiscontinuedAtUtc.Should().Be(occurredOn.UtcDateTime);
         }
     }
 }

@@ -7,7 +7,6 @@ using Microsoft.Extensions.Options;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.SharedKernel.Base.DomainEvents;
 using Platform.SharedKernel.Exceptions;
-using AvroCategoryCreatedEvent = Catalog.Categories.CategoryCreatedEvent;
 
 namespace Catalog.Application.Categories.CreateCategory;
 
@@ -38,14 +37,7 @@ public sealed class CategoryCreatedOutboxPublisherDomainEventHandler
                 "Catalog.OutboxMissingCategory",
                 $"Category '{domainEvent.CategoryId}' not found when publishing CategoryCreatedEvent.");
 
-        var avro = new AvroCategoryCreatedEvent
-        {
-            CategoryId = category.Id,
-            Name = category.Name,
-            ParentCategoryId = category.ParentCategoryId,
-            Path = category.Path.Value,
-            CreatedAtUtc = category.CreatedUtc.UtcDateTime,
-        };
+        var avro = category.ToCategoryCreatedEvent();
 
         _outbox.AddOutboxMessage(_topics.CatalogCategories, category.Id.ToString(), avro);
 

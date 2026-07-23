@@ -1,4 +1,3 @@
-using Avro;
 using Catalog.Application.Common.Data;
 using Catalog.Application.Common.Messaging;
 using Catalog.Application.Products.UpdateProductPrice;
@@ -13,11 +12,13 @@ using AvroProductPriceChanged = Catalog.Products.ProductPriceChangedEvent;
 
 namespace Catalog.UnitTests.Products.UpdateProductPrice;
 
+/// <summary>
+/// Orchestration coverage for <see cref="ProductPriceChangedOutboxPublisherDomainEventHandler"/>:
+/// it loads the tracked aggregate and enqueues the mapped event on the correct topic keyed by the
+/// product id. Field-level mapping is owned by <see cref="ProductPriceChangedMapperTests"/>.
+/// </summary>
 public class ProductPriceChangedOutboxPublisherDomainEventHandlerTests
 {
-    /// <summary>Scale pinned by the money fields in <c>ProductPriceChangedEvent.avsc</c>.</summary>
-    private const int MoneyScale = 4;
-
     private static TopicsOptions DefaultTopics() => new()
     {
         CatalogProducts = "catalog.products",
@@ -27,7 +28,7 @@ public class ProductPriceChangedOutboxPublisherDomainEventHandlerTests
     };
 
     [Fact]
-    public async Task Handle_PriceChange_EnqueuesAvroWithOldAndNewAmounts()
+    public async Task Handle_PriceChange_EnqueuesPriceChangedEventOnProductsTopicKeyedById()
     {
         // Arrange
         await using var db = FakeCatalogDbContext.Create();
@@ -44,8 +45,6 @@ public class ProductPriceChangedOutboxPublisherDomainEventHandlerTests
             Options.Create(DefaultTopics()),
             NullLogger<ProductPriceChangedOutboxPublisherDomainEventHandler>.Instance);
 
-        var occurredOn = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
-
         // Act
         await publisher.Handle(
             new ProductPriceChangedDomainEvent
@@ -53,28 +52,18 @@ public class ProductPriceChangedOutboxPublisherDomainEventHandlerTests
                 ProductId = product.Id,
                 OldPrice = Money.Create(9.99m, "USD").Value,
                 NewPrice = Money.Create(14.50m, "USD").Value,
-                OccurredOnUtc = occurredOn,
+                OccurredOnUtc = new DateTimeOffset(2026, 4, 23, 10, 0, 0, TimeSpan.Zero),
             },
             TestContext.Current.CancellationToken);
 
         // Assert
         var args = outbox.ReceivedCalls().Single().GetArguments();
-        args[0].Should().Be("catalog.products");
-        args[1].Should().Be(product.Id.ToString());
-        var avro = args[2].Should().BeOfType<AvroProductPriceChanged>().Subject;
-
         using (new AssertionScope())
         {
+            args[0].Should().Be("catalog.products");
+            args[1].Should().Be(product.Id.ToString());
+            var avro = args[2].Should().BeOfType<AvroProductPriceChanged>().Subject;
             avro.ProductId.Should().Be(product.Id);
-            avro.Sku.Should().Be(product.Sku.Value);
-            avro.Currency.Should().Be("USD");
-            // Scale-comparing oracle, not a (decimal) cast — the cast erases scale, hiding an
-            // amount emitted at the input's own scale rather than the schema's 4.
-            avro.OldPriceAmount.Should().Be(new AvroDecimal(9.9900m));
-            avro.OldPriceAmount.Scale.Should().Be(MoneyScale);
-            avro.NewPriceAmount.Should().Be(new AvroDecimal(14.5000m));
-            avro.NewPriceAmount.Scale.Should().Be(MoneyScale);
-            avro.ChangedAtUtc.Should().Be(occurredOn.UtcDateTime);
         }
     }
 }

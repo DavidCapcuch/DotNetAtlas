@@ -5,23 +5,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Platform.ReliableMessaging.Outbox.EFCore;
-using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using Platform.SharedKernel.Base.DomainEvents;
 using Platform.SharedKernel.Exceptions;
-using AvroProductPriceChanged = Catalog.Products.ProductPriceChangedEvent;
 
 namespace Catalog.Application.Products.UpdateProductPrice;
 
 public sealed class ProductPriceChangedOutboxPublisherDomainEventHandler
     : IDomainEventHandler<ProductPriceChangedDomainEvent>
 {
-    /// <summary>
-    /// Scale pinned by the money fields in <c>ProductPriceChangedEvent.avsc</c>
-    /// (<c>decimal(19,4)</c>). Avro rejects a datum whose scale differs from the schema's, so
-    /// amounts must be normalised rather than inheriting the .NET decimal's own scale.
-    /// </summary>
-    private const int MoneyScale = 4;
-
     private readonly ICatalogDbContext _db;
     private readonly ITransactionalOutbox<ICatalogDbContext> _outbox;
     private readonly TopicsOptions _topics;
@@ -46,15 +37,7 @@ public sealed class ProductPriceChangedOutboxPublisherDomainEventHandler
                 "Catalog.OutboxMissingProduct",
                 $"Product '{domainEvent.ProductId}' not found when publishing ProductPriceChangedEvent.");
 
-        var avro = new AvroProductPriceChanged
-        {
-            ProductId = product.Id,
-            Sku = product.Sku.Value,
-            OldPriceAmount = domainEvent.OldPrice.Amount.ToAvroDecimal(MoneyScale),
-            NewPriceAmount = domainEvent.NewPrice.Amount.ToAvroDecimal(MoneyScale),
-            Currency = domainEvent.NewPrice.Currency.Name,
-            ChangedAtUtc = domainEvent.OccurredOnUtc.UtcDateTime,
-        };
+        var avro = product.ToProductPriceChangedEvent(domainEvent);
 
         _outbox.AddOutboxMessage(_topics.CatalogProducts, product.Id.ToString(), avro);
 
