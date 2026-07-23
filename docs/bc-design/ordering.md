@@ -100,14 +100,10 @@ The aggregate enforces the following invariants. Violations are classified as **
 
 ## 4. Value Objects
 
-All value objects live in `Ordering.Domain.ValueObjects`. They are immutable `sealed record`s inheriting `Platform.SharedKernel.Base.ValueObject`, follow the `Create(...) -> Result<T>` factory pattern, and have a private parameterless constructor for EF Core materialization.
+Ordering's own value objects live in `Ordering.Domain.ValueObjects`; `Money` and `Address` are shared-kernel (§4.1, §4.2 — [ADR-0036](../adr/0036-shared-kernel-value-objects.md)). All are immutable `sealed record`s inheriting `Platform.SharedKernel.Base.ValueObject`, follow the `Create(...) -> Result<T>` factory pattern, and have a private parameterless constructor for EF Core materialization.
 
 ### 4.1 `Money`
-Shared-kernel value object (planned: `Platform.SharedKernel.ValueObjects.Money`; Wave 0 pins this — see rev-4 plan). Until pinned, implement locally under `Ordering.Domain.ValueObjects.Money` with the same contract:
-- `Amount : decimal` — must be `> 0`.
-- `Currency : CurrencyCode` — ISO 4217 enum.
-- `Add`, `Subtract`, `+`, `-` operators — enforce same-currency invariant, throw `InvalidOperationException` otherwise.
-- Factory: `static Result<Money> Create(decimal amount, CurrencyCode currency)` and the `(decimal, string)` overload.
+Shared-kernel value object — `Platform.SharedKernel.ValueObjects.Money`, pinned per [ADR-0036](../adr/0036-shared-kernel-value-objects.md). Ordering consumes it directly (no local copy). Shape and operations are defined in `Money.cs`; `Money` is permissive on sign, so Ordering enforces unit-price `> 0` at the `OrderItem` boundary (§4.3).
 
 ### 4.2 `Address`
 - `Street1 : string` — required, max 200 chars.

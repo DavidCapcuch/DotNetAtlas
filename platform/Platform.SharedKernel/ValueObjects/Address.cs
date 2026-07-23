@@ -5,7 +5,7 @@ using Platform.SharedKernel.Errors;
 namespace Platform.SharedKernel.ValueObjects;
 
 /// <summary>
-/// Postal address value object. Shared-kernel (ADR-0015 / Wave 0 pin).
+/// Postal address value object. Shared-kernel (ADR-0036).
 /// Country code is ISO 3166-1 alpha-2.
 /// </summary>
 public sealed record Address : ValueObject
