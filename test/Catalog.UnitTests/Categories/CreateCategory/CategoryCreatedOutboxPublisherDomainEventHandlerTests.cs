@@ -11,10 +11,15 @@ using AvroCategoryCreatedEvent = Catalog.Categories.CategoryCreatedEvent;
 
 namespace Catalog.UnitTests.Categories.CreateCategory;
 
+/// <summary>
+/// Orchestration coverage for <see cref="CategoryCreatedOutboxPublisherDomainEventHandler"/>: it
+/// loads the tracked category and enqueues the mapped event on the correct topic keyed by the
+/// category id. Field-level mapping is owned by <see cref="CategoryCreatedMapperTests"/>.
+/// </summary>
 public class CategoryCreatedOutboxPublisherDomainEventHandlerTests
 {
     [Fact]
-    public async Task Handle_TrackedCategory_EnqueuesAvroWithFullFieldSet()
+    public async Task Handle_TrackedCategory_EnqueuesCreatedEventOnCategoriesTopicKeyedById()
     {
         // Arrange
         await using var db = FakeCatalogDbContext.Create();
@@ -50,16 +55,12 @@ public class CategoryCreatedOutboxPublisherDomainEventHandlerTests
 
         // Assert
         var args = outbox.ReceivedCalls().Single().GetArguments();
-        args[0].Should().Be("catalog.categories");
-        args[1].Should().Be(child.Id.ToString());
-        var avro = args[2].Should().BeOfType<AvroCategoryCreatedEvent>().Subject;
-
         using (new AssertionScope())
         {
+            args[0].Should().Be("catalog.categories");
+            args[1].Should().Be(child.Id.ToString());
+            var avro = args[2].Should().BeOfType<AvroCategoryCreatedEvent>().Subject;
             avro.CategoryId.Should().Be(child.Id);
-            avro.Name.Should().Be("Laptops");
-            avro.ParentCategoryId.Should().Be(parent.Id);
-            avro.Path.Should().Be(child.Path.Value);
         }
     }
 }
