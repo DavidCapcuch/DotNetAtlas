@@ -1,11 +1,8 @@
-using AwesomeAssertions;
-using AwesomeAssertions.Execution;
 using Invoicing.Application.Outbox;
 using Invoicing.Domain.Invoices.Events;
 using Invoicing.Domain.Invoices.ValueObjects;
-using Xunit;
 
-namespace Invoicing.UnitTests.Application.Invoices.Delivery;
+namespace Invoicing.UnitTests.Application.Outbox;
 
 public sealed class InvoiceDeliveredMapperTests
 {
