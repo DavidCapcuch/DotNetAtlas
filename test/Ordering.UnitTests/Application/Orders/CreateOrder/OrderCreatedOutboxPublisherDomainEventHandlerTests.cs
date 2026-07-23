@@ -54,9 +54,9 @@ public class OrderCreatedOutboxPublisherDomainEventHandlerTests : HandlerTestBas
             avro.Currency.Should().Be("USD");
             avro.Items.Count.Should().Be(1);
 
-            // Money was previously unasserted here, so a wrong amount or a wrong scale shipped
-            // silently. Scale-comparing oracle: AvroDecimal equality covers Scale as well as the
-            // unscaled value, and the schema pins every money field at 4.
+            // Value and scale are distinct facets: AvroDecimal value-equality is not reliably
+            // scale-sensitive, so a mapper emitting the domain decimal's own scale instead of the
+            // schema's 4 (which Avro rejects at encode time) would slip past the value oracle alone.
             avro.TotalAmount.Should().Be(new AvroDecimal(20.0000m));
             avro.TotalAmount.Scale.Should().Be(MoneyScale);
 
