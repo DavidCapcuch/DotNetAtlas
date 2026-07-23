@@ -191,12 +191,12 @@ public static class JwtBearerConfigurator
     /// validate tokens against. Covers the one gap the framework's own metadata-address check cannot
     /// see: that check only rejects an address that is <i>present but plaintext</i>, so with neither
     /// <c>Authority</c> nor <c>MetadataAddress</c> it builds no configuration manager, the host
-    /// <b>boots cleanly</b>, and every authenticated request fails afterwards instead. Reachable when
-    /// an edge's <c>Authority</c> is explicitly blanked (an empty env-var override) or its appsettings
-    /// omits the key — base <c>appsettings.json</c> ships a Development-tier <c>http://</c> value, so
-    /// the ordinary forgot-to-override case is already caught at boot by the framework check. No-op
-    /// outside deployed environments — the test fixtures' <c>ConfigureJwtBearerForTests</c>
-    /// deliberately clears both values.
+    /// <b>boots cleanly</b>, and every authenticated request fails afterwards instead. Because base
+    /// <c>appsettings.json</c> is deployment-shaped — the dev-only <c>http://</c> Authority lives in the
+    /// Development / Testing overlays, not base — the ordinary forgot-to-override case (a deployed host
+    /// whose config omits the key) is caught here; the framework's own metadata-address check covers only
+    /// the narrower case of an explicit plaintext <c>Authority</c>. No-op outside deployed environments —
+    /// the test fixtures' <c>ConfigureJwtBearerForTests</c> deliberately clears both values.
     /// </summary>
     /// <remarks>
     /// Only presence is asserted, not the scheme: in a deployed environment

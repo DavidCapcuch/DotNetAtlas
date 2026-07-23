@@ -116,10 +116,10 @@ public class JwtBearerConfiguratorTests
         // The default is keyed on IsDeployedEnvironment() = !(IsDevelopment() || IsTesting()), NOT on
         // !IsDevelopment(): Testing is a non-deployed tier that talks to a local http Keycloak (or a
         // cleared authority + FakeTokenSigner), so requiring HTTPS metadata there pairs a `true` flag
-        // with the http:// Authority in base appsettings — a combination the framework's own
-        // JwtBearerPostConfigureOptions rejects the moment ValidateOnStart materializes the options at
-        // boot. Each case kills a distinct mutant: dropping either disjunct of the env-gate, or
-        // inverting the default outright.
+        // with the http:// Authority the Development / Testing overlays supply — a combination the
+        // framework's own JwtBearerPostConfigureOptions rejects the moment ValidateOnStart materializes
+        // the options at boot. Each case kills a distinct mutant: dropping either disjunct of the
+        // env-gate, or inverting the default outright.
 
         // Act
         var options = BuildPlatformJwtBearerOptions(environmentName: environmentName);

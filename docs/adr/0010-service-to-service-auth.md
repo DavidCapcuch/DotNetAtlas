@@ -373,14 +373,15 @@ in its Configure step. That is the same category error — the **inbound** trust
 accept") derived from the **outbound** service identity ("which Keycloak do I fetch my own
 client-credentials / RFC 8693 token from").
 
-Inert today only because every BC's base `appsettings.json` ships an explicit
-`Authentication:JwtBearer:Authority` that the bind overwrites the seed with. But latent **fail-open**:
+That seed would have stayed inert only while every BC's base `appsettings.json` shipped an explicit
+`Authentication:JwtBearer:Authority` for the bind to overwrite it with. But it was a latent **fail-open**:
 `Basket` and the `BFF` are the only two edges whose `ServiceAuthOptions.Authority` is non-empty (they call
-`AddServiceAuth`), so the moment base stops shipping the inbound `Authority` — the deferred
-deployment-shaped-base work — their inbound anchor silently falls back to the outbound `ServiceAuth:Authority`,
-and `AssertDeployedAuthorityConfigured` becomes structurally unreachable for exactly those two
-secret-holding edges. Point `ServiceAuth:Authority` at a different realm and the edge would begin accepting
-that realm's tokens with no inbound config saying so.
+`AddServiceAuth`), so once base stops shipping the inbound `Authority` — the deployment-shaped base — their
+inbound anchor would silently fall back to the outbound `ServiceAuth:Authority`, and
+`AssertDeployedAuthorityConfigured` would be structurally unreachable for exactly those two secret-holding
+edges. Point `ServiceAuth:Authority` at a different realm and the edge would begin accepting that realm's
+tokens with no inbound config saying so. Decoupling the two (below) is what lets base ship no inbound
+`Authority` safely.
 
 ### Decision (amendment)
 
@@ -415,6 +416,6 @@ references `ServiceAuthOptions` at all.
 - The outbound-active set (Basket, BFF) now validates `iss` the same way as the inbound-only BCs — one
   mechanism, no per-shape special-casing.
 - The `AssertDeployedAuthorityConfigured` guard is reachable for every deployed edge, including the two
-  that hold client secrets — the deployment-shaped-base work can drop the dev-only `http://localhost`
+  that hold client secrets — so the deployment-shaped base drops the dev-only `http://localhost`
   `Authority` from base `appsettings.json` into the Development / Testing overlays without reopening a
   fail-open.
