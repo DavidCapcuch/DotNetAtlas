@@ -2,6 +2,12 @@ name: Reusable - Publish Test Coverage
 
 on:
   workflow_call:
+    inputs:
+      publish-site:
+        description: "Render the HTML report and upload the coverage-site artifact for the Pages deploy. Off by default — only the release path deploys a site."
+        type: boolean
+        default: false
+        required: false
 
 jobs:
   publish-coverage:
@@ -20,7 +26,11 @@ jobs:
         with:
           reports: "artifacts/raw-coverage/**/*.cobertura.xml"
           targetdir: "${{ runner.temp }}/coveragereport"
-          reporttypes: "Cobertura;OpenCover;Html;MarkdownSummaryGithub"
+          # Html renders the multi-page site and is only served on the release path; skip the render
+          # on PR/main-CI (emitting per-class pages nothing uploads is wasted work). Cobertura,
+          # OpenCover, and the Markdown summary are always emitted — SonarCloud reads the OpenCover
+          # XML and the run summary reads the Markdown, on every path.
+          reporttypes: ${{ inputs.publish-site && 'Cobertura;OpenCover;Html;MarkdownSummaryGithub' || 'Cobertura;OpenCover;MarkdownSummaryGithub' }}
           verbosity: "Info"
           title: "Code Coverage"
           tag: "${{ github.run_number }}_${{ github.run_id }}"
@@ -38,8 +48,11 @@ jobs:
       # type is Html not HtmlInline so those pages share one external css/js rather than inlining
       # assets into every page — leaner for a served site now that the whole dir ships.
       # deploy-coverage-site serves this dir's root, where index.html sits, so the Pages URL
-      # resolves. The Cobertura/OpenCover/Markdown siblings ride along unlinked and harmless.
+      # resolves. The Cobertura/OpenCover/Markdown siblings ride along unlinked and harmless. Gated
+      # on publish-site so PR/main-CI runs — which never deploy a site — don't store a multi-MB
+      # artifact nothing downloads.
       - name: Upload Coverage Site artifact (full HTML report)
+        if: ${{ inputs.publish-site }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: coverage-site
