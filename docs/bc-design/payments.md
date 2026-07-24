@@ -83,7 +83,7 @@ Live in `Payments.Domain.ValueObjects`. Immutable `sealed record` with private c
 
 | VO | Fields | Notes |
 |---|---|---|
-| `Money` | shared-kernel (`Platform.SharedKernel.ValueObjects.Money`) | Positive amount + ISO 4217 currency |
+| `Money` | shared-kernel (`Platform.SharedKernel.ValueObjects.Money`) | Signed amount + ISO 4217 currency; positive-amount (I-1) is enforced by the aggregate factory, not `Money` (School B) |
 | `PaymentMethodId` | `Value : string` | Gateway-issued token; 1–64 chars; no raw PAN |
 | `GatewayResponseCode` | `Code : string`, `Message : string` | Enriched from gateway response |
 | `FailureInfo` | `Reason : FailureReason` (SmartEnum), `GatewayCode : string?`, `RecordedAtUtc : DateTimeOffset` | Terminal-failure detail |
