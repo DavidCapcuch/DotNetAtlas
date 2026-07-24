@@ -119,6 +119,7 @@ Layering and dependency rules are enforced by [architecture-tests.md](architectu
 | Consumer rebalance protocol (CooperativeSticky) | [ADR-0027](../adr/0027-kafka-consumer-cooperative-rebalancing.md) |
 | Ubiquitous language across BCs | [eshop-ubiquitous-language.md](../eshop-ubiquitous-language.md) + per-BC `glossary-*.md` |
 | Layering / architecture tests | [architecture-tests.md](architecture-tests.md) |
+| API response contracts (endpoint-owned wire types; duplicate envelopes + item types, share value DTOs) | This file § 10 + [ADR-0037](../adr/0037-endpoint-owned-response-contracts.md) |
 | Manual code style (var, expressive names, test AAA + naming) | This file § 9 |
 | Documentation style (XML / aggregate event-docs, high-signal) | [documentation-conventions.md](documentation-conventions.md) |
 | Definition of Done | dispatch-structural = [_shared.md § 12](../implementation-prompts/_shared.md); repo-wide quality bar = [DoD.md](../DoD.md); executable gates = [verification-gates.md](../verification-gates.md) |
@@ -135,6 +136,17 @@ House **code-style** conventions `dotnet format` won't fail on: `var`-for-locals
 - **Full, expressive names** — no abbreviations or single letters (`expiryDateUtc`, not `exp`; `subscriber`, not `s`).
 - **Tests use AAA** — `// Arrange` / `// Act` / `// Assert` comment sections (skip one only when empty); group multiple assertions in a FluentAssertions `AssertionScope`, always the block form `using (new AssertionScope()) { … }` (never `using var _ = new AssertionScope();` — the braces delimit the scope's extent).
 - **Test method names: `MethodName_Scenario_ExpectedResult`** — e.g. `FromCelsius_WhenValidInput_ReturnsCorrectTemperature`.
+
+---
+
+## 10. API response contracts
+
+Canonical policy: [ADR-0037](../adr/0037-endpoint-owned-response-contracts.md).
+
+- **Each endpoint owns its response type.** Response envelopes and their nested item types (the published wire contract) are **duplicated** per endpoint — never shared across sibling endpoints, even when identical today. Internal read-model projection helpers (EF `*Row` targets) are *not* covered — their sharing is [ADR-0021](../adr/0021-read-side-no-specifications.md)'s call.
+- **Value DTOs are shared.** `MoneyDto`, `DimensionsDto`, `ImageReferenceDto`, and similar live in each BC's `Common/Contracts` namespace (per-BC, duplicated across BCs by design). The line: if the type answers *"what does this endpoint return?"* it is duplicated; if it answers *"what is money?"* it is shared.
+- **Globally-unique simple names per assembly** — NSwag's `ShortSchemaNames` (set in `SwaggerDependencyInjection`) collapses same-simple-name DTOs across namespaces to `Foo` / `Foo2` in the OpenAPI doc, so duplicated envelopes need distinct simple names (see [ADR-0037 § Risks](../adr/0037-endpoint-owned-response-contracts.md)).
+- **New response / item types are immutable, property-style records** — `public sealed record Foo { public required string Bar { get; init; } }`, not the mutable `class { get; set; }` shape. Positional records only for trivially flat types. `init` on an `IReadOnlyList<T>` member is shallow (prevents swapping the reference, not mutating the collection); acceptable for a serialize-immediately DTO.
 
 ---
 
