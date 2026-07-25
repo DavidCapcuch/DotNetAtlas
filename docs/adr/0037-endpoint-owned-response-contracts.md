@@ -45,9 +45,10 @@ DRY the envelope across sibling endpoints; split only when a divergence actually
 
 - **Duplicate**: response envelopes and their nested item types — the **published wire contract** a consumer deserializes.
 - **Share**: value DTOs (`MoneyDto`, `DimensionsDto`, `ImageReferenceDto`, and similar) — they express a *domain concept*, not an endpoint's contract shape, so a BC's sibling slices share one copy from that BC's `Common/Contracts` namespace. (Value DTOs are per-BC — duplicated *across* BCs by design, not hoisted to a single shared assembly. They are the wire-DTO analogue of the domain-layer share/duplicate line the shared-kernel value objects draw in [ADR-0036](0036-shared-kernel-value-objects.md).)
+- **Share**: **generic envelopes and standardized media types** — RFC 9457 `ProblemDetails` (the repo's universal error envelope, emitted centrally by `Platform.Api`'s response sender) and `PagedResult<T>`-style pagination wrappers. A structural container carries *no* contract shape of its own; the `T` it wraps carries all of it, and that `T` stays endpoint-owned. Duplicating an IETF media type per endpoint would be absurd.
 - **Out of scope**: internal read-model projection helpers (EF `*Row` SQL-projection targets). They never cross the wire, so sharing one across queries of the same aggregate couples no consumer; that sharing is a read-model implementation decision governed by [ADR-0021](0021-read-side-no-specifications.md), not this ADR.
 
-**The line**: if the type answers *"what does this endpoint return?"* → duplicate. If it answers *"what is money?"* → share. If it never leaves the database layer → ADR-0021's call, not this one.
+**The line**: if the type answers *"what does this endpoint return?"* → duplicate. If it answers *"what is money?"* or *"how is any page/error shaped?"* → share. If it never leaves the database layer → ADR-0021's call, not this one.
 
 New response and item types are **immutable, property-style records**:
 
@@ -64,7 +65,9 @@ public sealed record Foo
 
 The three drivers all point the same way. Driver 1 is decisive: response types are cheap to duplicate and expensive to un-share, so the asymmetry says start separate. Driver 2 makes the rule enforceable without per-PR vigilance — "one endpoint per response type" is a fact a NetArchTest rule can assert, whereas "share only when identical" is a standing judgment that erodes. Driver 3 is the payoff: contracts evolve one endpoint at a time.
 
-Duplication here is not a DRY violation waiting to be refactored away — two endpoints returning the same shape today are two *independent contracts that happen to coincide*, not one contract used twice. [ADR-0021](0021-read-side-no-specifications.md) already records the read-side precedent: Ordering's `GetOrdersByBuyer` (list) and `GetOrderById` (detail) deliberately return **different** shapes — a narrow `OrderSummaryDto` vs the full `GetOrderByIdResponse` — and are "intentionally divergent, not duplication waiting to be refactored" ([ADR-0021 § Risks](0021-read-side-no-specifications.md)).
+Duplication here is not a DRY violation waiting to be refactored away — DRY is about a single source of *knowledge*, not a ban on identical text, and two endpoints returning the same shape today are two *independent contracts that happen to coincide*, not one contract used twice. [ADR-0021](0021-read-side-no-specifications.md) already records the read-side precedent: Ordering's `GetOrdersByBuyer` (list) and `GetOrderById` (detail) deliberately return **different** shapes — a narrow `OrderSummaryDto` vs the full `GetOrderByIdResponse` — and are "intentionally divergent, not duplication waiting to be refactored" ([ADR-0021 § Risks](0021-read-side-no-specifications.md)).
+
+**Why this is stricter than the Rule of Three.** The usual guidance — tolerate duplication until a third instance justifies extracting it — governs *internal* code, where extraction is cheap and reversible. It does not transfer to a **published** contract: once a shape is observable, consumers depend on it (Hyrum's Law), so un-sharing later is a breaking change to parties you cannot enumerate. The stricter rule is not dogma; it is the Rule of Three applied to a surface where the "extract later" escape hatch does not exist. Inside a BC, ordinary refactoring judgment still applies — this ADR binds the wire, not the implementation.
 
 ## Consequences
 
@@ -98,6 +101,7 @@ Per policy, **no remediation tickets are opened for compliant units.** The non-c
 
 - New response and item types follow the immutable, property-style-record shape above, matching the value-DTO precedent in each BC's `Common/Contracts` (`MoneyDto`, `DimensionsDto`, `ImageReferenceDto`) — so the folder stops teaching two contradictory conventions (`record { init }` for value DTOs, `class { set }` for envelopes).
 - Globally-unique simple names per assembly are a hard requirement, not a preference — see Risks.
+- **The enforcing arch test asserts "referenced by exactly one endpoint" over response envelopes and the types reachable from them, minus a declared exemption set**: the BC's `Common/Contracts` namespace (shared value DTOs) and generic/standardized envelopes (`ProblemDetails`, `PagedResult<T>`). Anchoring the exemption to the **declaration site** rather than to a judgment about a type's meaning is what keeps the rule mechanically checkable — the namespace *is* the bright line.
 - The rule, the duplicate/share line, and the record shape are mirrored in [conventions.md § 10](../bc-design/conventions.md).
 
 ## Related Decisions
