@@ -184,6 +184,31 @@ public class SearchProductsTests : BaseIntegrationTest
     }
 
     [Fact]
+    public async Task WhenProductHasImages_MapsMoneyAndPrimaryImageOntoTheResultItem()
+    {
+        // This slice owns its own row-to-wire mapper (ADR-0037), so a break here is invisible to
+        // GetProductsByCategory's tests and vice versa. Images are seeded out of DisplayOrder so
+        // the lowest-order pick is distinguishable from source order.
+        await SeedRowsAsync(
+            ProductSearchViewRowBuilder.Active("MAP-001", name: "Mapped Widget", amount: 42.50m, currency: "GBP")
+                .WithImages(
+                    new ImageReferenceDto { Url = "https://cdn.test/secondary.png", AltText = "b", DisplayOrder = 3 },
+                    new ImageReferenceDto { Url = "https://cdn.test/primary.png", AltText = "a", DisplayOrder = 1 }));
+
+        var body = await SearchAsync("?Text=Mapped&Page=1&Limit=10");
+
+        var item = body.Items.Should().ContainSingle().Which;
+        using (new AssertionScope())
+        {
+            item.Sku.Should().Be("MAP-001");
+            item.BrandName.Should().Be("Acme");
+            item.Price.Amount.Should().Be(42.50m);
+            item.Price.Currency.Should().Be("GBP");
+            item.PrimaryImageUrl.Should().Be("https://cdn.test/primary.png");
+        }
+    }
+
+    [Fact]
     public async Task WhenPriceRange_FiltersInclusive()
     {
         await SeedRowsAsync(

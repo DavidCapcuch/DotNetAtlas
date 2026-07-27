@@ -1,9 +1,9 @@
 namespace Catalog.Application.Common.Contracts;
 
 /// <summary>
-/// Paginated product-search page returned by the <c>SearchProducts</c> slice and reused verbatim by
-/// <c>GetProductsByCategory</c> (which projects the same view). Lives in <c>Common.Contracts</c> so
-/// neither slice owns a type the other depends on.
+/// Paginated product-search page returned by the <c>SearchProducts</c> and
+/// <c>SearchAdminProducts</c> endpoints. One envelope serving two endpoints is an outstanding
+/// ADR-0037 violation, tracked in #354 and #355.
 /// </summary>
 public sealed class SearchProductsResponse
 {
