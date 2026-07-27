@@ -134,7 +134,7 @@ Concrete deliverables. Extends `_shared.md § 12` adapted (2 layers not 4):
 - [ ] Docker-compose: BFF container + healthcheck (no new topics, no outbox-relay)
 - [ ] Every new behaviour has a new test (`_shared.md § 12`)
 - [ ] All `<applicable_adrs>` enforced (architecture tests + verification commands)
-- [ ] Review stack (`_shared.md § 11`) run end-to-end: Opus pre-commit → gates pasted → `daca-dod-reviewer` blockers fixed (Role 3; delegates to `daca-bc-consistency-reviewer` + `daca-documentation-reviewer`); `docs/DoD.md` Self-attested bucket attested
+- [ ] Review stack (`_shared.md § 11`) run end-to-end: Opus pre-commit → gates pasted → `daca-dod-reviewer` blockers fixed (Role 3; delegates to `daca-bc-consistency-reviewer` + `daca-documentation-reviewer`); its Self-attested bucket attested
 </dod>
 
 <boundaries>
@@ -169,7 +169,7 @@ Per `_shared.md § 10`. Suggested commit milestones:
 </session_management>
 
 <verification>
-Run the **non-negotiable gates** in [`docs/verification-gates.md`](../verification-gates.md) (build / restore / format / the three `EShop.BFF.*Tests` projects / compose health), then the BFF smoke below. **Paste the actual output** into the session summary.
+Run the **non-negotiable gates** via `daca-gates` (build / restore / format / the three `EShop.BFF.*Tests` projects / compose health; repo deltas in [`docs/verification-gates.md`](../verification-gates.md)), then the BFF smoke below. **Paste the actual output** into the session summary.
 
 ```bash
 # BFF smoke, after the standard gates:
@@ -204,7 +204,7 @@ Per `_shared.md § 11` (three roles). Before declaring DoD met:
 
 1. **Role 1** — Opus `feature-dev:code-reviewer` ran pre-commit on every ≥ 5-file milestone; CRITICAL/HIGH fixed.
 2. **Role 2 (gate)** — run every command in `<verification>`; paste the **actual** output; invoke `superpowers:verification-before-completion`.
-3. **Role 3 (DoD gate)** — self-attest the `docs/DoD.md` **Self-attested** bucket in your summary, then run `daca-dod-reviewer` on your diff with its delegates run as siblings: Architecture/DDD → `daca-bc-consistency-reviewer` (archetype: 2-layer aggregation gateway) vs the golden reference + `conventions.md` + the BFF arch tests; Documentation → `daca-documentation-reviewer`. Fix every blocker.
+3. **Role 3 (DoD gate)** — self-attest the **Self-attested** bucket of `daca-dod-reviewer`'s bar in your summary, then run `daca-dod-reviewer` on your diff with its delegates run as siblings: Architecture/DDD → `daca-bc-consistency-reviewer` (archetype: 2-layer aggregation gateway) vs the golden reference + `conventions.md` + the BFF arch tests; Documentation → `daca-documentation-reviewer`. Fix every blocker.
 4. **Security pass** — run `/security-review` scoped to the auth-forwarding (user-JWT + service-token attachment) and PII-composition paths. The BFF is the system's highest-risk surface and arch tests won't catch a leaked token, a JWT written to a log, or a span tagged with a composed address (ADR-0011 forbids it). (This is the `daca-dod-reviewer`'s applicability-gated `/security-review` trigger — auth / PII / secrets / new external endpoint — firing here; the BFF is its highest-risk instance, not a special case.)
 </peer_review>
 

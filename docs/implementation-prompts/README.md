@@ -20,7 +20,7 @@ A dispatch is a phased pipeline, not just a build session. The authoritative pha
 2. dispatch         _template.md / bff.md          ← the locked-contract spec the build session runs
 3. build loop       tdd                            ← red → green → refactor, per behaviour
 4. gate             verification-before-completion ← the four hard gates, actual output pasted
-5. DoD gate         daca-dod-reviewer (+ delegates)     ← diff vs docs/DoD.md; arch/DDD → daca-bc-consistency-reviewer, docs → daca-documentation-reviewer
+5. DoD gate         daca-dod-reviewer (+ delegates)     ← diff vs its DoD bar; arch/DDD → daca-bc-consistency-reviewer, docs → daca-documentation-reviewer
 ```
 
 Phases 0–1 happen with the owner before a fresh session is spawned; phases 2–5 run inside the dispatch. This mirrors [Anthropic's harness-design guidance](https://www.anthropic.com/engineering/harness-design-long-running-apps): agree the scope + verification contract *before* implementation, and keep the agent that **builds** separate from the agent that **judges**.
@@ -51,9 +51,9 @@ Waves 0–2 are **built** (platform + the six Wave-1 BCs + the checkout saga). T
 
 When an agent reports completion, the agent MUST have already run the three-role review stack (`_shared.md § 11`): Opus pre-commit review, the gates with pasted output, and `daca-dod-reviewer` (which delegates drift → `daca-bc-consistency-reviewer` and docs → `daca-documentation-reviewer`). Re-verify:
 
-1. All [verification gates](../verification-gates.md) green (build / restore `--locked-mode` / format / the three test projects / compose health) — actual output, not a summary.
+1. All `daca-gates` gates green (build / restore `--locked-mode` / format / the three test projects / compose health) — actual output, not a summary.
 2. Docs self-corrected if needed (`docs/bc-design/{bc}.md`, glossary, example-mapping).
-3. `daca-dod-reviewer` blockers fixed; `docs/DoD.md` Self-attested bucket attested.
+3. `daca-dod-reviewer` blockers fixed; its Self-attested bucket attested.
 4. Session-summary posted with the full template from `_template.md § session_summary` — ADR notes, pasted verification output, and review-stack findings.
 
 ## Contract-locked vs Design-open — the core idea
@@ -107,7 +107,7 @@ The kit is built to defeat the common agent-dispatch failure modes. Each maps to
 | **Missing test coverage** | "Every new behaviour ships a new test" (`_shared.md § 12`); `tdd` build loop |
 | **Architecture drift** | `conventions.md` + CI-blocking `architecture-tests.md` (NetArchTest); `daca-bc-consistency-reviewer` (via `daca-dod-reviewer`) at DoD |
 | **Stale docs** | Doc self-correction *in the same session* (`_shared.md § 8`) |
-| **False certainty** (confident-but-wrong) | The gate's *prove-don't-claim* rule (actual pasted output) + a separate **judge** (`daca-dod-reviewer`, a fresh subagent) auditing the diff vs `docs/DoD.md`, never self-attestation |
+| **False certainty** (confident-but-wrong) | The gate's *prove-don't-claim* rule (actual pasted output) + a separate **judge** (`daca-dod-reviewer`, a fresh subagent) auditing the diff vs its DoD bar, never self-attestation |
 
 ## Basis (cited)
 

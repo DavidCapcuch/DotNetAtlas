@@ -121,8 +121,8 @@ Layering and dependency rules are enforced by [architecture-tests.md](architectu
 | Layering / architecture tests | [architecture-tests.md](architecture-tests.md) |
 | API response contracts (endpoint-owned wire types; duplicate envelopes + item types, share value DTOs) | This file § 10 + [ADR-0037](../adr/0037-endpoint-owned-response-contracts.md) |
 | Manual code style (var, expressive names, test AAA + naming) | This file § 9 |
-| Documentation style (XML / aggregate event-docs, high-signal) | [documentation-conventions.md](documentation-conventions.md) |
-| Definition of Done | dispatch-structural = [_shared.md § 12](../implementation-prompts/_shared.md); repo-wide quality bar = [DoD.md](../DoD.md); executable gates = [verification-gates.md](../verification-gates.md) |
+| Documentation style (XML / aggregate event-docs, high-signal) | the `daca-documentation-reviewer` skill |
+| Definition of Done | dispatch-structural = [_shared.md § 12](../implementation-prompts/_shared.md); general quality bar = the `daca-dod-reviewer` skill's bar; executable gates = the `daca-gates` skill + [verification-gates.md](../verification-gates.md) (repo deltas) |
 
 When a convention is referenced from multiple places, the reference should link to the canonical doc above — not paraphrase. If you find yourself wanting to write "canonical name per …" and don't know where to point, the answer is **this file**, which then points at the actual canonical doc.
 
@@ -130,7 +130,7 @@ When a convention is referenced from multiple places, the reference should link 
 
 ## 9. Manual code style (not *blocking*-enforced)
 
-House **code-style** conventions `dotnet format` won't fail on: `var`-for-locals and the test AAA/naming items have no rule at all, and the casing rules that *do* exist in `.editorconfig` sit at `suggestion` severity (non-blocking). (Documentation style — XML/aggregate-docs, high-signal markdown — is its own SSOT: [`documentation-conventions.md`](documentation-conventions.md).)
+House **code-style** conventions `dotnet format` won't fail on: `var`-for-locals and the test AAA/naming items have no rule at all, and the casing rules that *do* exist in `.editorconfig` sit at `suggestion` severity (non-blocking). (Documentation style — XML/aggregate-docs, high-signal markdown — has its own SSOT: the `daca-documentation-reviewer` skill.)
 
 - **`var` for locals** — always, whether or not the type is apparent.
 - **Full, expressive names** — no abbreviations or single letters (`expiryDateUtc`, not `exp`; `subscriber`, not `s`).
