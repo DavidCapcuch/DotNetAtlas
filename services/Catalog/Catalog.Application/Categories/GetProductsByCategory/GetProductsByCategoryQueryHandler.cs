@@ -9,7 +9,7 @@ using Platform.CQRS;
 namespace Catalog.Application.Categories.GetProductsByCategory;
 
 public sealed class GetProductsByCategoryQueryHandler
-    : IQueryHandler<GetProductsByCategoryQuery, SearchProductsResponse>
+    : IQueryHandler<GetProductsByCategoryQuery, GetProductsByCategoryResponse>
 {
     private readonly ICatalogDbContext _db;
 
@@ -18,7 +18,7 @@ public sealed class GetProductsByCategoryQueryHandler
         _db = db;
     }
 
-    public async Task<Result<SearchProductsResponse>> HandleAsync(
+    public async Task<Result<GetProductsByCategoryResponse>> HandleAsync(
         GetProductsByCategoryQuery query,
         CancellationToken ct)
     {
@@ -62,9 +62,9 @@ public sealed class GetProductsByCategoryQueryHandler
             .Select(ProductSearchResultRow.Projection)
             .ToListAsync(ct);
 
-        var items = rows.Select(r => r.ToResultItem()).ToList();
+        var items = rows.Select(ToResultItem).ToList();
 
-        return Result.Ok(new SearchProductsResponse
+        return Result.Ok(new GetProductsByCategoryResponse
         {
             Total = total,
             PageNumber = query.PageNumber,
@@ -73,11 +73,29 @@ public sealed class GetProductsByCategoryQueryHandler
         });
     }
 
-    private static SearchProductsResponse EmptyPage(GetProductsByCategoryQuery query) => new()
+    private static GetProductsByCategoryResponse EmptyPage(GetProductsByCategoryQuery query) => new()
     {
         Total = 0,
         PageNumber = query.PageNumber,
         PageSize = query.PageSize,
-        Items = Array.Empty<SearchProductsResultItem>(),
+        Items = Array.Empty<GetProductsByCategoryResultItem>(),
     };
+
+    /// <summary>
+    /// Lives here rather than on <see cref="ProductSearchResultRow"/> because that row is shared
+    /// with <c>SearchProducts</c>, whose wire item is a separate type (ADR-0037) — one method
+    /// cannot return both.
+    /// </summary>
+    private static GetProductsByCategoryResultItem ToResultItem(ProductSearchResultRow row) =>
+        new()
+        {
+            ProductId = row.ProductId,
+            Sku = row.Sku,
+            Name = row.Name,
+            CategoryBreadcrumb = row.CategoryBreadcrumb,
+            BrandName = row.BrandName,
+            Price = new MoneyDto { Amount = row.PriceAmount, Currency = row.PriceCurrency },
+            Status = row.Status,
+            PrimaryImageUrl = ProductSearchViewMapper.DeserializePrimaryImageUrl(row.ImagesJson),
+        };
 }

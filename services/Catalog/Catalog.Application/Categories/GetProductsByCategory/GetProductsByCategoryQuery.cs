@@ -1,9 +1,8 @@
-using Catalog.Application.Common.Contracts;
 using Platform.CQRS;
 
 namespace Catalog.Application.Categories.GetProductsByCategory;
 
-public sealed record GetProductsByCategoryQuery : IQuery<SearchProductsResponse>
+public sealed record GetProductsByCategoryQuery : IQuery<GetProductsByCategoryResponse>
 {
     public required Guid CategoryId { get; init; }
 

@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using Catalog.Application.Common.Contracts;
 
 namespace Catalog.Application.Common.ReadModels;
 
@@ -7,8 +6,9 @@ namespace Catalog.Application.Common.ReadModels;
 /// SQL-side projection of <see cref="ProductSearchViewRow"/> carrying only the columns a search
 /// result item needs — notably NOT the unbounded <c>Description</c> text. Shared by
 /// <c>SearchProductsQueryHandler</c> and <c>GetProductsByCategoryQueryHandler</c> (ADR-0021).
-/// <c>ImagesJson</c> is carried through and deserialized in <see cref="ToResultItem"/> to derive
-/// the primary image URL after the SQL projection.
+/// <c>ImagesJson</c> is carried through unparsed. Row-to-wire mapping lives in each consuming
+/// handler rather than here: the two slices return different item types (ADR-0037), so one method
+/// on this row could not serve both.
 /// </summary>
 internal sealed record ProductSearchResultRow(
     Guid ProductId,
@@ -32,22 +32,4 @@ internal sealed record ProductSearchResultRow(
             row.PriceCurrency,
             row.Status,
             row.ImagesJson);
-
-    public SearchProductsResultItem ToResultItem()
-    {
-        var images = ProductSearchViewMapper.DeserializeImages(ImagesJson);
-        var primaryUrl = images.OrderBy(i => i.DisplayOrder).FirstOrDefault()?.Url;
-
-        return new SearchProductsResultItem
-        {
-            ProductId = ProductId,
-            Sku = Sku,
-            Name = Name,
-            CategoryBreadcrumb = CategoryBreadcrumb,
-            BrandName = BrandName,
-            Price = new MoneyDto { Amount = PriceAmount, Currency = PriceCurrency },
-            Status = Status,
-            PrimaryImageUrl = primaryUrl,
-        };
-    }
 }

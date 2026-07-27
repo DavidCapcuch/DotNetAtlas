@@ -1,18 +1,17 @@
 using System.Net;
 using Catalog.Api.Common.Authorization;
 using Catalog.Application.Categories.GetProductsByCategory;
-using Catalog.Application.Common.Contracts;
 using FastEndpoints;
 using Platform.Api.Extensions;
 
 namespace Catalog.Api.Endpoints.Categories.GetProductsByCategory;
 
-internal sealed class GetProductsByCategoryEndpoint : Endpoint<GetProductsByCategoryRequest, SearchProductsResponse>
+internal sealed class GetProductsByCategoryEndpoint : Endpoint<GetProductsByCategoryRequest, GetProductsByCategoryResponse>
 {
-    private readonly Platform.CQRS.IQueryHandler<GetProductsByCategoryQuery, SearchProductsResponse> _handler;
+    private readonly Platform.CQRS.IQueryHandler<GetProductsByCategoryQuery, GetProductsByCategoryResponse> _handler;
 
     public GetProductsByCategoryEndpoint(
-        Platform.CQRS.IQueryHandler<GetProductsByCategoryQuery, SearchProductsResponse> handler)
+        Platform.CQRS.IQueryHandler<GetProductsByCategoryQuery, GetProductsByCategoryResponse> handler)
     {
         _handler = handler;
     }
@@ -29,7 +28,7 @@ internal sealed class GetProductsByCategoryEndpoint : Endpoint<GetProductsByCate
         });
         Description(b =>
         {
-            b.Produces<SearchProductsResponse>((int)HttpStatusCode.OK);
+            b.Produces<GetProductsByCategoryResponse>((int)HttpStatusCode.OK);
             b.Produces((int)HttpStatusCode.Unauthorized);
             b.Produces((int)HttpStatusCode.UnprocessableEntity);
         });

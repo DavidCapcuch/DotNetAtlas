@@ -107,7 +107,7 @@ public sealed class SearchProductsQueryHandler : IQueryHandler<SearchProductsQue
             .Select(ProductSearchResultRow.Projection)
             .ToListAsync(ct);
 
-        var items = rows.Select(r => r.ToResultItem()).ToList();
+        var items = rows.Select(ToResultItem).ToList();
 
         return Result.Ok(new SearchProductsResponse
         {
@@ -117,4 +117,22 @@ public sealed class SearchProductsQueryHandler : IQueryHandler<SearchProductsQue
             Items = items,
         });
     }
+
+    /// <summary>
+    /// Lives here rather than on <see cref="ProductSearchResultRow"/> because that row is shared
+    /// with <c>GetProductsByCategory</c>, whose wire item is a separate type (ADR-0037) — one
+    /// method cannot return both.
+    /// </summary>
+    private static SearchProductsResultItem ToResultItem(ProductSearchResultRow row) =>
+        new()
+        {
+            ProductId = row.ProductId,
+            Sku = row.Sku,
+            Name = row.Name,
+            CategoryBreadcrumb = row.CategoryBreadcrumb,
+            BrandName = row.BrandName,
+            Price = new MoneyDto { Amount = row.PriceAmount, Currency = row.PriceCurrency },
+            Status = row.Status,
+            PrimaryImageUrl = ProductSearchViewMapper.DeserializePrimaryImageUrl(row.ImagesJson),
+        };
 }

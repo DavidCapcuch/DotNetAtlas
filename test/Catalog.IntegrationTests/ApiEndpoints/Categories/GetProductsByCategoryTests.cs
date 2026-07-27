@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Api.Endpoints.Products.CreateProduct;
+using Catalog.Application.Categories.GetProductsByCategory;
 using Catalog.Application.Common.Contracts;
 using Catalog.IntegrationTests.Common;
 using FastEndpoints;
@@ -35,7 +37,7 @@ public class GetProductsByCategoryTests : BaseIntegrationTest
         var response = await HttpClientRegistry.ReadClient.GetAsync(
             $"/api/v1/catalog/categories/{cat.CategoryId}/products",
             TestContext.Current.CancellationToken);
-        var body = await response.Content.ReadFromJsonAsync<SearchProductsResponse>(
+        var body = await response.Content.ReadFromJsonAsync<GetProductsByCategoryResponse>(
             TestContext.Current.CancellationToken);
 
         using (new AssertionScope())
@@ -61,7 +63,7 @@ public class GetProductsByCategoryTests : BaseIntegrationTest
         var response = await HttpClientRegistry.ReadClient.GetAsync(
             $"/api/v1/catalog/categories/{electronics.CategoryId}/products?includeDescendants=true",
             TestContext.Current.CancellationToken);
-        var body = await response.Content.ReadFromJsonAsync<SearchProductsResponse>(
+        var body = await response.Content.ReadFromJsonAsync<GetProductsByCategoryResponse>(
             TestContext.Current.CancellationToken);
 
         using (new AssertionScope())
@@ -116,13 +118,77 @@ public class GetProductsByCategoryTests : BaseIntegrationTest
         body.Items.Should().BeEmpty();
     }
 
-    private async Task<SearchProductsResponse> GetByCategoryAsync(Guid categoryId, bool includeDescendants)
+    [Fact]
+    public async Task WhenCategoryHasProducts_PayloadMatchesPublishedWireContract()
+    {
+        // The wire payload is this endpoint's published contract. Asserted over raw JSON so the
+        // guard holds independently of which CLR type the endpoint returns — a dropped, renamed,
+        // re-nested or crossed member fails here.
+        // Paging is requested off its defaults (page 2 of 1) so the echoed pageNumber/pageSize
+        // cannot pass by coincidence, and total (2) stays distinguishable from the item count (1).
+        var ct = TestContext.Current.CancellationToken;
+        var seeder = new CatalogReadModelSeeder(DbContext);
+        var category = await seeder.SeedCategoryAsync(CatalogFactories.RootCategory("Electronics"), ct);
+        await seeder.SeedRowsAsync(
+            ct,
+            ProductSearchViewRowBuilder.Active(
+                sku: "AAA-000",
+                name: "AAA Filler",
+                categoryId: category.Id),
+            ProductSearchViewRowBuilder
+                .Active(
+                    sku: "WIRE-001",
+                    name: "Wire Widget",
+                    categoryId: category.Id,
+                    categoryPath: "/electronics/laptops",
+                    amount: 19.95m,
+                    currency: "EUR")
+                .WithImages(
+                    new ImageReferenceDto { Url = "https://cdn.test/secondary.png", AltText = "b", DisplayOrder = 2 },
+                    new ImageReferenceDto { Url = "https://cdn.test/primary.png", AltText = "a", DisplayOrder = 1 }));
+
+        var response = await HttpClientRegistry.ReadClient.GetAsync(
+            $"/api/v1/catalog/categories/{category.Id}/products?includeDescendants=false&page=2&limit=1",
+            ct);
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+
+        var root = payload.RootElement;
+        var item = root.GetProperty("items").EnumerateArray().Single();
+        var price = item.GetProperty("price");
+
+        using (new AssertionScope())
+        {
+            root.EnumerateObject().Select(p => p.Name)
+                .Should().BeEquivalentTo("total", "pageNumber", "pageSize", "items");
+            item.EnumerateObject().Select(p => p.Name)
+                .Should().BeEquivalentTo(
+                    "productId", "sku", "name", "categoryBreadcrumb", "brandName", "price", "status",
+                    "primaryImageUrl");
+            price.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo("amount", "currency");
+
+            root.GetProperty("total").GetInt32().Should().Be(2);
+            root.GetProperty("pageNumber").GetInt32().Should().Be(2);
+            root.GetProperty("pageSize").GetInt32().Should().Be(1);
+            item.GetProperty("sku").GetString().Should().Be("WIRE-001");
+            item.GetProperty("name").GetString().Should().Be("Wire Widget");
+            item.GetProperty("status").GetString().Should().Be("Active");
+            item.GetProperty("brandName").GetString().Should().Be("Acme");
+            item.GetProperty("categoryBreadcrumb").GetString().Should().Be("electronics > laptops");
+            price.GetProperty("amount").GetDecimal().Should().Be(19.95m);
+            price.GetProperty("currency").GetString().Should().Be("EUR");
+
+            // Primary image is the lowest DisplayOrder, not the first in source order.
+            item.GetProperty("primaryImageUrl").GetString().Should().Be("https://cdn.test/primary.png");
+        }
+    }
+
+    private async Task<GetProductsByCategoryResponse> GetByCategoryAsync(Guid categoryId, bool includeDescendants)
     {
         var response = await HttpClientRegistry.ReadClient.GetAsync(
             $"/api/v1/catalog/categories/{categoryId}/products?includeDescendants={(includeDescendants ? "true" : "false")}",
             TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        return (await response.Content.ReadFromJsonAsync<SearchProductsResponse>(
+        return (await response.Content.ReadFromJsonAsync<GetProductsByCategoryResponse>(
             TestContext.Current.CancellationToken))!;
     }
 }
