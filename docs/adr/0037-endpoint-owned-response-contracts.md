@@ -45,10 +45,10 @@ DRY the envelope across sibling endpoints; split only when a divergence actually
 
 - **Duplicate**: response envelopes and their nested item types — the **published wire contract** a consumer deserializes.
 - **Share**: value DTOs (`MoneyDto`, `DimensionsDto`, `ImageReferenceDto`, and similar) — they express a *domain concept*, not an endpoint's contract shape, so a BC's sibling slices share one copy from that BC's `Common/Contracts` namespace. (Value DTOs are per-BC — duplicated *across* BCs by design, not hoisted to a single shared assembly. They are the wire-DTO analogue of the domain-layer share/duplicate line the shared-kernel value objects draw in [ADR-0036](0036-shared-kernel-value-objects.md).)
-- **Share**: **generic envelopes and standardized media types** — RFC 9457 `ProblemDetails` (the repo's universal error envelope, emitted centrally by `Platform.Api`'s response sender) and `PagedResult<T>`-style pagination wrappers. A structural container carries *no* contract shape of its own; the `T` it wraps carries all of it, and that `T` stays endpoint-owned. Duplicating an IETF media type per endpoint would be absurd.
+- **Share**: **standardized media types whose shape this repo does not author** — RFC 9457 `ProblemDetails` (the repo's universal error envelope, emitted centrally by `Platform.Api`'s response sender). The qualifying property is *not* that a type is structurally generic; it is that an **external standard has frozen the shape**, so no endpoint *can* have a reason to change it. Duplicating an IETF media type per endpoint would be absurd. A container **this repo authors** does not qualify however generic it looks — a paging envelope and a batch envelope are endpoint-owned wire contracts, not media types (see *Why a paging envelope is not a media type* below).
 - **Out of scope**: internal read-model projection helpers (EF `*Row` SQL-projection targets). They never cross the wire, so sharing one across queries of the same aggregate couples no consumer; that sharing is a read-model implementation decision governed by [ADR-0021](0021-read-side-no-specifications.md), not this ADR.
 
-**The line**: if the type answers *"what does this endpoint return?"* → duplicate. If it answers *"what is money?"* or *"how is any page/error shaped?"* → share. If it never leaves the database layer → ADR-0021's call, not this one.
+**The line**: if the type answers *"what does this endpoint return?"* → duplicate. If it answers *"what is money?"* → share within the BC. If an **external standard** already answers *"how is this shaped?"* → share. If it never leaves the database layer → ADR-0021's call, not this one.
 
 New response and item types are **immutable, property-style records**:
 
@@ -63,7 +63,7 @@ public sealed record Foo
 
 ## Rationale
 
-The three drivers all point the same way. Driver 1 is decisive: response types are cheap to duplicate and expensive to un-share, so the asymmetry says start separate. Driver 2 makes the rule enforceable without per-PR vigilance — "one endpoint per response type" is a fact a NetArchTest rule can assert, whereas "share only when identical" is a standing judgment that erodes. Driver 3 is the payoff: contracts evolve one endpoint at a time.
+The three drivers all point the same way. Driver 1 is decisive **for endpoint-specific shapes**: response types are cheap to duplicate and expensive to un-share, so the asymmetry says start separate. Driver 2 makes the rule enforceable without per-PR vigilance — "one endpoint per response type" is a fact a NetArchTest rule can assert, whereas "share only when identical" is a standing judgment that erodes. Driver 3 is the payoff: contracts evolve one endpoint at a time.
 
 Duplication here is not a DRY violation waiting to be refactored away — DRY is about a single source of *knowledge*, not a ban on identical text, and two endpoints returning the same shape today are two *independent contracts that happen to coincide*, not one contract used twice. [ADR-0021](0021-read-side-no-specifications.md) already records the read-side precedent: Ordering's `GetOrdersByBuyer` (list) and `GetOrderById` (detail) deliberately return **different** shapes — a narrow `OrderSummaryDto` vs the full `GetOrderByIdResponse` — and are "intentionally divergent, not duplication waiting to be refactored" ([ADR-0021 § Risks](0021-read-side-no-specifications.md)).
 
@@ -72,6 +72,21 @@ Duplication here is not a DRY violation waiting to be refactored away — DRY is
 So the operative test is not the category *"is this a value concept?"* but the volatility question **"does this type have an *endpoint-specific* reason to change?"** Envelopes do, constantly. Amount-plus-currency does not. The rule is self-correcting: a value DTO that starts needing endpoint-specific variants was never one concept, and the split then has evidence behind it. Duplicating value DTOs instead would cost more than the coupling saves — N copies drift (`Currency` vs `CurrencyCode`, two decimals vs four), consumers lose the single representation that makes the API coherent, and under `ShortSchemaNames` the copies collapse into `Money` / `Money2` / `Money3` in the OpenAPI document.
 
 **Why this is stricter than the Rule of Three.** The usual guidance — tolerate duplication until a third instance justifies extracting it — governs *internal* code, where extraction is cheap and reversible. It does not transfer to a **published** contract: once a shape is observable, consumers depend on it (Hyrum's Law), so un-sharing later is a breaking change to parties you cannot enumerate. The stricter rule is not dogma; it is the Rule of Three applied to a surface where the "extract later" escape hatch does not exist. Inside a BC, ordinary refactoring judgment still applies — this ADR binds the wire, not the implementation.
+
+### Why a paging envelope is not a media type
+
+A paginated endpoint's envelope is *structurally* a `PagedResult<T>` with no endpoint-specific member, which makes it the hardest case for the share/duplicate line. It is **endpoint-owned**, on three independent grounds:
+
+- **Driver 1 does not reach it.** Reversibility asymmetry measures *consumer* blast radius (Hyrum's Law, above), and a structural container has the same blast radius in both directions: collapsing N identical envelopes into one generic leaves the JSON body byte-identical, and un-sharing it again leaves it byte-identical. (Each direction renames the type in the OpenAPI document, churning generated clients — but *symmetrically*, so no asymmetry survives.) Driver 1 is therefore **neutral** here, leaving drivers 2–3 to decide; both favour endpoint-owned. An argument for sharing that invokes driver 1 is measuring files touched in a refactor, which is not the cost the driver ranks.
+- **The volatility test fails.** `ProblemDetails` has no endpoint-specific reason to change because the IETF froze it and this repo cannot extend it. A hand-rolled page envelope has such reasons constantly — a *search* page wants facet counts a category listing does not, an admin page wants a cross-status total. Inventory's `GetStockLevelsBulkResponse` is the live proof: a repo-authored batch container that already carries an endpoint-specific `MissingProductIds`.
+- **The standards that share a page envelope froze the mechanism first.** [Google AIP-158](https://google.aip.dev/158), [Zalando](https://opensource.zalando.com/restful-api-guidelines/), [Stripe](https://docs.stripe.com/api/pagination) and [Microsoft Azure](https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md) each prescribe exactly one collection envelope — because each first mandated a house-wide pagination *strategy* that the envelope embodies and endpoints may not extend. This repo has made no such decision; identical page shapes across BCs are convergence, not a standard.
+
+**Why the repo's page shape is not the standards' page shape.** Those four converge on two rules this repo deliberately breaks — **cursor over offset** (Zalando: prefer cursor, avoid offset) and **no exact total** (Azure: "SHOULD NOT return a `count` … may be expensive to compute"; Stripe returns none; Google permits only an estimate). This repo pages by `PageNumber`/`PageSize` and returns a `required` exact `Total`, because the consumer is a **page-numbered storefront** — "showing 1–20 of 348", jump to page 7 — which cursor paging structurally cannot render, and Catalog counts over the materialized `product_search_view` where `COUNT(*)` is cheap. Those standards shape large resource APIs consumed by generated SDKs; this is a product decision for a different consumer, not drift.
+
+Two consequences follow:
+
+- **Endpoint-owned envelopes keep a future paging migration incremental.** *When to revisit*: if a collection outgrows a cheap `COUNT(*)`, or a consumer needs stable paging over data that mutates between requests, **that endpoint** moves to keyset/cursor paging in its own slice. A shared `PagedResult<T>` would instead freeze the shape all four standards reject into a platform type, forcing a big-bang across every paginated BC or leaving two page envelopes coexisting indefinitely.
+- **The same reasoning decides any container this repo authors.** A batch envelope resolves identically — `GetStockLevelsBulkResponse` is the worked example, and its endpoint-specific `MissingProductIds` is precisely what a shared `BatchResult<T>` could never have carried.
 
 ## Consequences
 
@@ -84,6 +99,7 @@ So the operative test is not the category *"is this a value concept?"* but the v
 ### Negative
 
 - Two endpoints that genuinely return the same shape carry two type declarations. Accepted: the duplication is precisely the mechanism that lets them diverge for free, and the shapes are meant to be independent contracts.
+- Every paginated endpoint declares its own `{ Total, PageNumber, PageSize, Items }` envelope, so a BC with three paginated endpoints carries three of them. Accepted for the reasons in *Why a paging envelope is not a media type* — chiefly that it keeps a later migration to keyset paging an endpoint-at-a-time change.
 
 ### Risks
 
@@ -91,23 +107,39 @@ So the operative test is not the category *"is this a value concept?"* but the v
 
 - **The value-DTO carve-out is conditional, not categorical.** It holds only while the shared type stays low-churn (see Rationale). Watch for the tell: a value DTO accumulating optional or endpoint-flavoured members is one that has stopped being a single concept — split it per endpoint rather than widening it. A second dependency worth naming for anyone porting this rule: the carve-out leans on this repo's allowance for **in-place breaking changes**; where contracts may not break in place, an edit to a shared value DTO silently alters every contract embedding it, and the carve-out needs a stricter change process than "edit the type."
 
-## Compliance audit (2026-07-24)
+## Compliance audit (2026-07-27)
 
-A full endpoint-to-**wire-contract** map (response envelopes + their nested item types; internal projection rows are out of scope, see Decision) found these units compliant — every wire type belongs to exactly one endpoint:
+Endpoint-to-**wire-contract** map over every unit exposing `Endpoint<TRequest, TResponse>` — response envelopes plus their nested item types; internal projection rows are out of scope (see Decision). A unit is compliant when every wire type belongs to exactly one endpoint.
 
-- **Ordering**, **Basket**, **Notifications**, **EShop.BFF**.
+| Unit | Status | Over-shared wire type | Consumers |
+|---|---|---|---|
+| Ordering | compliant | — | — |
+| Basket | compliant | — | — |
+| Notifications | compliant (vacuous) | — | exposes no `Endpoint<TRequest, TResponse>` |
+| EShop.BFF | compliant | — | — |
+| Catalog | **non-compliant** | `SearchProductsResponse` | 2 — `SearchProducts`; `SearchAdminProducts` |
+| Catalog | **non-compliant** | `ProductDetailResponse` | 2 — `GetProductById`; nested as `GetProductsByIdsResponse.Products` |
+| Payments | **non-compliant** | `GetPaymentByIdResponse` | 2 — `GetPaymentById`; nested as `GetPaymentsByOrderResponse.Payments` |
+| Invoicing | **non-compliant** | `GetInvoiceByIdResponse` | 3 — `GetInvoiceById`; `GetInvoiceByOrderId`; nested as `GetInvoicesByBuyerResponse.Items` |
+| Inventory | **non-compliant** | `StockLevelResponse` | 3 — `GetStockLevel`; `AdjustStock`; `ReceiveStock` |
 
-Ordering's list/detail pair is divergent *by design* (see Rationale; [ADR-0021 § Risks](0021-read-side-no-specifications.md)). Notifications exposes no `Endpoint<TRequest, TResponse>` (its browser surface is the SignalR bell hub, [ADR-0035](0035-edge-owned-cors-yarp.md)), so it is compliant vacuously.
+Per-unit notes:
 
-- **Payments** — *non-compliant.* `GetPaymentsByOrder` reuses the detail endpoint's response envelope `GetPaymentByIdResponse` as its list item type (`IReadOnlyList<GetPaymentByIdResponse>`), coupling the two endpoints' wire contracts. It needs a remediation slice giving the by-order list its own item type. (Its `PaymentTransactionRow` projection row *is* shared across both query handlers, but that is an internal read-model helper — ADR-0021's domain, not a violation of this ADR.)
+- **Ordering** — its list/detail pair is divergent *by design* (see Rationale; [ADR-0021 § Risks](0021-read-side-no-specifications.md)). `GetOrdersByBuyerResponse` is a slice-owned paging envelope: the shape *Why a paging envelope is not a media type* prescribes.
+- **Notifications** — its browser surface is the SignalR bell hub ([ADR-0035](0035-edge-owned-cors-yarp.md)), so compliance holds vacuously.
+- **Payments** — its `PaymentTransactionRow` projection row *is* shared across both query handlers, but that is an internal read-model helper — ADR-0021's domain, not a violation of this ADR.
+- **Invoicing** — one wire type serves three endpoints: two return it directly, the third nests it as its list item type. The nesting is documented on the type as deliberate ("so summary and detail queries never drift"), which is this ADR's rejected Option 2.
+- **Inventory** — `StockLevelResponse` is returned by one query and two *command* endpoints as a post-mutation snapshot; the rule binds command responses exactly as it binds query responses. Its `ReservationAuditResponse` has a single consumer and is compliant, though it shares the same `StockItems/Common` namespace.
 
-Per policy, **no remediation tickets are opened for compliant units.** The non-compliant BCs — Payments included — are brought into line by remediation slices, each blocked by this ADR.
+Per policy, **no remediation tickets are opened for compliant units.** Each non-compliant BC is brought into line by remediation slices, blocked by this ADR.
 
 ## Implementation Notes
 
 - New response and item types follow the immutable, property-style-record shape above, matching the value-DTO precedent in each BC's `Common/Contracts` (`MoneyDto`, `DimensionsDto`, `ImageReferenceDto`) — so the folder stops teaching two contradictory conventions (`record { init }` for value DTOs, `class { set }` for envelopes).
 - Globally-unique simple names per assembly are a hard requirement, not a preference — see Risks.
-- **The enforcing arch test asserts "referenced by exactly one endpoint" over response envelopes and the types reachable from them, minus a declared exemption set**: the BC's `Common/Contracts` namespace (shared value DTOs) and generic/standardized envelopes (`ProblemDetails`, `PagedResult<T>`). Anchoring the exemption to the **declaration site** rather than to a judgment about a type's meaning is what keeps the rule mechanically checkable — the namespace *is* the bright line.
+- **The enforcing arch test asserts "referenced by exactly one endpoint" over response envelopes and the types reachable from them, minus a declared exemption set**: the BC's `Common/Contracts` namespace (shared value DTOs) and externally-standardized media types (`ProblemDetails`). Anchoring the exemption to the **declaration site** rather than to a judgment about a type's meaning is what keeps the rule mechanically checkable — the namespace *is* the bright line. **Paging envelopes are not exempt** — each is referenced by its one endpoint and satisfies the rule directly.
+- **The exemption presumes `Common/Contracts` holds only value DTOs.** An *envelope* declared in that namespace is exempted by the anchor and escapes the rule entirely — so a BC's remediation must relocate every envelope out of `Common/Contracts` into its owning slice **before** the test can be trusted. Until that holds, a green run proves nothing about the types still sitting there.
+- **The repo's one `PagedResult<T>` is not a counter-example.** `EShop.BFF.Infrastructure.Clients.Catalog.PagedResult<T>` is `internal` — the BFF's anti-corruption mirror of Catalog's page, deserialized *inbound* ([bff.md § 4.1](../bc-design/bff.md)). It is not a published wire contract, so this ADR does not govern it, and it is deliberately free to differ from whatever Catalog emits.
 - The rule, the duplicate/share line, and the record shape are mirrored in [conventions.md § 10](../bc-design/conventions.md).
 
 ## Related Decisions
