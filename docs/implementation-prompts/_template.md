@@ -107,7 +107,7 @@ Concrete deliverables. Extends `_shared.md § 12`.
 - [ ] {Repeat per BC-specific outcome}
 - [ ] Every new behaviour has a new test (`_shared.md § 12`)
 - [ ] All `<applicable_adrs>` enforced (architecture tests + verification commands)
-- [ ] Review stack (`_shared.md § 11`) run end-to-end: Opus pre-commit → gates pasted → `daca-dod-reviewer` blockers fixed (Role 3; delegates to `daca-bc-consistency-reviewer` + `daca-documentation-reviewer`); `docs/DoD.md` Self-attested bucket attested
+- [ ] Review stack (`_shared.md § 11`) run end-to-end: Opus pre-commit → gates pasted → `daca-dod-reviewer` blockers fixed (Role 3; delegates to `daca-bc-consistency-reviewer` + `daca-documentation-reviewer`); its Self-attested bucket attested
 </dod>
 
 <boundaries>
@@ -150,7 +150,7 @@ Adjust to your BC's shape.
 </session_management>
 
 <verification>
-Run the **non-negotiable gates** in [`docs/verification-gates.md`](../verification-gates.md) (build / restore / format / the four `{BC}.*Tests` projects / compose health), then the `{BC}`-specific smoke checks below. **Paste the actual output** — pass/fail per command — into the session summary, not a description. No "done" claim until all are green.
+Run the **non-negotiable gates** via `daca-gates` (build / restore / format / the four `{BC}.*Tests` projects / compose health; repo deltas in [`docs/verification-gates.md`](../verification-gates.md)), then the `{BC}`-specific smoke checks below. **Paste the actual output** — pass/fail per command — into the session summary, not a description. No "done" claim until all are green.
 
 ```bash
 # {BC}-specific smoke checks, after the standard gates:
@@ -171,7 +171,7 @@ That's the depth expected for **every** `<design_open>` resolution.
 </example_design_decision>
 
 <peer_review>
-Run the three-role review stack in `_shared.md § 11` end-to-end before declaring DoD met: Role 1 (Opus `feature-dev:code-reviewer` pre-commit) → Role 2 (gates, with pasted output) → Role 3 (`daca-dod-reviewer`, which delegates to `daca-bc-consistency-reviewer` + `daca-documentation-reviewer`; self-attest the `docs/DoD.md` Self-attested bucket first). Do NOT mark `<dod>` complete until all three are done.
+Run the three-role review stack in `_shared.md § 11` end-to-end before declaring DoD met: Role 1 (Opus `feature-dev:code-reviewer` pre-commit) → Role 2 (gates, with pasted output) → Role 3 (`daca-dod-reviewer`, which delegates to `daca-bc-consistency-reviewer` + `daca-documentation-reviewer`; self-attest the Self-attested bucket of its bar first). Do NOT mark `<dod>` complete until all three are done.
 </peer_review>
 
 <session_summary>

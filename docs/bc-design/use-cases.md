@@ -443,7 +443,26 @@ Category deletion was never built (`Catalog.Domain` has no `DeleteCategory` / `C
     "pageSize": "int (default 20, max 100)"
   }
   ```
-- **Response shape:** same as `SearchProductsResponse` — paged list of product summaries.
+- **Response shape:** `GetProductsByCategoryResponse` wrapping `GetProductsByCategoryResultItem` — slice-owned per [ADR-0037](../adr/0037-endpoint-owned-response-contracts.md).
+  ```
+  {
+    "total": "int",
+    "pageNumber": "int",
+    "pageSize": "int",
+    "items": [
+      {
+        "productId": "Guid",
+        "sku": "string",
+        "name": "string",
+        "categoryBreadcrumb": "string",
+        "brandName": "string",
+        "price": { "amount": "decimal", "currency": "string" },
+        "status": "string",
+        "primaryImageUrl": "string | null"
+      }
+    ]
+  }
+  ```
 - **Handler class:** `GetProductsByCategoryQueryHandler`.
 - **Validator rules:**
   - `CategoryId` — NotEmpty.
