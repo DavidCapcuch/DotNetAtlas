@@ -16,7 +16,7 @@
         <PackageVersion Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.8"/>
 
         <!-- Outbound HTTP resilience — the BFF owns its typed clients, so it ships the
-             per-service Polly pipeline YARP does NOT provide (DoD.md Reliability; bff.md § 2.1). -->
+             per-service Polly pipeline YARP does NOT provide (bff.md § 2.1). -->
         <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.6.0"/>
 
         <!-- KafkaFlow — the BFF's cache-invalidation consumer ONLY (group bff-group, no producer,

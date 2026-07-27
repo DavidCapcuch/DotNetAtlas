@@ -6,9 +6,8 @@ namespace EShop.BFF.Infrastructure.Clients.Common;
 
 /// <summary>
 /// The BFF's single outbound resilience-pipeline shape (bff.md § 2.1). The platform ships no
-/// per-service presets — cross-service resilience is YARP's job at the edge — but the BFF owns its
-/// typed clients, so it defines the pipeline here (DoD.md Reliability: "per-service Polly only where
-/// the component owns the client").
+/// per-service presets — cross-service resilience is YARP's job at the edge — but a per-service Polly
+/// pipeline belongs wherever the component owns its own client, and the BFF owns its typed clients.
 /// </summary>
 /// <remarks>
 /// Applied per client under a distinct name so circuit-breaker state is isolated — a Catalog outage
