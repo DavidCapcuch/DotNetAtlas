@@ -3,6 +3,7 @@ using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Api.Endpoints.Products.CreateProduct;
 using Catalog.Api.Endpoints.Products.GetProductById;
 using Catalog.Application.Common.Contracts;
+using Catalog.Application.Common.ReadModels;
 using Catalog.IntegrationTests.Common;
 using FastEndpoints;
 
@@ -40,6 +41,9 @@ public class GetProductByIdTests : BaseIntegrationTest
             // Post-#177: CreateProduct lands the aggregate directly in Active (Draft removed
             // from the Catalog lifecycle — the only transition is Active ↔ Discontinued).
             body.Status.Should().Be("Active");
+            // Closes the round-trip the flattening opened: write model → four scalar columns → wire.
+            // Values are distinct per axis, so a transposition at either mapping site fails here.
+            body.Dimensions.Should().BeEquivalentTo(createReq.Dimensions);
         }
     }
 
@@ -67,7 +71,7 @@ public class GetProductByIdTests : BaseIntegrationTest
         var ct = TestContext.Current.CancellationToken;
         var seeder = new CatalogReadModelSeeder(DbContext);
         var row = ProductSearchViewRowBuilder.Active(amount: 42.50m)
-            .WithImages(new ImageReferenceDto { Url = "https://cdn.example.com/a.jpg", AltText = "a", DisplayOrder = 0 });
+            .WithImages(new ProductImageDocument { Url = "https://cdn.example.com/a.jpg", AltText = "a", DisplayOrder = 0 });
         await seeder.SeedRowsAsync(ct, row);
 
         var (response, body) = await HttpClientRegistry.ReadClient

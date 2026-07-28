@@ -192,8 +192,8 @@ public class SearchProductsTests : BaseIntegrationTest
         await SeedRowsAsync(
             ProductSearchViewRowBuilder.Active("MAP-001", name: "Mapped Widget", amount: 42.50m, currency: "GBP")
                 .WithImages(
-                    new ImageReferenceDto { Url = "https://cdn.test/secondary.png", AltText = "b", DisplayOrder = 3 },
-                    new ImageReferenceDto { Url = "https://cdn.test/primary.png", AltText = "a", DisplayOrder = 1 }));
+                    new ProductImageDocument { Url = "https://cdn.test/secondary.png", AltText = "b", DisplayOrder = 3 },
+                    new ProductImageDocument { Url = "https://cdn.test/primary.png", AltText = "a", DisplayOrder = 1 }));
 
         var body = await SearchAsync("?Text=Mapped&Page=1&Limit=10");
 

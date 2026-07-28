@@ -1,10 +1,9 @@
-using Catalog.Application.Common.Contracts;
 using Catalog.Application.Common.ReadModels;
 using Catalog.Domain.Products.ValueObjects;
 
 namespace Catalog.IntegrationTests.Common;
 
-public static class ProductSearchViewRowBuilder
+internal static class ProductSearchViewRowBuilder
 {
     public static ProductSearchViewRow Active(
         string sku = "ROW-001",
@@ -28,7 +27,6 @@ public static class ProductSearchViewRowBuilder
             PriceAmount = amount,
             PriceCurrency = currency,
             Status = ProductStatus.Active.Name,
-            DimensionsJson = null,
             ImagesJson = "[]",
             IsSellable = true,
             CreatedAtUtc = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
@@ -47,7 +45,7 @@ public static class ProductSearchViewRowBuilder
         return row;
     }
 
-    public static ProductSearchViewRow WithImages(this ProductSearchViewRow row, params ImageReferenceDto[] images)
+    public static ProductSearchViewRow WithImages(this ProductSearchViewRow row, params ProductImageDocument[] images)
     {
         row.ImagesJson = ProductSearchViewMapper.SerializeImages(images);
         return row;

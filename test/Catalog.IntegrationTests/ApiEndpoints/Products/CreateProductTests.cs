@@ -60,6 +60,13 @@ public class CreateProductTests : BaseIntegrationTest
             projection.Status.Should().Be(ProductStatus.Active.Name);
             projection.IsSellable.Should().BeTrue("post-#177 products are Active on create and therefore sellable");
 
+            // The dimensions VO is flattened across four columns on the way in. Values are distinct
+            // per axis, so a transposed assignment in the projection handler fails here.
+            projection.DimensionsLength.Should().Be(request.Dimensions!.Length);
+            projection.DimensionsWidth.Should().Be(request.Dimensions.Width);
+            projection.DimensionsHeight.Should().Be(request.Dimensions.Height);
+            projection.DimensionsUnit.Should().Be(request.Dimensions.Unit);
+
             // Outbox — exactly one row, on the products topic, carrying the Avro CLR type name.
             var outboxRows = await DbContext.Set<OutboxMessage>()
                 .Where(m => m.KafkaKey == body.ProductId.ToString())

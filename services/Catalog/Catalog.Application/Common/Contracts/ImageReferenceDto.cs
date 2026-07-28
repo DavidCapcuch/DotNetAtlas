@@ -1,13 +1,13 @@
 namespace Catalog.Application.Common.Contracts;
 
 /// <summary>
-/// Product image reference on the wire, shared by the create, read, and projection slices.
+/// Product image reference on the wire, shared by the create and read product slices.
+/// Share/duplicate ruling: ADR-0037 § Implementation Notes.
 /// </summary>
 /// <remarks>
-/// Also the serialized shape of the <c>images_json</c> column on <c>product_search_view</c>
-/// (<see cref="Catalog.Application.Common.ReadModels.ProductSearchViewMapper"/>), so renaming or
-/// retyping a member reinterprets stored rows and needs a projection rebuild — not only a consumer
-/// update.
+/// Purely a wire type. The stored shape of the <c>images_json</c> column is the separate
+/// <see cref="Catalog.Application.Common.ReadModels.ProductImageDocument"/>, so no edit here can
+/// reinterpret a stored row.
 /// </remarks>
 public sealed record ImageReferenceDto
 {
