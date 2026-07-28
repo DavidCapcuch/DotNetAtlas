@@ -111,7 +111,11 @@ The rule was originally pinned per-BC with a NetArchTest fact asserting `Types.T
 ### Risks
 
 - **Owned-collection projection translation regressions.** Some EF Core projection shapes (`.Select(...).ToList()` on owned collections, conditional projection of nullable owned VOs) translate cleanly on EF Core 10 but might regress on a future major version. Mitigation: the per-handler integration characterisation tests in `*.IntegrationTests` exercise the SQL path end-to-end against a real Postgres container, so any translation regression fails at CI time, not in production. (Note: InMemory provider tests cannot verify these projections — an integration test against real Postgres is the only place this path is exercised.)
-- **Drift between paged-list and single-detail projections of the same aggregate.** Where two handlers genuinely return the same response shape (Invoicing's three invoice queries), the projection is shared via an EF expression property (`InvoiceRow.Projection`); drift between consumers is mitigated by a comment in each handler pointing at the sibling and by integration tests pinning the wire shape. Ordering's `GetOrdersByBuyer` and `GetOrderById` deliberately return **different** shapes — a narrower `OrderSummaryDto` for the list endpoint vs the full `GetOrderByIdResponse` for the detail endpoint, per [use-cases.md § 3.4.1 / § 3.4.2](../bc-design/use-cases.md) — so this drift risk does not apply to that pair. The two Ordering projections are intentionally divergent, not duplication waiting to be refactored.
+- **A projection row shared between a *list* query and a *detail* query is the weak case.** Two handlers with genuinely identical column needs — Invoicing's by-id and by-order-id reads differ only in their `WHERE` — are one piece of knowledge with two call sites, and sharing one EF expression property is right. A list is not that: it rarely needs the detail shape, and inheriting one makes it pay the detail query's cost on every row. **The operative variable is that per-row cost, not the list/detail category** — a shared row of flat scalars costs a list essentially nothing, which is why Payments' list and detail correctly share one. The cost appears with owned collections, wide columns, or per-row I/O. Ordering is the precedent for divergence — `GetOrdersByBuyer` returns a narrower `OrderSummaryDto` and `GetOrderById` the full envelope, per [use-cases.md § 3.4.1 / § 3.4.2](../bc-design/use-cases.md); the two are intentionally divergent, not duplication waiting to be refactored.
+
+  Splitting a shared row requires the forward test — *when one query's column needs change, is the other's forced to change too?* — answering **no**, plus either a named cost or a correctness reason. Symmetry and aesthetics are neither.
+
+  Where a row stays shared, the integration tests pinning the wire shape are what actually guard against drift. The sibling-pointer comment in each handler is a signpost, not a guard: it fails silently against a reader who never opens the sibling, which is why the gate above asks for a named cost rather than for reviewer vigilance. The reasoning, and what the primary sources do and do not support, is in [read-model-sharing.md](../research/read-model-sharing.md) and [dry-and-duplication.md](../research/dry-and-duplication.md).
 
 ## Implementation Notes
 
@@ -119,11 +123,25 @@ The rule was originally pinned per-BC with a NetArchTest fact asserting `Types.T
 
 The four Invoicing query handlers each need to mint a per-request SAS URL after materialisation (`_blobStore.GetSasUrlAsync(...)`). The response classes (`GetInvoiceByIdResponse`, `GetCreditNoteByIdResponse`) are `sealed class { required ... init; }` — once constructed, the URL fields cannot be reassigned. The pattern adopted:
 
-1. Define an internal `record` row type next to the response (`InvoiceRow.cs`, `CreditNoteRow.cs`) carrying every response field plus `PdfBlobName` — the one column NOT in the response but needed to decide whether to mint.
+1. Define an internal `record` row type carrying every response field plus `PdfBlobName` — the one column NOT in the response but needed to decide whether to mint. Where it is declared follows *Projection-row placement* below.
 2. Expose `public static Expression<Func<TAggregate, TRow>> Projection => i => new TRow(...)` so EF translates the body to SQL.
-3. Handler does `.Select(TRow.Projection).FirstOrDefaultAsync(ct)`, then in-memory: if `row.PdfBlobName is not null`, await `GetSasUrlAsync`, then construct the response via `row.ToResponse(sasUrl, sasExpiresAtUtc)`.
+3. Handler does `.Select(TRow.Projection).FirstOrDefaultAsync(ct)`, then in-memory: if `row.PdfBlobName is not null`, await `GetSasUrlAsync`, then map the row to **that slice's own response type**, passing the URL and its expiry.
 
-This preserves the SQL-side-projection contract (no full-aggregate materialisation) while keeping the row → response shape mapping centralised across the three handlers that share it.
+This preserves the SQL-side-projection contract: no full-aggregate materialisation.
+
+**The row carries no endpoint's wire type.** Row → response mapping lives in each consuming slice, not on the row — a `ToResponse()` on a shared row binds every consumer to one endpoint's contract, and a shared row that has moved into a `Common` sink carries that binding where the slice-independence check cannot see it. `ProductSearchResultRow` is the worked example.
+
+### Projection-row placement
+
+A projection row consumed by **more than one slice** is declared in a **non-slice namespace**. A row with a single consuming slice stays in that slice. (The unit is the slice, not the reference — a `<see cref>` or a unit test does not make a row multi-consumer.)
+
+This governs only *where a shared row is declared*, not whether sharing is allowed; the § Risks test above decides that. The constraint is the intra-BC slice-independence rule in [eshop-master-design.md § 11.4](../eshop-master-design.md): a type declared in a depth-2 `{Root}.{Area}.{Feature}` namespace is slice-private, so a sibling slice referencing it is a violation however legitimate the sharing. **A non-slice namespace is any namespace that rule's slice discovery excludes** — read the discovery logic in a BC's `SliceIndependenceTests.cs` rather than re-listing the exclusions here; `Common` sits at either the area or the feature position, and shallower-than-depth-2 is never a slice. Enforcement is a per-BC NetArchTest fact and is **not yet present in every BC**, so a misplaced row may go uncaught until a sibling references it.
+
+Three qualifications:
+
+- **It is a namespace rule, not a folder rule** — the arch test keys off namespaces. `PaymentTransactionRow` is the standing counter-example: it sits in the `GetPaymentById/` folder but declares `namespace Payments.Application.Transactions;` (root+1), so it already complies and must not be relocated.
+- **The subject is EF projection targets that are never persisted** — the `Expression<Func<TAggregate, TRow>>` shapes above, which exist only to narrow a `SELECT`.
+- **`DbSet`-mapped read-model entities are excluded.** Some `*Row` types in the same folders are mapped entities with an `IEntityTypeConfiguration<>` and a **namespace-qualified identity recorded in the generated model snapshot**. Moving one changes EF's model identity and emits a spurious migration — and the snapshot files are agent-deny-protected (`CLAUDE.md`), so whoever triggers it cannot repair it. Their placement is fixed by EF, not by this rule; check for a `DbSet<>` before applying it.
 
 ### Specs that survive (still used by write side)
 
