@@ -123,29 +123,25 @@ Two consequences follow:
 
 Endpoint-to-**wire-contract** map over every response-returning endpoint — both `Endpoint<TRequest, TResponse>` and `EndpointWithoutRequest<TResponse>`, since the rule binds the response type regardless of whether the endpoint takes a request. Covers response envelopes plus their nested item types; internal projection rows are out of scope (see Decision). A unit is compliant when every wire type belongs to exactly one endpoint.
 
-| Unit | Status | Over-shared wire type | Consumers |
-|---|---|---|---|
-| Ordering | compliant | — | — |
-| Basket | compliant | — | — |
-| Notifications | compliant (vacuous) | — | exposes no `Endpoint<TRequest, TResponse>` |
-| EShop.BFF | compliant | — | — |
-| Catalog | **non-compliant** | `SearchProductsResponse` | 2 — `SearchProducts`; `SearchAdminProducts` |
-| Catalog | **non-compliant** | `ProductDetailResponse` | 2 — `GetProductById`; nested as `GetProductsByIdsResponse.Products` |
-| Payments | **non-compliant** | `GetPaymentByIdResponse` | 2 — `GetPaymentById`; nested as `GetPaymentsByOrderResponse.Payments` |
-| Invoicing | **non-compliant** | `GetInvoiceByIdResponse` | 3 — `GetInvoiceById`; `GetInvoiceByOrderId`; nested as `GetInvoicesByBuyerResponse.Items` |
-| Invoicing | **non-compliant** | `InvoiceLineDto` | 2 — nested as `GetInvoiceByIdResponse.Lines` and, from another slice, `GetCreditNoteByIdResponse.Lines` |
-| Inventory | **non-compliant** | `StockLevelResponse` | 3 — `GetStockLevel`; `AdjustStock`; `ReceiveStock` |
+| Unit | Status | Remediation |
+|---|---|---|
+| Ordering | compliant | — |
+| Basket | compliant | — |
+| Notifications | compliant (vacuous) | — |
+| EShop.BFF | compliant | [#361](https://github.com/DavidCapcuch/DotNetAtlas/issues/361) — enablement, not remediation |
+| Catalog | **non-compliant** | [#352](https://github.com/DavidCapcuch/DotNetAtlas/issues/352), [#353](https://github.com/DavidCapcuch/DotNetAtlas/issues/353), [#354](https://github.com/DavidCapcuch/DotNetAtlas/issues/354), [#355](https://github.com/DavidCapcuch/DotNetAtlas/issues/355), [#356](https://github.com/DavidCapcuch/DotNetAtlas/issues/356) |
+| Inventory | **non-compliant** | [#357](https://github.com/DavidCapcuch/DotNetAtlas/issues/357) |
+| Invoicing | **non-compliant** | [#358](https://github.com/DavidCapcuch/DotNetAtlas/issues/358) |
+| Payments | **non-compliant** | [#360](https://github.com/DavidCapcuch/DotNetAtlas/issues/360) |
 
-Per-unit notes:
+Each issue owns its own detail — which type is over-shared, from which slice, and what the fix is. Restating that here would be a second copy that drifts as the slices land. A dash means nothing outstanding; the BFF's ticket is *enablement*, not a contract fix, so its compliance is not in question.
 
-- **Ordering** — its list/detail pair is divergent *by design* (see Rationale; [ADR-0021 § Risks](0021-read-side-no-specifications.md)). `GetOrdersByBuyerResponse` is a slice-owned paging envelope: the shape *Why a paging envelope is not a media type* prescribes.
-- **Notifications** — its browser surface is the SignalR bell hub ([ADR-0035](0035-edge-owned-cors-yarp.md)), so compliance holds vacuously.
-- **Payments** — its `PaymentTransactionRow` projection row *is* shared across both query handlers, but that is an internal read-model helper — ADR-0021's domain, not a violation of this ADR.
-- **Invoicing** — `GetInvoiceByIdResponse` serves three endpoints: two return it directly, the third nests it as its list item type. Separately, `InvoiceLineDto` is declared in the `GetInvoiceById` slice and nested by the `GetCreditNoteById` slice — a second aggregate's endpoint depending on the first's item type. Both are documented on the types as deliberate ("so summary and detail queries never drift"; "so credit-note line items … render identically client-side"), which is this ADR's rejected Option 2.
-- **EShop.BFF** — compliant: its three page endpoints each own their envelope, and the `MoneyDto` / `DimensionsDto` / `ProductImageDto` they share are value DTOs, which this rule shares by design. They are declared in `EShop.BFF.Api.Responses` (inside `ProductPageResponse.cs`) rather than a `Common/Contracts` namespace — relevant to the arch-test anchor, not to compliance (see Implementation Notes).
-- **Inventory** — `StockLevelResponse` is returned by one query and two *command* endpoints as a post-mutation snapshot; the rule binds command responses exactly as it binds query responses. Its `ReservationAuditResponse` has a single consumer and is compliant, though it shares the same `StockItems/Common` namespace.
+Per-unit notes, for what no issue covers:
 
-Per policy, **no remediation tickets are opened for compliant units.** Each non-compliant BC is brought into line by remediation slices, blocked by this ADR.
+- **Ordering** — `GetOrdersByBuyerResponse` is a slice-owned paging envelope: the shape *Why a paging envelope is not a media type* prescribes.
+- **Notifications** — its browser surface is the SignalR bell hub ([ADR-0035](0035-edge-owned-cors-yarp.md)), so compliance holds vacuously: it exposes no response-returning endpoint at all.
+- **EShop.BFF** — the value DTOs its three page endpoints share are shared *by design*; that they are not yet declared where a namespace-anchored exemption can reach them is an arch-test question, not a compliance one.
+- **A command's response binds exactly as a query's does.** A post-mutation snapshot returned by a command endpoint is a published wire contract on the same footing — the rule draws no query/command line.
 
 ## Implementation Notes
 
