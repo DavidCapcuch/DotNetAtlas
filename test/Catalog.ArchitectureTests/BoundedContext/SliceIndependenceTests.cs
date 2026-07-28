@@ -24,9 +24,17 @@ public class SliceIndependenceTests : BaseTest
 {
     /// <summary>
     /// Sanctioned sibling-slice references, justified inline rather than by loosening the rule.
-    /// Each entry allows types in <c>From</c> to depend on slice <c>To</c>. Empty for Catalog — all
-    /// shared contracts live in <c>Catalog.Application.Common.Contracts</c>.
+    /// Each entry allows types in <c>From</c> to depend on slice <c>To</c>. Empty by default, and
+    /// meant to stay so: a slice shares through a sanctioned sink, never through a sibling.
     /// </summary>
+    /// <remarks>
+    /// Relocating a type into a sink is not on its own a fix. This rule and ADR-0037's
+    /// one-endpoint-per-response-type rule are independent, and both must hold: a response
+    /// <em>envelope</em> moved into <c>Common</c> satisfies this test while still coupling the
+    /// endpoints that share it — green here, and still an ADR-0037 violation. Sinks are for types
+    /// with one owner and many readers (value DTOs, projection rows), not for contracts whose
+    /// sharing is the defect.
+    /// </remarks>
     private static readonly (string From, string To)[] AllowedSliceCouplings = [];
 
     [Fact]
