@@ -1,13 +1,12 @@
 namespace Catalog.Application.Common.Contracts;
 
 /// <summary>
-/// Physical dimensions on the wire, shared by the create, read, and projection product slices.
+/// Physical dimensions on the wire, shared by the create and read product slices.
+/// Share/duplicate ruling: ADR-0037 § Implementation Notes.
 /// </summary>
 /// <remarks>
-/// Also the serialized shape of the <c>dimensions_json</c> column on <c>product_search_view</c>
-/// (<see cref="Catalog.Application.Common.ReadModels.ProductSearchViewMapper"/>), so renaming or
-/// retyping a member reinterprets stored rows and needs a projection rebuild — not only a consumer
-/// update.
+/// Purely a wire type. <c>product_search_view</c> stores dimensions as the four <c>dimensions_*</c>
+/// scalar columns, mirroring the write model, so no edit here can reinterpret a stored row.
 /// </remarks>
 public sealed record DimensionsDto
 {

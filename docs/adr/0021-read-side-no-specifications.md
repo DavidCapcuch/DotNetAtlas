@@ -143,6 +143,54 @@ Three qualifications:
 - **The subject is EF projection targets that are never persisted** — the `Expression<Func<TAggregate, TRow>>` shapes above, which exist only to narrow a `SELECT`.
 - **`DbSet`-mapped read-model entities are excluded.** Some `*Row` types in the same folders are mapped entities with an `IEntityTypeConfiguration<>` and a **namespace-qualified identity recorded in the generated model snapshot**. Moving one changes EF's model identity and emits a spurious migration — and the snapshot files are agent-deny-protected (`CLAUDE.md`), so whoever triggers it cannot repair it. Their placement is fixed by EF, not by this rule; check for a `DbSet<>` before applying it.
 
+### A persisted projection shape is never a wire type
+
+*Projection-row placement* above governs EF projection targets that are **never persisted**. A
+projection column whose contents are *serialized* — a JSONB document — is the other case, and it is
+the one that bites: **the serialized shape is an internal persistence contract and gets its own
+type.** Never a published wire type, however identical the members look today.
+
+The reason is the knowledge test, applied to the two roles rather than the two shapes. *Would a
+change to the wire contract always require the same change at rest?* No — the opposite: a member
+added for one endpoint's screen must leave bytes already written untouched, and a key stored last
+year must keep deserializing after the API renames its own. Sharing one type makes every contract
+edit a silent rewrite of what stored rows mean.
+
+Silent only up to a point. Because wire DTOs are `required` property-style records (ADR-0037),
+`System.Text.Json` **throws** on a missing required member — so a rename, a retype, or a new
+required member turns into a `JsonException` on **every historical row**, at read time, in
+production. The blast radius is the whole read path, not one endpoint.
+
+Two treatments, in preference order:
+
+1. **Flatten it out of existence.** If the shape is flat, store scalar columns instead of a document
+   — there is then no serialized contract to guard, and no frozen-literal test to write. Catalog's
+   dimensions are the worked example: four `dimensions_*` columns on `product_search_view` mirroring
+   the write model, exactly as `PriceAmount`/`PriceCurrency` already do on the same row.
+
+   Flattening trades one hazard for another: a value object that was atomic inside a single document
+   becomes N independently-nullable columns, so "all set or all null" stops being structural. **Put
+   it back as a table `CHECK`** — `num_nonnulls(...) IN (0, N)` — rather than leaving the rule to a
+   comment and a tolerant reader.
+2. **Give it its own internal type**, mapped to and from the wire DTO at the read and write
+   boundaries. Required where the shape is a collection, which a flat row cannot hold.
+   `ProductImageDocument` is the worked example.
+
+**A shape that stays serialized needs a frozen-literal test** — a real stored JSON string, checked
+in as a literal, asserted to still deserialize. This is not belt-and-braces: separation alone does
+not remove the hazard, because the internal type is itself all-`required`, so a rename of *its*
+members still throws on every historical row. Separation narrows the blast radius to storage; the
+literal is what catches the break.
+
+A round-trip through the type under test is worthless here — it renames symmetrically with the code
+and stays green through exactly the change that breaks production. **The literal earns its keep only
+while nothing regenerates it**, which is a stronger constraint than it looks: a serialization
+assertion of the form `Serialize(x) == TheLiteral` forces the literal to be rewritten on any shape
+change, and a rewritten literal is no longer a historical row. Keep the deserialize-direction
+literal separate and marked never-regenerate; assert the write direction against the emitted **key
+set**, which pins the reader/writer agreement without pinning bytes that Postgres `jsonb` normalizes
+away anyway.
+
 ### Specs that survive (still used by write side)
 
 > Updated per [ADR-0022](0022-specification-pattern-adoption.md): the two pure-PK specs were

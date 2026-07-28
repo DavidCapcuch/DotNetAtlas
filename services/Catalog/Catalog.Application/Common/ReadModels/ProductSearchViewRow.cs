@@ -35,8 +35,21 @@ public sealed class ProductSearchViewRow
     /// <summary>Lifecycle status as the SmartEnum <c>Name</c> (Active|Discontinued).</summary>
     public string Status { get; set; } = string.Empty;
 
-    /// <summary>Serialized <c>Dimensions</c> value object, or <c>null</c> for digital products.</summary>
-    public string? DimensionsJson { get; set; }
+    /// <summary>
+    /// The optional <c>Dimensions</c> value object, flattened to scalars exactly as the write model
+    /// stores it. All four are populated together or all are null (digital/service products) — a
+    /// table <c>CHECK</c> enforces it, so a partial row cannot be written.
+    /// </summary>
+    public decimal? DimensionsLength { get; set; }
+
+    /// <inheritdoc cref="DimensionsLength"/>
+    public decimal? DimensionsWidth { get; set; }
+
+    /// <inheritdoc cref="DimensionsLength"/>
+    public decimal? DimensionsHeight { get; set; }
+
+    /// <inheritdoc cref="DimensionsLength"/>
+    public string? DimensionsUnit { get; set; }
 
     /// <summary>Serialized ordered list of <c>ImageReference</c> value objects.</summary>
     public string ImagesJson { get; set; } = "[]";

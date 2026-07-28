@@ -15,9 +15,19 @@ internal sealed class ProductSearchViewRowConfiguration : IEntityTypeConfigurati
 {
     public void Configure(EntityTypeBuilder<ProductSearchViewRow> builder)
     {
-        builder.ToTable("product_search_view", t => t.HasComment(
-            "Denormalized read view of Product (catalog.md § 9). "
-            + "Upserted in-process by domain-event handlers in the same transaction as write-model saves."));
+        builder.ToTable("product_search_view", t =>
+        {
+            t.HasComment(
+                "Denormalized read view of Product (catalog.md § 9). "
+                + "Upserted in-process by domain-event handlers in the same transaction as write-model saves.");
+
+            // Dimensions is one optional value object flattened across four columns, so a partial row
+            // is meaningless. Structural before the flattening (one JSONB column, present or absent);
+            // this keeps it structural instead of leaving it to the writer's discipline.
+            t.HasCheckConstraint(
+                "ck_product_search_view_dimensions_all_or_none",
+                "num_nonnulls(dimensions_length, dimensions_width, dimensions_height, dimensions_unit) IN (0, 4)");
+        });
 
         builder.HasKey(r => r.ProductId);
         builder.Property(r => r.ProductId)
@@ -78,10 +88,22 @@ internal sealed class ProductSearchViewRowConfiguration : IEntityTypeConfigurati
             .HasComment("Lifecycle status name (Active|Discontinued).");
         builder.HasIndex(r => r.Status).HasDatabaseName("ix_product_search_view_status");
 
-        builder.Property(r => r.DimensionsJson)
-            .HasColumnType("jsonb")
-            .IsRequired(false)
-            .HasComment("Serialized Dimensions VO; null for digital/service products.");
+        // Mirrors the write model's owned-type mapping on catalog.products column-for-column, so the
+        // projection stores dimensions the same way the aggregate does.
+        const string DimensionsComment =
+            "Dimensions VO, flattened; all four are set together or all four are null (digital/service products).";
+        builder.Property(r => r.DimensionsLength)
+            .HasPrecision(10, 2)
+            .HasComment(DimensionsComment);
+        builder.Property(r => r.DimensionsWidth)
+            .HasPrecision(10, 2)
+            .HasComment(DimensionsComment);
+        builder.Property(r => r.DimensionsHeight)
+            .HasPrecision(10, 2)
+            .HasComment(DimensionsComment);
+        builder.Property(r => r.DimensionsUnit)
+            .HasMaxLength(8)
+            .HasComment(DimensionsComment);
 
         builder.Property(r => r.ImagesJson)
             .HasColumnType("jsonb")

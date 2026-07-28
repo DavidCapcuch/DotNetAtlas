@@ -7,8 +7,8 @@ namespace Catalog.Application.Common.ReadModels;
 /// SQL-side projection of <see cref="ProductSearchViewRow"/> carrying exactly the columns the
 /// product-detail response needs — everything except <c>IsSellable</c>.
 /// Shared by <c>GetProductByIdQueryHandler</c> and <c>GetProductsByIdsQueryHandler</c> (ADR-0021)
-/// so neither materializes the full read-model row. The raw <c>DimensionsJson</c>/<c>ImagesJson</c>
-/// strings are carried through and deserialized in <see cref="ToResponse"/> after the SQL projection.
+/// so neither materializes the full read-model row. The raw <c>ImagesJson</c> string is carried
+/// through and deserialized in <see cref="ToResponse"/> after the SQL projection.
 /// </summary>
 internal sealed record ProductDetailRow(
     Guid ProductId,
@@ -22,7 +22,10 @@ internal sealed record ProductDetailRow(
     decimal PriceAmount,
     string PriceCurrency,
     string Status,
-    string? DimensionsJson,
+    decimal? DimensionsLength,
+    decimal? DimensionsWidth,
+    decimal? DimensionsHeight,
+    string? DimensionsUnit,
     string ImagesJson,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset LastUpdatedAtUtc)
@@ -40,7 +43,10 @@ internal sealed record ProductDetailRow(
             row.PriceAmount,
             row.PriceCurrency,
             row.Status,
-            row.DimensionsJson,
+            row.DimensionsLength,
+            row.DimensionsWidth,
+            row.DimensionsHeight,
+            row.DimensionsUnit,
             row.ImagesJson,
             row.CreatedAtUtc,
             row.LastUpdatedAtUtc);
@@ -58,9 +64,25 @@ internal sealed record ProductDetailRow(
             BrandName = BrandName,
             Price = new MoneyDto { Amount = PriceAmount, Currency = PriceCurrency },
             Status = Status,
-            Dimensions = ProductSearchViewMapper.DeserializeDimensions(DimensionsJson),
-            Images = ProductSearchViewMapper.DeserializeImages(ImagesJson),
+            // Named arguments deliberately: three adjacent decimal? parameters would otherwise
+            // transpose silently.
+            Dimensions = ProductSearchViewMapper.ToDimensionsDto(
+                length: DimensionsLength,
+                width: DimensionsWidth,
+                height: DimensionsHeight,
+                unit: DimensionsUnit),
+            Images = ToImageDtos(),
             CreatedAtUtc = CreatedAtUtc,
             LastUpdatedAtUtc = LastUpdatedAtUtc,
         };
+
+    private List<ImageReferenceDto> ToImageDtos() =>
+        ProductSearchViewMapper.DeserializeImages(ImagesJson)
+            .Select(i => new ImageReferenceDto
+            {
+                Url = i.Url,
+                AltText = i.AltText,
+                DisplayOrder = i.DisplayOrder,
+            })
+            .ToList();
 }

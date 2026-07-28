@@ -4,31 +4,28 @@ using Catalog.Application.Common.Contracts;
 namespace Catalog.Application.Common.ReadModels;
 
 /// <summary>
-/// JSON (de)serialization helpers for the <c>Dimensions</c> and <c>Images</c> JSONB columns of the
-/// <c>product_search_view</c> projection, plus the read model's interpretation of them. The write
-/// side serializes (used by the projection domain-event handler); the read-side projection rows
-/// deserialize after the SQL projection.
+/// The read model's interpretation of the <c>product_search_view</c> columns that need one: the
+/// <c>images_json</c> JSONB column (serialized by the projection domain-event handler, deserialized
+/// by the projection rows after the SQL projection) and the flattened <c>dimensions_*</c> scalars.
 /// </summary>
+/// <remarks>
+/// The two columns exit at deliberately different levels. <c>images_json</c> stops at
+/// <see cref="ProductImageDocument"/> and leaves document-to-wire mapping to the consuming row,
+/// because a serialized column has a stored contract worth isolating. The <c>dimensions_*</c>
+/// scalars have no stored contract to protect, so they are read straight to
+/// <see cref="Contracts.DimensionsDto"/> here rather than through a second type that would carry no
+/// rule of its own.
+/// </remarks>
 internal static class ProductSearchViewMapper
 {
-    public static DimensionsDto? DeserializeDimensions(string? json)
+    public static IReadOnlyList<ProductImageDocument> DeserializeImages(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))
         {
-            return null;
+            return Array.Empty<ProductImageDocument>();
         }
 
-        return JsonSerializer.Deserialize<DimensionsDto>(json);
-    }
-
-    public static IReadOnlyList<ImageReferenceDto> DeserializeImages(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return Array.Empty<ImageReferenceDto>();
-        }
-
-        return JsonSerializer.Deserialize<List<ImageReferenceDto>>(json) ?? new List<ImageReferenceDto>();
+        return JsonSerializer.Deserialize<List<ProductImageDocument>>(json) ?? new List<ProductImageDocument>();
     }
 
     /// <summary>
@@ -40,9 +37,28 @@ internal static class ProductSearchViewMapper
     public static string? DeserializePrimaryImageUrl(string? json)
         => DeserializeImages(json).OrderBy(i => i.DisplayOrder).FirstOrDefault()?.Url;
 
-    public static string SerializeImages(IReadOnlyCollection<ImageReferenceDto> images)
-        => JsonSerializer.Serialize(images);
+    /// <summary>
+    /// Reads the four <c>dimensions_*</c> columns as the optional <c>Dimensions</c> value object they
+    /// mirror (see <see cref="ProductSearchViewRow.DimensionsLength"/> for the all-or-none rule, which
+    /// a table <c>CHECK</c> enforces). A partial row is therefore unreachable; it reads as
+    /// <c>null</c> — "dimensions unknown" — rather than throwing on a GET.
+    /// </summary>
+    public static DimensionsDto? ToDimensionsDto(decimal? length, decimal? width, decimal? height, string? unit)
+    {
+        if (length is null || width is null || height is null || unit is null)
+        {
+            return null;
+        }
 
-    public static string? SerializeDimensions(DimensionsDto? dimensions)
-        => dimensions is null ? null : JsonSerializer.Serialize(dimensions);
+        return new DimensionsDto
+        {
+            Length = length.Value,
+            Width = width.Value,
+            Height = height.Value,
+            Unit = unit,
+        };
+    }
+
+    public static string SerializeImages(IReadOnlyCollection<ProductImageDocument> images)
+        => JsonSerializer.Serialize(images);
 }

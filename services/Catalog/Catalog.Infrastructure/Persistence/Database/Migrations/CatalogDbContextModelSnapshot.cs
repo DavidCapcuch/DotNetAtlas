@@ -64,10 +64,29 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description");
 
-                    b.Property<string>("DimensionsJson")
-                        .HasColumnType("jsonb")
-                        .HasColumnName("dimensions_json")
-                        .HasComment("Serialized Dimensions VO; null for digital/service products.");
+                    b.Property<decimal?>("DimensionsHeight")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("dimensions_height")
+                        .HasComment("Dimensions VO, flattened; all four are set together or all four are null (digital/service products).");
+
+                    b.Property<decimal?>("DimensionsLength")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("dimensions_length")
+                        .HasComment("Dimensions VO, flattened; all four are set together or all four are null (digital/service products).");
+
+                    b.Property<string>("DimensionsUnit")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("dimensions_unit")
+                        .HasComment("Dimensions VO, flattened; all four are set together or all four are null (digital/service products).");
+
+                    b.Property<decimal?>("DimensionsWidth")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("dimensions_width")
+                        .HasComment("Dimensions VO, flattened; all four are set together or all four are null (digital/service products).");
 
                     b.Property<string>("ImagesJson")
                         .IsRequired()
@@ -139,6 +158,8 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
                     b.ToTable("product_search_view", "catalog", t =>
                         {
                             t.HasComment("Denormalized read view of Product (catalog.md § 9). Upserted in-process by domain-event handlers in the same transaction as write-model saves.");
+
+                            t.HasCheckConstraint("ck_product_search_view_dimensions_all_or_none", "num_nonnulls(dimensions_length, dimensions_width, dimensions_height, dimensions_unit) IN (0, 4)");
                         });
                 });
 

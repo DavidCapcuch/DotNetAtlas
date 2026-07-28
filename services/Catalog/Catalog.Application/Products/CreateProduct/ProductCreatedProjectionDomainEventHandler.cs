@@ -1,9 +1,7 @@
 using Catalog.Application.Categories.Common.Services;
-using Catalog.Application.Common.Contracts;
 using Catalog.Application.Common.Data;
 using Catalog.Application.Common.ReadModels;
 using Catalog.Domain.Products.Events;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Platform.SharedKernel.Base.DomainEvents;
 using Platform.SharedKernel.Exceptions;
@@ -40,22 +38,12 @@ public sealed class ProductCreatedProjectionDomainEventHandler : IDomainEventHan
                 "Catalog.ProjectionMissingCategory",
                 $"Category '{product.CategoryId}' referenced by product '{product.Id}' was not found in the write model.");
 
-        var images = product.Images.Select(i => new ImageReferenceDto
+        var images = product.Images.Select(i => new ProductImageDocument
         {
             Url = i.Url,
             AltText = i.AltText,
             DisplayOrder = i.DisplayOrder,
         }).ToList();
-
-        var dimensions = product.Dimensions is null
-            ? null
-            : new DimensionsDto
-            {
-                Length = product.Dimensions.Length,
-                Width = product.Dimensions.Width,
-                Height = product.Dimensions.Height,
-                Unit = product.Dimensions.Unit,
-            };
 
         var row = new ProductSearchViewRow
         {
@@ -70,7 +58,10 @@ public sealed class ProductCreatedProjectionDomainEventHandler : IDomainEventHan
             PriceAmount = product.Price.Amount,
             PriceCurrency = product.Price.Currency.Name,
             Status = product.Status.Name,
-            DimensionsJson = ProductSearchViewMapper.SerializeDimensions(dimensions),
+            DimensionsLength = product.Dimensions?.Length,
+            DimensionsWidth = product.Dimensions?.Width,
+            DimensionsHeight = product.Dimensions?.Height,
+            DimensionsUnit = product.Dimensions?.Unit,
             ImagesJson = ProductSearchViewMapper.SerializeImages(images),
             IsSellable = product.Status.IsSellable,
             CreatedAtUtc = product.CreatedUtc,

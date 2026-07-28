@@ -112,7 +112,10 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
                     price_amount = table.Column<decimal>(type: "numeric(19,4)", precision: 19, scale: 4, nullable: false),
                     price_currency = table.Column<string>(type: "character varying(3)", maxLength: 3, nullable: false),
                     status = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false, comment: "Lifecycle status name (Active|Discontinued)."),
-                    dimensions_json = table.Column<string>(type: "jsonb", nullable: true, comment: "Serialized Dimensions VO; null for digital/service products."),
+                    dimensions_length = table.Column<decimal>(type: "numeric(10,2)", precision: 10, scale: 2, nullable: true, comment: "Dimensions VO, flattened; all four are set together or all four are null (digital/service products)."),
+                    dimensions_width = table.Column<decimal>(type: "numeric(10,2)", precision: 10, scale: 2, nullable: true, comment: "Dimensions VO, flattened; all four are set together or all four are null (digital/service products)."),
+                    dimensions_height = table.Column<decimal>(type: "numeric(10,2)", precision: 10, scale: 2, nullable: true, comment: "Dimensions VO, flattened; all four are set together or all four are null (digital/service products)."),
+                    dimensions_unit = table.Column<string>(type: "character varying(8)", maxLength: 8, nullable: true, comment: "Dimensions VO, flattened; all four are set together or all four are null (digital/service products)."),
                     images_json = table.Column<string>(type: "jsonb", nullable: false, defaultValue: "[]"),
                     is_sellable = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false, comment: "Computed flag — wired up by the StockLevelChangedEvent Kafka inbox consumer."),
                     created_at_utc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
@@ -121,6 +124,7 @@ namespace Catalog.Infrastructure.Persistence.Database.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_product_search_view", x => x.product_id);
+                    table.CheckConstraint("ck_product_search_view_dimensions_all_or_none", "num_nonnulls(dimensions_length, dimensions_width, dimensions_height, dimensions_unit) IN (0, 4)");
                     table.ForeignKey(
                         name: "fk_product_search_view_categories_category_id",
                         column: x => x.category_id,

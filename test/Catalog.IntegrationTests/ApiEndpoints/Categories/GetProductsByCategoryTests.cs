@@ -4,7 +4,7 @@ using System.Text.Json;
 using Catalog.Api.Endpoints.Categories.CreateCategory;
 using Catalog.Api.Endpoints.Products.CreateProduct;
 using Catalog.Application.Categories.GetProductsByCategory;
-using Catalog.Application.Common.Contracts;
+using Catalog.Application.Common.ReadModels;
 using Catalog.IntegrationTests.Common;
 using FastEndpoints;
 
@@ -144,8 +144,8 @@ public class GetProductsByCategoryTests : BaseIntegrationTest
                     amount: 19.95m,
                     currency: "EUR")
                 .WithImages(
-                    new ImageReferenceDto { Url = "https://cdn.test/secondary.png", AltText = "b", DisplayOrder = 2 },
-                    new ImageReferenceDto { Url = "https://cdn.test/primary.png", AltText = "a", DisplayOrder = 1 }));
+                    new ProductImageDocument { Url = "https://cdn.test/secondary.png", AltText = "b", DisplayOrder = 2 },
+                    new ProductImageDocument { Url = "https://cdn.test/primary.png", AltText = "a", DisplayOrder = 1 }));
 
         var response = await HttpClientRegistry.ReadClient.GetAsync(
             $"/api/v1/catalog/categories/{category.Id}/products?includeDescendants=false&page=2&limit=1",

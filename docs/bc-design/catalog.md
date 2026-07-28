@@ -521,7 +521,9 @@ Catalog's flagship pattern is a **denormalized read model built by an in-process
 | `PriceAmount` | `numeric(19,4)` | Btree index for range queries. |
 | `PriceCurrency` | `char(3)` | |
 | `Status` | `smallint` | Maps to `ProductStatus.Value`; btree index (most queries filter `Status == Active`). |
-| `ImagesJson` | `jsonb` | Array of `{"url": "...", "altText": "...", "displayOrder": N}`. |
+| `DimensionsLength` / `DimensionsWidth` / `DimensionsHeight` | `numeric(10,2)` | The optional `Dimensions` VO flattened, mirroring the write model. |
+| `DimensionsUnit` | `varchar(8)` | All four dimension columns are set together or all null — a table `CHECK` enforces it. |
+| `ImagesJson` | `jsonb` | Array of `{"Url": "...", "AltText": "...", "DisplayOrder": N}`. The keys are the member names of `ProductImageDocument`, which is a persistence contract, not the wire DTO — see [ADR-0021 § A persisted projection shape is never a wire type](../adr/0021-read-side-no-specifications.md). |
 | `CreatedAtUtc` | `timestamptz` | |
 | `LastUpdatedAtUtc` | `timestamptz` | Updated on every projection event. |
 
