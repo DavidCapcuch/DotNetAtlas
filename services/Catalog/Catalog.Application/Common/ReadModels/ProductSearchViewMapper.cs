@@ -5,16 +5,15 @@ namespace Catalog.Application.Common.ReadModels;
 
 /// <summary>
 /// The read model's interpretation of the <c>product_search_view</c> columns that need one: the
-/// <c>images_json</c> JSONB column (serialized by the projection domain-event handler, deserialized
-/// by the projection rows after the SQL projection) and the flattened <c>dimensions_*</c> scalars.
+/// <c>images_json</c> JSONB column (serialized by the projection domain-event handler) and the
+/// flattened <c>dimensions_*</c> scalars. Both are read to their wire DTOs here, so a handler
+/// mapping a projection row never parses a stored column itself.
 /// </summary>
 /// <remarks>
-/// The two columns exit at deliberately different levels. <c>images_json</c> stops at
-/// <see cref="ProductImageDocument"/> and leaves document-to-wire mapping to the consuming row,
-/// because a serialized column has a stored contract worth isolating. The <c>dimensions_*</c>
-/// scalars have no stored contract to protect, so they are read straight to
-/// <see cref="Contracts.DimensionsDto"/> here rather than through a second type that would carry no
-/// rule of its own.
+/// <c>images_json</c> additionally exits at <see cref="ProductImageDocument"/> via
+/// <see cref="DeserializeImages"/>, because a serialized column has a stored contract worth
+/// isolating from the wire shape — the two are free to differ. The <c>dimensions_*</c> scalars have
+/// no stored contract to protect, so they have no such intermediate type.
 /// </remarks>
 internal static class ProductSearchViewMapper
 {
@@ -38,11 +37,31 @@ internal static class ProductSearchViewMapper
         => DeserializeImages(json).OrderBy(i => i.DisplayOrder).FirstOrDefault()?.Url;
 
     /// <summary>
+    /// Reads the stored image documents as the wire <see cref="ImageReferenceDto"/> list, preserving
+    /// stored order — unlike <see cref="DeserializePrimaryImageUrl"/>, which ranks by
+    /// <c>DisplayOrder</c> to pick one. One home for the document-to-wire step so the slices reading
+    /// full image detail cannot drift on it.
+    /// </summary>
+    public static IReadOnlyList<ImageReferenceDto> ToImageDtos(string? json)
+        => DeserializeImages(json)
+            .Select(i => new ImageReferenceDto
+            {
+                Url = i.Url,
+                AltText = i.AltText,
+                DisplayOrder = i.DisplayOrder,
+            })
+            .ToList();
+
+    /// <summary>
     /// Reads the four <c>dimensions_*</c> columns as the optional <c>Dimensions</c> value object they
     /// mirror (see <see cref="ProductSearchViewRow.DimensionsLength"/> for the all-or-none rule, which
     /// a table <c>CHECK</c> enforces). A partial row is therefore unreachable; it reads as
     /// <c>null</c> — "dimensions unknown" — rather than throwing on a GET.
     /// </summary>
+    /// <remarks>
+    /// Call with named arguments: three adjacent <c>decimal?</c> parameters would otherwise transpose
+    /// silently.
+    /// </remarks>
     public static DimensionsDto? ToDimensionsDto(decimal? length, decimal? width, decimal? height, string? unit)
     {
         if (length is null || width is null || height is null || unit is null)

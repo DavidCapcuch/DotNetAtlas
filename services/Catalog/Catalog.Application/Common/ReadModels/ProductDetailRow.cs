@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using Catalog.Application.Common.Contracts;
 
 namespace Catalog.Application.Common.ReadModels;
 
@@ -7,8 +6,10 @@ namespace Catalog.Application.Common.ReadModels;
 /// SQL-side projection of <see cref="ProductSearchViewRow"/> carrying exactly the columns the
 /// product-detail response needs — everything except <c>IsSellable</c>.
 /// Shared by <c>GetProductByIdQueryHandler</c> and <c>GetProductsByIdsQueryHandler</c> (ADR-0021)
-/// so neither materializes the full read-model row. The raw <c>ImagesJson</c> string is carried
-/// through and deserialized in <see cref="ToResponse"/> after the SQL projection.
+/// so neither materializes the full read-model row. <c>ImagesJson</c> is carried through as the raw
+/// string because the SQL projection cannot parse it; each handler deserializes it afterwards.
+/// Row-to-wire mapping lives in each consuming handler rather than here: the two slices return
+/// different types (ADR-0037), so one method on this row could not serve both.
 /// </summary>
 internal sealed record ProductDetailRow(
     Guid ProductId,
@@ -50,39 +51,4 @@ internal sealed record ProductDetailRow(
             row.ImagesJson,
             row.CreatedAtUtc,
             row.LastUpdatedAtUtc);
-
-    public ProductDetailResponse ToResponse() =>
-        new()
-        {
-            ProductId = ProductId,
-            Sku = Sku,
-            Name = Name,
-            Description = Description,
-            CategoryId = CategoryId,
-            CategoryPath = CategoryPath,
-            CategoryBreadcrumb = CategoryBreadcrumb,
-            BrandName = BrandName,
-            Price = new MoneyDto { Amount = PriceAmount, Currency = PriceCurrency },
-            Status = Status,
-            // Named arguments deliberately: three adjacent decimal? parameters would otherwise
-            // transpose silently.
-            Dimensions = ProductSearchViewMapper.ToDimensionsDto(
-                length: DimensionsLength,
-                width: DimensionsWidth,
-                height: DimensionsHeight,
-                unit: DimensionsUnit),
-            Images = ToImageDtos(),
-            CreatedAtUtc = CreatedAtUtc,
-            LastUpdatedAtUtc = LastUpdatedAtUtc,
-        };
-
-    private List<ImageReferenceDto> ToImageDtos() =>
-        ProductSearchViewMapper.DeserializeImages(ImagesJson)
-            .Select(i => new ImageReferenceDto
-            {
-                Url = i.Url,
-                AltText = i.AltText,
-                DisplayOrder = i.DisplayOrder,
-            })
-            .ToList();
 }

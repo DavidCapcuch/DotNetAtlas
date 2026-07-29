@@ -313,7 +313,7 @@ Category deletion was never built (`Catalog.Domain` has no `DeleteCategory` / `C
 
 - **HTTP:** `GET /api/v1/catalog/products/{productId}`
 - **Authorization:** `AllowAnonymous` (public product detail).
-- **Interface:** `IQuery<ProductDetailResponse>`.
+- **Interface:** `IQuery<GetProductByIdResponse>`.
 - **Request shape (query params + route):**
   ```
   {

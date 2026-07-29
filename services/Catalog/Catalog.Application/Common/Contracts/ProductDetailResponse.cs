@@ -1,9 +1,9 @@
 namespace Catalog.Application.Common.Contracts;
 
 /// <summary>
-/// Denormalized product-detail view returned by the single-product read (<c>GetProductById</c>) and,
-/// as the element type, by the batch read (<c>GetProductsByIds</c>). Lives in
-/// <c>Common.Contracts</c> so neither slice owns a type the other depends on.
+/// Denormalized product-detail view carried as the element type of the batch read
+/// (<c>GetProductsByIds</c>). An envelope's item type declared outside its slice is an outstanding
+/// ADR-0037 violation, tracked in #353.
 /// </summary>
 public sealed class ProductDetailResponse
 {

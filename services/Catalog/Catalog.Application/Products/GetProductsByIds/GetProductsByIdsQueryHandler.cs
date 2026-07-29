@@ -1,3 +1,4 @@
+using Catalog.Application.Common.Contracts;
 using Catalog.Application.Common.Data;
 using Catalog.Application.Common.ReadModels;
 using FluentResults;
@@ -29,7 +30,7 @@ public sealed class GetProductsByIdsQueryHandler
             .Select(ProductDetailRow.Projection)
             .ToListAsync(ct);
 
-        var products = rows.Select(r => r.ToResponse()).ToList();
+        var products = rows.Select(ToProductDetail).ToList();
         var foundIds = products.Select(p => p.ProductId).ToHashSet();
         var missing = requestedIds.Where(id => !foundIds.Contains(id)).ToList();
 
@@ -39,4 +40,32 @@ public sealed class GetProductsByIdsQueryHandler
             MissingProductIds = missing,
         });
     }
+
+    /// <summary>
+    /// Lives here rather than on <see cref="ProductDetailRow"/> because that row is shared with
+    /// <c>GetProductById</c>, whose wire type is a separate one (ADR-0037) — one method cannot
+    /// return both.
+    /// </summary>
+    private static ProductDetailResponse ToProductDetail(ProductDetailRow row) =>
+        new()
+        {
+            ProductId = row.ProductId,
+            Sku = row.Sku,
+            Name = row.Name,
+            Description = row.Description,
+            CategoryId = row.CategoryId,
+            CategoryPath = row.CategoryPath,
+            CategoryBreadcrumb = row.CategoryBreadcrumb,
+            BrandName = row.BrandName,
+            Price = new MoneyDto { Amount = row.PriceAmount, Currency = row.PriceCurrency },
+            Status = row.Status,
+            Dimensions = ProductSearchViewMapper.ToDimensionsDto(
+                length: row.DimensionsLength,
+                width: row.DimensionsWidth,
+                height: row.DimensionsHeight,
+                unit: row.DimensionsUnit),
+            Images = ProductSearchViewMapper.ToImageDtos(row.ImagesJson),
+            CreatedAtUtc = row.CreatedAtUtc,
+            LastUpdatedAtUtc = row.LastUpdatedAtUtc,
+        };
 }

@@ -22,9 +22,9 @@ public class GetProductsByIdsTests : BaseIntegrationTest
         var (_, cat) = await HttpClientRegistry.WriteClient
             .POSTAsync<CreateCategoryEndpoint, CreateCategoryRequest, CreateCategoryResponse>(
                 CatalogTestData.ValidCreateCategoryRequest());
+        var createReq = CatalogTestData.ValidCreateProductRequest(cat.CategoryId, name: "Batch Widget");
         var (_, foundProduct) = await HttpClientRegistry.WriteClient
-            .POSTAsync<CreateProductEndpoint, CreateProductRequest, CreateProductResponse>(
-                CatalogTestData.ValidCreateProductRequest(cat.CategoryId));
+            .POSTAsync<CreateProductEndpoint, CreateProductRequest, CreateProductResponse>(createReq);
         var missingId = Guid.CreateVersion7();
 
         var (response, body) = await HttpClientRegistry.ReadClient
@@ -34,8 +34,23 @@ public class GetProductsByIdsTests : BaseIntegrationTest
         using (new AssertionScope())
         {
             response.StatusCode.Should().Be(HttpStatusCode.OK);
-            body.Products.Should().ContainSingle(p => p.ProductId == foundProduct.ProductId);
             body.MissingProductIds.Should().ContainSingle().Which.Should().Be(missingId);
+
+            // Asserted member-by-member because this slice maps the shared ProductDetailRow to its
+            // own wire type (ADR-0037) — an id-only assertion leaves every other assignment, and any
+            // pair of them crossed, invisible to the suite.
+            var product = body.Products.Should().ContainSingle().Which;
+            product.ProductId.Should().Be(foundProduct.ProductId);
+            product.Sku.Should().Be(createReq.Sku);
+            product.Name.Should().Be("Batch Widget");
+            product.Description.Should().Be(createReq.Description);
+            product.CategoryId.Should().Be(cat.CategoryId);
+            product.BrandName.Should().Be(createReq.Brand);
+            product.Price.Amount.Should().Be(createReq.Price.Amount);
+            product.Price.Currency.Should().Be(createReq.Price.Currency);
+            product.Status.Should().Be("Active");
+            product.Dimensions.Should().BeEquivalentTo(createReq.Dimensions);
+            product.Images.Should().BeEquivalentTo(createReq.Images);
         }
     }
 
