@@ -4,13 +4,13 @@ using Platform.SharedKernel.Base;
 namespace Inventory.ArchitectureTests.Domain;
 
 /// <summary>
-/// Value-object discipline (sealed, immutable, no public ctor) for Inventory's five
-/// <see cref="ValueObject"/>-derived VOs: <c>Quantity</c>, <c>ReservationId</c>,
-/// <c>ReservationInfo</c>, <c>StockSource</c>, <c>StockItemSnapshot</c>.
+/// Value-object discipline (sealed, immutable, no public ctor). Scope is whatever derives
+/// <see cref="ValueObject"/> — the filter below is the rule. (<c>docs/bc-design/inventory.md</c>
+/// § 4 catalogues Inventory's value concepts, not all of which derive it.)
 /// </summary>
 /// <remarks>
-/// <c>ReservationStatus</c> + <c>ReleaseReason</c> are plain C# enums — they do not derive
-/// <see cref="ValueObject"/> and are therefore intentionally outside this rule's filter.
+/// <c>ReservationStatus</c> + <c>ReleaseReason</c> read like value objects but are plain C#
+/// enums, so they do not derive <see cref="ValueObject"/> and are intentionally out of scope.
 /// </remarks>
 public class ValueObjectTests : BaseTest
 {
