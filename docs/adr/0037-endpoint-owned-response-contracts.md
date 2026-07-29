@@ -138,7 +138,7 @@ Endpoint-to-**wire-contract** map over every response-returning endpoint — bot
 | Invoicing | **non-compliant** | [#358](https://github.com/DavidCapcuch/DotNetAtlas/issues/358) |
 | Payments | **non-compliant** | [#360](https://github.com/DavidCapcuch/DotNetAtlas/issues/360) |
 
-**The enforcing arch test does not exist in any unit yet** — the issues below land it per BC, so every rule stated in *Implementation Notes* is a specification for that work, not a description of a running check.
+**The enforcing arch test lands per unit**, on the issue named in that unit's row above — the repo copies arch-test rule logic per BC rather than extracting a shared arch-test project. So a rule stated in *Implementation Notes* is a running check in a unit whose issue has landed, and a specification for the work in every unit whose issue has not.
 
 Each issue owns its own detail — which type is over-shared, from which slice, and what the fix is. Restating that here would be a second copy that drifts as the slices land. A dash means nothing outstanding; the BFF's ticket is *enablement*, not a contract fix, so its compliance is not in question.
 
