@@ -1,17 +1,16 @@
 using System.Net;
 using Catalog.Api.Common.Authorization;
-using Catalog.Application.Common.Contracts;
 using Catalog.Application.Products.GetProductById;
 using FastEndpoints;
 using Platform.Api.Extensions;
 
 namespace Catalog.Api.Endpoints.Products.GetProductById;
 
-internal sealed class GetProductByIdEndpoint : Endpoint<GetProductByIdRequest, ProductDetailResponse>
+internal sealed class GetProductByIdEndpoint : Endpoint<GetProductByIdRequest, GetProductByIdResponse>
 {
-    private readonly Platform.CQRS.IQueryHandler<GetProductByIdQuery, ProductDetailResponse> _handler;
+    private readonly Platform.CQRS.IQueryHandler<GetProductByIdQuery, GetProductByIdResponse> _handler;
 
-    public GetProductByIdEndpoint(Platform.CQRS.IQueryHandler<GetProductByIdQuery, ProductDetailResponse> handler)
+    public GetProductByIdEndpoint(Platform.CQRS.IQueryHandler<GetProductByIdQuery, GetProductByIdResponse> handler)
     {
         _handler = handler;
     }
@@ -28,7 +27,7 @@ internal sealed class GetProductByIdEndpoint : Endpoint<GetProductByIdRequest, P
         });
         Description(b =>
         {
-            b.Produces<ProductDetailResponse>((int)HttpStatusCode.OK);
+            b.Produces<GetProductByIdResponse>((int)HttpStatusCode.OK);
             b.Produces((int)HttpStatusCode.Unauthorized);
             b.Produces((int)HttpStatusCode.NotFound);
         });
