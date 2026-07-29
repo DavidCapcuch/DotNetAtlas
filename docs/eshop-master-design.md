@@ -295,7 +295,7 @@ Detailed design per BC lives in [docs/bc-design/](bc-design/). Each chapter is s
 
 **Aggregate:** `StockItem` (keyed by ProductId; state is the fold over the event stream).
 **ES events (6, persisted as write model):** `StockItemInitializedDomainEvent`, `StockReceivedDomainEvent`, `StockReservedDomainEvent`, `ReservationConfirmedDomainEvent`, `ReservationReleasedDomainEvent`, `StockAdjustedDomainEvent`.
-**Value objects:** `Quantity`, `ReservationId`, `ReservationInfo`, `StockItemSnapshot`.
+**Value objects:** `Quantity`, `ReservationId`, `ReservationInfo`, `StockSource`.
 **Event store schema:** `inventory.stock_events (StreamId, Version, EventType, Payload, OccurredAtUtc, AppendedAtUtc)` with PK `(StreamId, Version)`. (Saga forensics key on `OrderId`, which the reservation events carry.)
 **Read projections:** `inventory.current_stock_levels` and `inventory.reservation_audit` built by in-process `IDomainEventHandler` upserts in the same transaction as event append.
 **External events (5):** `StockLevelChangedEvent` on `inventory.stock-events`; `StockReservedEvent`, `StockReservationFailedEvent`, `ReservationConfirmedEvent`, `ReservationReleasedEvent` on `inventory.reservations`.
@@ -612,7 +612,7 @@ See the six linked glossary files in [docs/bc-design/](bc-design/):
 - [glossary-catalog.md](bc-design/glossary-catalog.md) — 14 terms (Product, SKU, Category, Category Path, Category Breadcrumb, Price, Brand, Product Status, Discontinued, Reactivation, Read View, Active, Dimensions, Image Reference).
 - [glossary-basket.md](bc-design/glossary-basket.md) — 14 terms (Basket, BasketItem, ProductSnapshot, BasketTotal, Money, Frozen-pricing contract, Checkout, OrderId (pre-assigned), Version, Basket expiry, Catalog Unavailable, ACL, Redis-backed aggregate, Outbox side-car).
 - [glossary-ordering.md](bc-design/glossary-ordering.md) — 33 terms.
-- [glossary-inventory.md](bc-design/glossary-inventory.md) — 37 terms grouped by Aggregate/state, Reservations, Events/ES, Commands/write-path, External surface, Value objects.
+- [glossary-inventory.md](bc-design/glossary-inventory.md) — 36 terms grouped by Aggregate/state, Reservations, Events/ES, Commands/write-path, External surface, Value objects.
 - [glossary-payments.md](bc-design/glossary-payments.md) — 30 terms.
 - [glossary-invoicing.md](bc-design/glossary-invoicing.md) — 32 terms.
 

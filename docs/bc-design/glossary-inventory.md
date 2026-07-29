@@ -122,9 +122,6 @@ A non-negative (or strictly positive depending on use) integer wrapped in `recor
 ### StockSource
 A free-form string token on `StockReceivedDomainEvent` (e.g., `"receiving-dock"`, `"returns"`, `"transfer-in"`). Not an enum — kept deliberately open in v1 to avoid premature taxonomy work.
 
-### StockItemSnapshot
-A read-only DTO `record StockItemSnapshot(Guid ProductId, int OnHand, int Reserved, int Available, int Version)`. Returned by `GetStockLevelQuery`. NOT the same as an "event-sourcing snapshot" — this is a read-model projection, not a rehydration accelerator.
-
 ### ReservationInfo
 In-memory immutable record on the rehydrated aggregate: `(ReservationId, ProductId, Quantity, OrderId, ReservedAtUtc, ExpiresAtUtc, Status)`. Produced during event folding; queried during `ConfirmReservation` / `ReleaseReservation` handling.
 
