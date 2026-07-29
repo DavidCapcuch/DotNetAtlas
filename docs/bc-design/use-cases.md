@@ -47,9 +47,9 @@ Implementation: one shared middleware `Platform.Api.Idempotency.IdempotencyMiddl
 
 ### Authentication & authorization
 
-- All endpoints require Keycloak-issued JWT **unless** marked `AllowAnonymous` (public reads — catalog browse + Inventory stock-availability overlays, §§ 4.4.1–4.4.2).
+- All endpoints require a Keycloak-issued JWT **unless** marked `AllowAnonymous`. The only anonymous endpoints are Inventory's stock-availability overlays (§§ 4.4.1–4.4.2). **Catalog browse is not anonymous** — its reads are scope-gated, and the storefront's anonymous browsing is a BFF surface that calls them with a `client_credentials` service token (ADR-0010).
 - `UserId` / `BuyerId` from `ClaimTypes.NameIdentifier` via FastEndpoints `[FromClaim(ClaimTypes.NameIdentifier, isRequired: true, removeFromSchema: true)]`.
-- Admin / ops endpoints require policy `AuthPolicies.Admin` (follows the codebase-wide `AuthPolicies`-gated admin endpoint-group pattern).
+- Admin / ops endpoints are gated by a policy constant on the owning BC's `AuthPolicies` class. The constant is named per BC, not shared — each entry below names the one its endpoint applies, and [ADR-0010](../adr/0010-service-to-service-auth.md) is the source of truth for which role and scopes each policy composes.
 - Row-level authorization (buyer reads own order only) is enforced in the query handler against `BuyerId == claim.sub` with an admin bypass.
 
 ### Handler pattern
@@ -86,7 +86,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
 #### 1.1.1 `CreateProductCommand`
 
 - **HTTP:** `POST /api/v1/catalog/products`
-- **Authorization:** `AuthPolicies.Admin` (only catalog operators may create products).
+- **Authorization:** `AuthPolicies.WritePolicy` (`CatalogWriteScope`: requires the `admin` realm role **and** the `catalog.write` scope — ADR-0010). Only catalog operators may create products.
 - **Interface:** `ICommand<Guid>` (returns the created `ProductId`).
 - **Request shape:**
   ```
@@ -138,7 +138,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
 #### 1.1.2 `UpdateProductPriceCommand`
 
 - **HTTP:** `PUT /api/v1/catalog/products/{productId}/price`
-- **Authorization:** `AuthPolicies.Admin`.
+- **Authorization:** `AuthPolicies.WritePolicy` (`CatalogWriteScope` — ADR-0010; composition spelled out in § 1.1.1).
 - **Interface:** `ICommand` (no response body; 204 No Content).
 - **Request shape:**
   ```
@@ -167,7 +167,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
 #### 1.1.3 `DescribeProductCommand`
 
 - **HTTP:** `PUT /api/v1/catalog/products/{productId}/description`
-- **Authorization:** `AuthPolicies.Admin`.
+- **Authorization:** `AuthPolicies.WritePolicy` (`CatalogWriteScope` — ADR-0010; composition spelled out in § 1.1.1).
 - **Interface:** `ICommand`.
 - **Request shape:**
   ```
@@ -194,7 +194,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
 #### 1.1.4 `DiscontinueProductCommand`
 
 - **HTTP:** `POST /api/v1/catalog/products/{productId}/discontinue`
-- **Authorization:** `AuthPolicies.Admin`.
+- **Authorization:** `AuthPolicies.WritePolicy` (`CatalogWriteScope` — ADR-0010; composition spelled out in § 1.1.1).
 - **Interface:** `ICommand`.
 - **Request shape:**
   ```
@@ -219,7 +219,7 @@ Each service below lists its inbound command topic (where applicable) and the Ka
 #### 1.1.5 `ReactivateProductCommand`
 
 - **HTTP:** `POST /api/v1/catalog/products/{productId}/reactivate`
-- **Authorization:** `AuthPolicies.Admin` — reactivation is an admin override of a discontinued-product state.
+- **Authorization:** `AuthPolicies.WritePolicy` (`CatalogWriteScope` — ADR-0010; composition spelled out in § 1.1.1) — reactivation is an admin override of a discontinued-product state.
 - **Interface:** `ICommand`.
 - **Request shape:**
   ```
@@ -252,7 +252,7 @@ See § 1.1.6 — the add/remove-image pair was never implemented and is cut toge
 #### 1.1.8 `CreateCategoryCommand`
 
 - **HTTP:** `POST /api/v1/catalog/categories`
-- **Authorization:** `AuthPolicies.Admin`.
+- **Authorization:** `AuthPolicies.WritePolicy` (`CatalogWriteScope` — ADR-0010; composition spelled out in § 1.1.1).
 - **Interface:** `ICommand<Guid>` — returns the created `CategoryId`.
 - **Request shape:**
   ```
@@ -278,7 +278,7 @@ See § 1.1.6 — the add/remove-image pair was never implemented and is cut toge
 #### 1.1.9 `ReparentCategoryCommand`
 
 - **HTTP:** `PUT /api/v1/catalog/categories/{categoryId}/reparent`
-- **Authorization:** `AuthPolicies.Admin`.
+- **Authorization:** `AuthPolicies.WritePolicy` (`CatalogWriteScope` — ADR-0010; composition spelled out in § 1.1.1).
 - **Interface:** `ICommand`.
 - **Request shape:**
   ```
@@ -312,7 +312,7 @@ Category deletion was never built (`Catalog.Domain` has no `DeleteCategory` / `C
 #### 1.2.1 `GetProductByIdQuery`
 
 - **HTTP:** `GET /api/v1/catalog/products/{productId}`
-- **Authorization:** `AllowAnonymous` (public product detail).
+- **Authorization:** `AuthPolicies.ReadPolicy` (`CatalogReadScope`: satisfied by `catalog.read` *or* `catalog.write` — ADR-0010). No Catalog endpoint is anonymous; the storefront's anonymous product page is a **BFF** surface, and the BFF reaches this endpoint with a `client_credentials` service token on `catalog.read`.
 - **Interface:** `IQuery<GetProductByIdResponse>`.
 - **Request shape (query params + route):**
   ```
@@ -346,7 +346,7 @@ Category deletion was never built (`Catalog.Domain` has no `DeleteCategory` / `C
 #### 1.2.2 `SearchProductsQuery`
 
 - **HTTP:** `GET /api/v1/catalog/products` (products-collection root + query params — **not** a `/search` sub-path; matches `SearchProductsEndpoint`'s `Get(string.Empty)` under the `/catalog/products` group)
-- **Authorization:** `AllowAnonymous`.
+- **Authorization:** `AuthPolicies.ReadPolicy` (`CatalogReadScope` — ADR-0010; see § 1.2.1 for why a shopper-facing read is still scope-gated).
 - **Interface:** `IQuery<SearchProductsResponse>`.
 - **Request shape (query params):**
   ```
@@ -402,7 +402,7 @@ Category deletion was never built (`Catalog.Domain` has no `DeleteCategory` / `C
 #### 1.2.3 `GetCategoryTreeQuery`
 
 - **HTTP:** `GET /api/v1/catalog/categories/tree`
-- **Authorization:** `AllowAnonymous`.
+- **Authorization:** `AuthPolicies.ReadPolicy` (`CatalogReadScope` — ADR-0010; see § 1.2.1 for why a shopper-facing read is still scope-gated).
 - **Interface:** `IQuery<GetCategoryTreeResponse>`.
 - **Request shape (query params):**
   ```
@@ -432,7 +432,7 @@ Category deletion was never built (`Catalog.Domain` has no `DeleteCategory` / `C
 #### 1.2.4 `GetProductsByCategoryQuery`
 
 - **HTTP:** `GET /api/v1/catalog/categories/{categoryId}/products`
-- **Authorization:** `AllowAnonymous`.
+- **Authorization:** `AuthPolicies.ReadPolicy` (`CatalogReadScope` — ADR-0010; see § 1.2.1 for why a shopper-facing read is still scope-gated).
 - **Interface:** `IQuery<GetProductsByCategoryResponse>`.
 - **Request shape (query params + route):**
   ```
