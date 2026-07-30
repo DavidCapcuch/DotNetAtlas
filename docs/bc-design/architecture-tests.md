@@ -247,6 +247,7 @@ Types.InAssembly(CatalogDomainAssembly)
 - **Basket DbContext carries no `DbSet<Basket>`** — the Basket aggregate lives in Redis. The SQL-side `BasketDbContext` only holds `OutboxMessage` / `InboxMessage` sets (per [basket.md § Redis-backed aggregate + SQL side-car](basket.md)).
 - **`ProductCatalogHttpAdapter` is the only cross-BC surface** — only `Basket.Infrastructure.Catalog.ProductCatalogHttpAdapter` references Catalog HTTP DTOs. All other Basket code — Domain and Application — references `ProductSnapshot` (internal VO).
 - **`IBasketRepository` uses Redis** — the Infrastructure implementation of `IBasketRepository` references `StackExchange.Redis` types; no EF Core references are permitted in that class.
+- **One ACL record per Catalog route** — no Catalog ACL type is reachable from two route records, except those the test's own allow-list names. Catalog's two product endpoints are free to diverge ([ADR-0037](../adr/0037-endpoint-owned-response-contracts.md)), and Basket binds them strictly, so one record serving both would make each route unable to drop what only the other reads (per [basket.md § 9.3](basket.md)).
 
 ```csharp
 Types.InAssembly(BasketInfraAssembly)
@@ -401,7 +402,7 @@ Implementation agents tick these off as they author the architecture-tests proje
 - [ ] **§ 1.5 Result-pattern** — 2 tests (handlers don't throw `ArgumentException`/`InvalidOperationException`; aggregates only throw `DataIntegrityException`)
 - [ ] **§ 1.6 Cross-BC** — one test per BC asserting no reference to other BCs' `Domain` or `Application` namespaces — 4 tests
 - [ ] **§ 2.1 Catalog specific** — 3 tests
-- [ ] **§ 2.2 Basket specific** — 3 tests
+- [ ] **§ 2.2 Basket specific** — 4 tests
 - [ ] **§ 2.3 Ordering specific** — 4 tests
 - [ ] **§ 2.4 Inventory specific** — 3 tests
 

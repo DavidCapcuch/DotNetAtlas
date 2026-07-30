@@ -14,12 +14,27 @@ public class BasketSpecificRulesTests : BaseTest
     private const string BasketAggregateFullName = "Basket.Domain.Baskets.Basket";
     private const string DbSetOpenGenericFullName = "Microsoft.EntityFrameworkCore.DbSet`1";
 
-    private static readonly string[] CatalogDtoFullNames =
+    private const string CatalogAclNamespace = "Basket.Infrastructure.ExternalServices.Catalog";
+
+    /// <summary>The types in the ACL namespace that are machinery rather than wire shape.</summary>
+    private static readonly string[] CatalogAclNonDtoNames =
     [
-        "Basket.Infrastructure.ExternalServices.Catalog.CatalogProductResponse",
-        "Basket.Infrastructure.ExternalServices.Catalog.CatalogProductsByIdsResponse",
-        "Basket.Infrastructure.ExternalServices.Catalog.CatalogPriceDto",
+        "ProductCatalogHttpAdapter",
+        "CatalogClientDependencyInjection",
     ];
+
+    /// <summary>
+    /// Catalog's wire DTOs — everything else in the ACL namespace. Derived rather than listed so a
+    /// record added to the ACL is covered the moment it exists; a hardcoded list silently
+    /// under-enforces the day someone forgets to extend it. Nested types are excluded because
+    /// compiler-generated async state machines inside the adapter report the enclosing namespace.
+    /// </summary>
+    private static readonly string[] CatalogDtoFullNames = InfrastructureAssembly.GetTypes()
+        .Where(type => type.Namespace == CatalogAclNamespace && !type.IsNested)
+        .Where(type => !CatalogAclNonDtoNames.Contains(type.Name, StringComparer.Ordinal))
+        .Select(type => type.FullName!)
+        .Order(StringComparer.Ordinal)
+        .ToArray();
 
     /// <summary>
     /// ADR-0016 + basket.md § 6: the Basket aggregate lives in Redis, not Postgres.
@@ -97,9 +112,9 @@ public class BasketSpecificRulesTests : BaseTest
             .ToList();
 
         disallowedReferrers.Should().BeEmpty(
-            "Only ProductCatalogHttpAdapter may reference Catalog HTTP DTOs (CatalogProductResponse, " +
-            "CatalogProductsByIdsResponse, CatalogPriceDto). All other code must use the internal " +
-            "ProductSnapshot VO. Disallowed referrers: {0}",
+            "Only ProductCatalogHttpAdapter may reference Catalog's HTTP DTOs ({0}). All other code " +
+            "must use the internal ProductSnapshot VO. Disallowed referrers: {1}",
+            string.Join(", ", CatalogDtoFullNames),
             string.Join(", ", disallowedReferrers));
     }
 

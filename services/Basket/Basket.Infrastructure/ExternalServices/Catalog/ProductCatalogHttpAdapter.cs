@@ -30,7 +30,44 @@ namespace Basket.Infrastructure.ExternalServices.Catalog;
 /// </remarks>
 internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    /// <summary>
+    /// Web defaults (camelCase, case-insensitive) matching Catalog's FastEndpoints wire shape, plus
+    /// strict binding: a response that drops or nulls a <em>member</em> Basket reads throws
+    /// <see cref="JsonException"/> at this boundary instead of binding to <c>default</c> and
+    /// surfacing as a <see cref="NullReferenceException"/> mid-mapping (basket.md &#xa7; 9.3).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Members only.</b> Nullability is not enforced on collection <em>elements</em>, so a
+    /// <c>[null]</c> entry binds and must be guarded by hand where a record declares a collection —
+    /// see the null-entry check in <see cref="FetchChunkAsync"/>. Everything below is about members.
+    /// </para>
+    /// <remarks>
+    /// <para>
+    /// The settings close different holes. <c>required</c> on the ACL records already rejects an
+    /// <em>absent</em> member unaided; <see cref="JsonSerializerOptions.RespectNullableAnnotations"/>
+    /// is what rejects one that is <em>present but null</em>, since presence alone satisfies the
+    /// requirement. <see cref="JsonSerializerOptions.RespectRequiredConstructorParameters"/> extends
+    /// the absent-member check to positional records, which <see cref="CatalogPriceDto"/> is.
+    /// Duplicate properties are rejected because the JSON specification defines no behaviour for
+    /// them and parsers disagree on which one wins.
+    /// </para>
+    /// <para>
+    /// <see cref="JsonSerializerOptions.UnmappedMemberHandling"/> stays at its default, making
+    /// binding <b>asymmetric by design</b>: a member Catalog drops throws, a member Catalog adds
+    /// binds unaffected. Removal breaks a Basket use case; addition does not. That asymmetry is why
+    /// the settings are listed individually rather than taken from
+    /// <see cref="JsonSerializerOptions.Strict"/>, which bundles them with unmapped-member rejection
+    /// and would turn every field Catalog adds into a failed add-item.
+    /// </para>
+    /// </remarks>
+    /// <seealso href="https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/required-properties"/>
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        RespectNullableAnnotations = true,
+        RespectRequiredConstructorParameters = true,
+        AllowDuplicateProperties = false,
+    };
 
     private readonly HttpClient _http;
     private readonly TimeProvider _timeProvider;
@@ -85,21 +122,21 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
             }
 
             var dto = await response.Content
-                .ReadFromJsonAsync<CatalogProductResponse>(JsonOptions, ct)
+                .ReadFromJsonAsync<CatalogProductByIdResponse>(JsonOptions, ct)
                 .ConfigureAwait(false);
 
-            if (dto is null || dto.Price is null)
+            if (dto is null)
             {
-                // Null body or null nested Price — System.Text.Json does not
-                // enforce non-nullable-reference annotations, so defend against
-                // protocol drift and treat as upstream breakage.
+                // A literal `null` JSON body deserializes to null, which no strict-binding setting
+                // covers — those govern members, not the root. This route's members need no guard:
+                // it declares no collection, so every member is reached by the options below.
                 _logger.LogError(
-                    "Catalog returned 200 with null or incomplete body for product {ProductId}.",
+                    "Catalog returned 200 with a null body for product {ProductId}.",
                     productId);
                 return Result.Fail<ProductSnapshot>(BasketAclErrors.CatalogUnavailable());
             }
 
-            return MapToSnapshot(dto);
+            return MapToSnapshot(sku: dto.Sku, name: dto.Name, price: dto.Price);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -123,7 +160,13 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Catalog returned malformed JSON for product {ProductId}.", productId);
+            // Two causes, one handling: malformed JSON, or a well-formed body carrying a contract
+            // Basket can no longer bind because a member it reads was dropped or nulled. The
+            // exception message is the only place the two are distinguishable.
+            _logger.LogError(
+                ex,
+                "Catalog returned a body Basket could not bind for product {ProductId}.",
+                productId);
             return Result.Fail<ProductSnapshot>(BasketAclErrors.CatalogUnavailable());
         }
     }
@@ -201,18 +244,27 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
                 .ReadFromJsonAsync<CatalogProductsByIdsResponse>(JsonOptions, ct)
                 .ConfigureAwait(false);
 
-            if (dto is null || dto.Products is null)
+            if (dto is null)
             {
-                // Null body or null Products array — same protocol-drift
-                // defence as the single-product path.
-                _logger.LogError("Catalog batch returned 200 with null or incomplete body.");
+                // Same root-null guard as the single-product path — see there.
+                _logger.LogError("Catalog batch returned 200 with a null body.");
                 return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketAclErrors.CatalogUnavailable());
             }
 
             var pairs = new List<(Guid, ProductSnapshot)>(dto.Products.Count);
             foreach (var p in dto.Products)
             {
-                var mapResult = MapToSnapshot(p);
+                if (p is null)
+                {
+                    // The one shape strict binding does not cover: System.Text.Json enforces
+                    // nullability on members, not on collection elements, so `[null]` binds. Without
+                    // this guard the dereference below is an uncaught NullReferenceException — a 500
+                    // on the one path this ACL fails closed everywhere else.
+                    _logger.LogError("Catalog batch returned a null product entry for {Count} ids.", chunk.Count);
+                    return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketAclErrors.CatalogUnavailable());
+                }
+
+                var mapResult = MapToSnapshot(sku: p.Sku, name: p.Name, price: p.Price);
                 if (mapResult.IsFailed)
                 {
                     _logger.LogError(
@@ -242,22 +294,28 @@ internal sealed class ProductCatalogHttpAdapter : IProductCatalogQueryPort
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Catalog batch returned malformed JSON.");
+            // Malformed JSON or an unbindable contract — see the single-product catch.
+            _logger.LogError(ex, "Catalog batch returned a body Basket could not bind for {Count} ids.", chunk.Count);
             return Result.Fail<IReadOnlyList<(Guid, ProductSnapshot)>>(BasketAclErrors.CatalogUnavailable());
         }
     }
 
-    private Result<ProductSnapshot> MapToSnapshot(CatalogProductResponse dto)
+    /// <summary>
+    /// Takes the snapshot fields rather than a route's record: the wire shape is per-route and
+    /// duplicated, but how a Catalog product becomes a <see cref="ProductSnapshot"/> is one rule
+    /// Basket owns, and a change to it would be the same change at both call sites.
+    /// </summary>
+    private Result<ProductSnapshot> MapToSnapshot(string sku, string name, CatalogPriceDto price)
     {
-        var moneyResult = Money.Create(dto.Price.Amount, dto.Price.Currency);
+        var moneyResult = Money.Create(price.Amount, price.Currency);
         if (moneyResult.IsFailed)
         {
             return moneyResult.ToResult<ProductSnapshot>();
         }
 
         return Result.Ok(ProductSnapshot.Create(
-            sku: dto.Sku,
-            name: dto.Name,
+            sku: sku,
+            name: name,
             price: moneyResult.Value,
             capturedAtUtc: _timeProvider.GetUtcNow()));
     }
