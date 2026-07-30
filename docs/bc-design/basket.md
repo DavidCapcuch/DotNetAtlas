@@ -135,6 +135,13 @@ The linchpin of the ACL: this is what the `IProductCatalogQueryPort` adapter pro
 
 **Frozen-pricing contract:** once a snapshot is inside a basket, it does not change until the user explicitly triggers `RefreshBasketPricesCommand`. This protects the user from silent price jumps mid-session and makes checkout totals predictable.
 
+**Field well-formedness:** `Sku` and `Name` are non-blank and `Price` is strictly positive, enforced in `ProductSnapshot.Create` — the one point both producers converge on, and neither establishes it alone. The Catalog ACL's strict binding rejects an absent or null member but binds `""` clean (§ 9.3); MemoryPack rehydration enforces no nullability at all. Unguarded, the ACL's `""` is the worse of the two: it serializes cleanly through the non-nullable Avro `Sku`/`Name` fields and fails only in Ordering's consumer as `Order.InvalidProductSnapshot`, after Basket committed its outbox and deleted the basket — a stranded checkout saga, where a rehydrated `null` merely fails Avro serialization at publish. Violations are bug-class, and the two producers fail differently by design:
+
+- **ACL (add-item, refresh-prices):** the throw escapes the adapter as a 500 and is deliberately *not* mapped to `CatalogUnavailable`. Catalog emitting a blank SKU is a contract bug, not an outage; a 503 would tell the caller to retry something retrying cannot fix. This is the one ACL failure mode that is not a `Result.Fail` — § 9.3's list covers bodies that fail to *bind*, and these bind.
+- **Rehydration:** `RedisBasketRepository.GetByUserIdAsync` catches it as `BasketErrors.Corruption` (422), the same fail-closed path as an unrecognised stored currency.
+
+**Corrupt persisted state is not repaired in place.** A stored basket carrying a blank `Sku`/`Name` fails closed on every operation, including `Clear` — every command loads before it mutates. The 30-day TTL is what reclaims it: the guard blocks the writes that would otherwise keep sliding that TTL, so the key expires 30 days after its last successful write. There is no self-service recovery in that window; an operator reclaims one early with `DEL basket:{userId}` against `redis-basket`, after which the user's next request starts an empty basket.
+
 ### 3.3 `BasketTotal`
 
 ```text
@@ -508,7 +515,7 @@ interface IProductCatalogQueryPort
 
 **Contract rules:**
 
-- Returns `Result.Fail(BasketAclErrors.CatalogUnavailable)` whenever the call yields no usable product — the causes are enumerated once, in § 9.3's failure-behavior list.
+- Returns `Result.Fail(BasketAclErrors.CatalogUnavailable)` whenever the call yields no usable product, except where a bound body violates a `ProductSnapshot` field invariant — that throws rather than returning. § 9.3's failure-behavior list enumerates every cause once.
 - Returns `Result.Fail(BasketAclErrors.ProductNotFound(productId))` on HTTP 404.
 - `GetManyAsync` is **partial-tolerant**: if the Catalog response includes 9 of 10 requested products, the result is `Result.Ok(IReadOnlyList with 9 items)`. The missing `productId`s are silently dropped — the caller (e.g., `RefreshPricesCommandHandler`) decides what to do (here: leave the existing snapshot untouched).
 - Both methods are read-only and idempotent.
@@ -529,6 +536,8 @@ Location: `Basket.Infrastructure.ExternalServices`.
   3. HTTP 5xx → return `Result.Fail(BasketAclErrors.CatalogUnavailable)` (bucketed as "unreachable" from Basket's perspective; Catalog's own availability story is not Basket's concern).
   4. HTTP 4xx other than 404 (e.g., 400 malformed) → log at error, return `Result.Fail(BasketAclErrors.CatalogUnavailable)` — treat as a programming bug on our own call.
   5. HTTP 200 carrying a body the ACL cannot bind — malformed JSON, a **member** Basket reads arriving absent or null, or a null entry inside a bound collection → log at error, return `Result.Fail(BasketAclErrors.CatalogUnavailable)`. Binding is **deliberately asymmetric**: a member Basket reads that fails to arrive throws, while a member Catalog *adds* binds unaffected. Removal breaks a Basket use case; addition does not, so unknown members stay tolerated — tightening that would turn every Catalog addition into a Basket outage. Collection *elements* are the one shape the serializer settings do not reach, so the adapter guards those by hand.
+  6. HTTP 200 carrying a body that binds but violates a `ProductSnapshot` field invariant (§ 3.2) → the snapshot factory throws and the exception escapes the adapter as a 500. The one failure mode here that is not a `Result.Fail`.
+  - **Known inconsistency, not a rule:** an unrecognised *currency* on that same body is equally an unretryable Catalog contract break, but `Money.Create` reports it as a `Result` — so the batch route degrades it to `CatalogUnavailable` (503) while the single-product route surfaces Money's own validation error. Three treatments for one class of upstream fault. § 3.2's rationale justifies the throw; it does not justify the split.
   - **Accepted risk:** an unbindable contract and an unreachable Catalog are indistinguishable in every signal that drives alerting — same error code, same status, and Basket publishes no metric separating them. A Catalog contract break therefore pages as a Basket outage, deterministically, on every add-item. The log line is the only place the two differ. Revisit if a Catalog trim ever reaches an environment where that matters.
 
 ### 9.4 Command-side behavior under Catalog outage
@@ -559,6 +568,7 @@ Location: `Basket.Infrastructure.ExternalServices`.
 | 7 | Empty basket cannot be checked out | `Checkout` (Result.Fail with EmptyBasket) |
 | 8 | `Version` strictly monotonic | `SaveAsync` CAS (Result.Fail with BasketConcurrencyError) |
 | 9 | 30-day inactivity → expiry | Redis TTL (infrastructure-level, not domain) |
+| 10 | Snapshot fields well-formed (`Sku`/`Name` non-blank, `Price > 0`) | `ProductSnapshot.Create` (`Throw.If` → `DataIntegrityException`) — see § 3.2 |
 
 ---
 

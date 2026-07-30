@@ -7,6 +7,7 @@ using FluentResults.Extensions.FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Platform.SharedKernel.Errors;
+using Platform.SharedKernel.Exceptions;
 
 namespace Basket.UnitTests.Baskets.Infrastructure.ExternalServices.Catalog;
 
@@ -466,6 +467,59 @@ public class ProductCatalogHttpAdapterTests
         // Assert
         handler.LastRequestPathAndQuery.Should().Be(
             $"/api/v1/catalog/products/by-ids?ids={id1:D},{id2:D}");
+    }
+
+    [Fact]
+    [Trait("Category", "regression")]
+    public async Task GetProductSnapshot_WhenSkuIsBlank_ThrowsInsteadOfDegradingToCatalogUnavailable()
+    {
+        // A blank sku BINDS — strict binding rejects an absent or null member, not an empty string —
+        // so this reaches the snapshot factory and throws. Every other failure mode on this adapter
+        // returns CatalogUnavailable, and FetchChunkAsync maps its own snapshot-mapping failure that
+        // way one line from the throw, which makes `catch (DataIntegrityException) => Unavailable`
+        // read like the obvious missed case. It is not: a blank sku is Catalog emitting garbage, and
+        // 503 would tell the caller to retry something retrying cannot fix. This pins that choice.
+        var handler = new StubHttpMessageHandler((_, _) => Task.FromResult(JsonResponse(
+            HttpStatusCode.OK,
+            new { sku = "", name = "Widget", price = new { amount = 9.99m, currency = "USD" } })));
+
+        // Act
+        var act = async () => await CreateSut(handler).GetProductSnapshotAsync(
+            Guid.CreateVersion7(),
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        (await act.Should().ThrowAsync<DataIntegrityException>())
+            .Which.ErrorCode.Should().Be("Basket.ProductSnapshotSkuRequired");
+    }
+
+    [Fact]
+    [Trait("Category", "regression")]
+    public async Task GetMany_WhenSkuIsBlank_ThrowsInsteadOfDegradingToCatalogUnavailable()
+    {
+        // The batch route binds its own record, so the single-product test does not imply this one.
+        // This is the path where the adjacent mapResult.IsFailed branch already returns
+        // CatalogUnavailable, so it is the likelier of the two to be "cleaned up" into a catch.
+        var productId = Guid.CreateVersion7();
+        var handler = new StubHttpMessageHandler((_, _) => Task.FromResult(JsonResponse(
+            HttpStatusCode.OK,
+            new
+            {
+                products = new[]
+                {
+                    new { productId, sku = "  ", name = "Widget", price = new { amount = 9.99m, currency = "USD" } },
+                },
+                missingProductIds = Array.Empty<Guid>(),
+            })));
+
+        // Act
+        var act = async () => await CreateSut(handler).GetManyAsync(
+            new[] { productId },
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        (await act.Should().ThrowAsync<DataIntegrityException>())
+            .Which.ErrorCode.Should().Be("Basket.ProductSnapshotSkuRequired");
     }
 
     private static void AssertCatalogUnavailable<T>(Result<T> result)

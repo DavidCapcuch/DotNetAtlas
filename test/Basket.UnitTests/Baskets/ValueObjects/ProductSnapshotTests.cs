@@ -47,4 +47,42 @@ public class ProductSnapshotTests
         act.Should().Throw<DataIntegrityException>()
             .Which.ErrorCode.Should().Be("Basket.ProductSnapshotPriceNotPositive");
     }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [Trait("Category", "boundary")]
+    public void Create_WhenSkuIsBlank_ThrowsDataIntegrityException(string? blankSku)
+    {
+        // Arrange
+        var captured = new DateTimeOffset(2026, 02, 20, 12, 00, 00, TimeSpan.Zero);
+        var price = Money.Create(42.50m, CurrencyCode.Eur).Value;
+
+        // Act
+        var act = () => ProductSnapshot.Create(blankSku!, "Widget", price, captured);
+
+        // Assert
+        act.Should().Throw<DataIntegrityException>()
+            .Which.ErrorCode.Should().Be("Basket.ProductSnapshotSkuRequired");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [Trait("Category", "boundary")]
+    public void Create_WhenNameIsBlank_ThrowsDataIntegrityException(string? blankName)
+    {
+        // Arrange
+        var captured = new DateTimeOffset(2026, 02, 20, 12, 00, 00, TimeSpan.Zero);
+        var price = Money.Create(42.50m, CurrencyCode.Eur).Value;
+
+        // Act
+        var act = () => ProductSnapshot.Create("SKU-42", blankName!, price, captured);
+
+        // Assert
+        act.Should().Throw<DataIntegrityException>()
+            .Which.ErrorCode.Should().Be("Basket.ProductSnapshotNameRequired");
+    }
 }
