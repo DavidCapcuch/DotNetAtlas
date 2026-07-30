@@ -143,6 +143,77 @@ public sealed class GetProductPageTests(ProductPageTestFixture fixture) : BasePr
         }
     }
 
+    /// <summary>The two ways Catalog reports a product with no dimensions.</summary>
+    public enum AbsentDimensions
+    {
+        Null,
+        Omitted,
+    }
+
+    [Theory]
+    [Trait("Category", "boundary")]
+    [InlineData(AbsentDimensions.Null)]
+    [InlineData(AbsentDimensions.Omitted)]
+    public async Task GetProductPage_WhenProductHasNoDimensions_Returns200WithNullDimensions(
+        AbsentDimensions shape)
+    {
+        // Arrange — a digital/service product. Binding is strict, so an optional upstream member has to be
+        // declared nullable or every such product would fail the page; this pins that it is.
+        var productId = Guid.NewGuid();
+        var body = CatalogBody(productId);
+        if (shape == AbsentDimensions.Null)
+        {
+            body["dimensions"] = null;
+        }
+        else
+        {
+            body.Remove("dimensions");
+        }
+
+        Fixture.StubCatalogProduct(productId, body);
+        Fixture.StubInventoryStock(productId, InventoryBody(productId, available: 4));
+
+        // Act
+        var response = await Fixture.Client.GetAsync(
+            $"/api/v1/bff/product-page/{productId}",
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var page = await response.Content.ReadFromJsonAsync<ProductPageResponse>(
+            TestContext.Current.CancellationToken);
+
+        using (new AssertionScope())
+        {
+            page.Should().NotBeNull();
+            page!.Product.Dimensions.Should().BeNull();
+            page.Product.Price.Amount.Should().Be(1299.99m, "the rest of the product still binds");
+            page.AvailableQty.Should().Be(4);
+            page.HasStaleData.Should().BeFalse("an absent optional member is not a degradation");
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "resilience")]
+    public async Task GetProductPage_WhenCatalogDropsAMemberThePageRenders_Returns503()
+    {
+        // Arrange — Catalog answers 200 without a price. Catalog gates this page, so an unbindable payload
+        // has to fail closed the way an unreachable Catalog does, not render a page with a missing price.
+        var productId = Guid.NewGuid();
+        var body = CatalogBody(productId);
+        body.Remove("price");
+        Fixture.StubCatalogProduct(productId, body);
+        Fixture.StubInventoryStock(productId, InventoryBody(productId, available: 5));
+
+        // Act
+        var response = await Fixture.Client.GetAsync(
+            $"/api/v1/bff/product-page/{productId}",
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+    }
+
     [Fact]
     [Trait("Category", "resilience")]
     public async Task GetProductPage_WhenCatalogIsDownAndNoCachedPage_Returns503()
@@ -161,19 +232,23 @@ public sealed class GetProductPageTests(ProductPageTestFixture fixture) : BasePr
         response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
     }
 
-    private static object CatalogBody(Guid productId) => new
+    /// <summary>
+    /// The single-product payload as Catalog emits it. Keyed rather than anonymous so a test can drop one
+    /// member to model a contract change.
+    /// </summary>
+    private static Dictionary<string, object?> CatalogBody(Guid productId) => new()
     {
-        productId,
-        sku = "SKU-1",
-        name = "Laptop",
-        description = "A fast laptop",
-        brandName = "Acme",
-        categoryPath = "/electronics/computers/laptops",
-        categoryBreadcrumb = "Electronics > Computers > Laptops",
-        price = new { amount = 1299.99m, currency = "USD" },
-        status = "Active",
-        dimensions = new { length = 35.5m, width = 24.0m, height = 2.0m, unit = "cm" },
-        images = new[] { new { url = "https://cdn/img-1.jpg", altText = "Laptop front", displayOrder = 0 } },
+        ["productId"] = productId,
+        ["sku"] = "SKU-1",
+        ["name"] = "Laptop",
+        ["description"] = "A fast laptop",
+        ["brandName"] = "Acme",
+        ["categoryPath"] = "/electronics/computers/laptops",
+        ["categoryBreadcrumb"] = "Electronics > Computers > Laptops",
+        ["price"] = new { amount = 1299.99m, currency = "USD" },
+        ["status"] = "Active",
+        ["dimensions"] = new { length = 35.5m, width = 24.0m, height = 2.0m, unit = "cm" },
+        ["images"] = new[] { new { url = "https://cdn/img-1.jpg", altText = "Laptop front", displayOrder = 0 } },
     };
 
     private static object InventoryBody(Guid productId, int available) => new

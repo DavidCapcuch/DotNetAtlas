@@ -111,6 +111,59 @@ public sealed class GetBasketTests(BasketPageTestFixture fixture) : BaseBasketPa
         }
     }
 
+    /// <summary>The two ways a bound member can fail to arrive; each is closed by a different strict-binding
+    /// setting on <c>UpstreamJson.Web</c>, so both are exercised.</summary>
+    public enum PriceShape
+    {
+        Omitted,
+        Null,
+    }
+
+    [Theory]
+    [Trait("Category", "resilience")]
+    [InlineData(PriceShape.Omitted)]
+    [InlineData(PriceShape.Null)]
+    public async Task GetBasket_WhenCatalogBatchCannotSupplyPrice_Returns200PartialCatalogWithStale(
+        PriceShape priceShape)
+    {
+        // Arrange — Catalog answers 200, but the item carries no bindable price: either the member is gone
+        // from the by-ids contract, or it arrives null. Both must land in the same degradation an
+        // unavailable Catalog produces (bff.md § 3.2), never a page composed from a half-bound product.
+        var userId = Guid.NewGuid();
+        var product = Product(ProductA, current: 12m);
+        if (priceShape == PriceShape.Omitted)
+        {
+            product.Remove("price");
+        }
+        else
+        {
+            product["price"] = null;
+        }
+
+        Fixture.StubBasket(BasketBody(userId, [Item(ProductA, 10m, 2)]));
+        Fixture.StubCatalogByIds(ByIdsBody([product]));
+        Fixture.StubInventoryBulk(BulkBody([Stock(ProductA, 10)]));
+
+        // Act
+        var response = await SendAsync(userId);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var page = await ReadAsync(response);
+
+        using (new AssertionScope())
+        {
+            var item = page.Items.Should().ContainSingle().Subject;
+            item.CurrentPrice.Should().BeNull();
+            item.PriceDrifted.Should().BeFalse();
+            item.LineTotalCurrent.Amount.Should().Be(20m, "current falls back to snapshot when the batch cannot bind");
+            item.AvailableQty.Should().Be(10, "Inventory answered, so only the Catalog half degrades");
+            page.HasStaleData.Should().BeTrue();
+            response.Headers.GetValues("X-BFF-PartialData").Should().ContainSingle().Which.Should().Be("catalog");
+            response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
+        }
+    }
+
     [Fact]
     [Trait("Category", "resilience")]
     public async Task GetBasket_WhenInventoryBatchDown_Returns200PartialInventoryWithStale()
@@ -135,6 +188,41 @@ public sealed class GetBasketTests(BasketPageTestFixture fixture) : BaseBasketPa
             item.OutOfStock.Should().BeFalse();
             page.HasStaleData.Should().BeTrue();
             response.Headers.GetValues("X-BFF-PartialData").Should().ContainSingle().Which.Should().Be("inventory");
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "critical-path")]
+    public async Task GetBasket_WhenCatalogBatchCarriesOnlyWhatThisPageRenders_ComposesTheFullPage()
+    {
+        // Arrange — the by-ids item narrowed to the members this page reads, and nothing else: no sku,
+        // name, description, status or image alt text. Catalog is free to narrow its batch contract to
+        // this, and enrichment has to be unaffected — the BFF binds only what it renders.
+        var userId = Guid.NewGuid();
+        var narrowed = new Dictionary<string, object?>
+        {
+            ["productId"] = ProductA,
+            ["price"] = new { amount = 12m, currency = "USD" },
+            ["images"] = new[] { new { url = "https://cdn/narrow.jpg", displayOrder = 0 } },
+        };
+
+        Fixture.StubBasket(BasketBody(userId, [Item(ProductA, 10m, 2)]));
+        Fixture.StubCatalogByIds(ByIdsBody([narrowed]));
+        Fixture.StubInventoryBulk(BulkBody([Stock(ProductA, 10)]));
+
+        // Act
+        var page = await GetBasketOkAsync(userId);
+
+        // Assert — fully enriched, exactly as the wide payload composes.
+        using (new AssertionScope())
+        {
+            var item = page.Items.Should().ContainSingle().Subject;
+            item.CurrentPrice!.Amount.Should().Be(12m);
+            item.PriceDrifted.Should().BeTrue();
+            item.PrimaryImageUrl.Should().Be("https://cdn/narrow.jpg");
+            item.LineTotalCurrent.Amount.Should().Be(24m);
+            item.AvailableQty.Should().Be(10);
+            page.HasStaleData.Should().BeFalse("the narrowed item still carries everything this page renders");
         }
     }
 
@@ -238,19 +326,23 @@ public sealed class GetBasketTests(BasketPageTestFixture fixture) : BaseBasketPa
 
     private static object ByIdsBody(object[] products) => new { products, missingProductIds = Array.Empty<Guid>() };
 
-    private static object Product(Guid productId, decimal current) => new
+    /// <summary>
+    /// A by-ids item as Catalog emits it — every member, including the ones the BFF's ACL record does not
+    /// bind. Keyed rather than anonymous so a test can drop or null one member to model a contract change.
+    /// </summary>
+    private static Dictionary<string, object?> Product(Guid productId, decimal current) => new()
     {
-        productId,
-        sku = "SKU-" + productId.ToString()[..4],
-        name = "Product " + productId.ToString()[..4],
-        description = "desc",
-        brandName = "Acme",
-        categoryPath = "/c",
-        categoryBreadcrumb = "C",
-        price = new { amount = current, currency = "USD" },
-        status = "Active",
-        dimensions = (object?)null,
-        images = new[] { new { url = "https://cdn/img.jpg", altText = "img", displayOrder = 0 } },
+        ["productId"] = productId,
+        ["sku"] = "SKU-" + productId.ToString()[..4],
+        ["name"] = "Product " + productId.ToString()[..4],
+        ["description"] = "desc",
+        ["brandName"] = "Acme",
+        ["categoryPath"] = "/c",
+        ["categoryBreadcrumb"] = "C",
+        ["price"] = new { amount = current, currency = "USD" },
+        ["status"] = "Active",
+        ["dimensions"] = null,
+        ["images"] = new[] { new { url = "https://cdn/img.jpg", altText = "img", displayOrder = 0 } },
     };
 
     private static object BulkBody(object[] items) => new { items, missingProductIds = Array.Empty<Guid>() };

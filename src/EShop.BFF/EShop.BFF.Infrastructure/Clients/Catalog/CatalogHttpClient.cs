@@ -24,7 +24,7 @@ internal sealed class CatalogHttpClient : ICatalogClient
         _logger = logger;
     }
 
-    public async Task<Result<CatalogProductDto>> GetProductByIdAsync(Guid productId, CancellationToken ct)
+    public async Task<Result<CatalogProductDetailDto>> GetProductByIdAsync(Guid productId, CancellationToken ct)
     {
         try
         {
@@ -32,7 +32,7 @@ internal sealed class CatalogHttpClient : ICatalogClient
 
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
-                return Result.Fail<CatalogProductDto>(CatalogClientErrors.ProductNotFound(productId));
+                return Result.Fail<CatalogProductDetailDto>(CatalogClientErrors.ProductNotFound(productId));
             }
 
             if (!response.IsSuccessStatusCode)
@@ -41,15 +41,15 @@ internal sealed class CatalogHttpClient : ICatalogClient
                     "Catalog returned {StatusCode} for product {ProductId}",
                     (int)response.StatusCode,
                     productId);
-                return Result.Fail<CatalogProductDto>(
+                return Result.Fail<CatalogProductDetailDto>(
                     CatalogClientErrors.Unavailable($"HTTP {(int)response.StatusCode}"));
             }
 
-            var product = await response.Content.ReadFromJsonAsync<CatalogProductDto>(UpstreamJson.Web, ct);
+            var product = await response.Content.ReadFromJsonAsync<CatalogProductDetailDto>(UpstreamJson.Web, ct);
             if (product is null)
             {
                 _logger.LogError("Catalog returned an empty body for product {ProductId}", productId);
-                return Result.Fail<CatalogProductDto>(CatalogClientErrors.Unavailable("empty response body"));
+                return Result.Fail<CatalogProductDetailDto>(CatalogClientErrors.Unavailable("empty response body"));
             }
 
             return Result.Ok(product);
@@ -67,7 +67,7 @@ internal sealed class CatalogHttpClient : ICatalogClient
         {
             // Transport failure, resilience timeout, or open circuit — degrade to "unavailable".
             _logger.LogError(ex, "Catalog call failed for product {ProductId}", productId);
-            return Result.Fail<CatalogProductDto>(CatalogClientErrors.Unavailable(ex.GetType().Name));
+            return Result.Fail<CatalogProductDetailDto>(CatalogClientErrors.Unavailable(ex.GetType().Name));
         }
     }
 
@@ -76,7 +76,7 @@ internal sealed class CatalogHttpClient : ICatalogClient
     {
         if (productIds.Count == 0)
         {
-            return Result.Ok(new CatalogProductsByIdsDto([], []));
+            return Result.Ok(new CatalogProductsByIdsDto { Products = [] });
         }
 
         // Repeated `ids=` query params (FastEndpoints binds them into the IReadOnlyList<Guid>); Catalog's

@@ -148,7 +148,7 @@ public sealed class BasketPageComposerTests
     {
         // Arrange — Catalog batch succeeded but returned no row for ProductA (discontinued / missing).
         var basket = BuildBasket(BuildItem(ProductA, snapshot: 10.00m, quantity: 1));
-        var catalog = new CatalogProductsByIdsDto(Products: [], MissingProductIds: [ProductA]);
+        var catalog = BuildCatalog();
         var inventory = BuildInventory(BuildStock(ProductA, available: 5));
 
         // Act
@@ -171,7 +171,7 @@ public sealed class BasketPageComposerTests
         // Arrange — Inventory batch succeeded but ProductA had no initialized stock item.
         var basket = BuildBasket(BuildItem(ProductA, snapshot: 10.00m, quantity: 1));
         var catalog = BuildCatalog(BuildProduct(ProductA, current: 10.00m));
-        var inventory = new StockLevelsBulkDto(Items: [], MissingProductIds: [ProductA]);
+        var inventory = BuildInventory();
 
         // Act
         var response = BasketPageComposer.Compose(basket, catalog, inventory, GeneratedAt);
@@ -243,8 +243,8 @@ public sealed class BasketPageComposerTests
         {
             Images =
             [
-                new CatalogImageDto("https://cdn/secondary.jpg", "secondary", 1),
-                new CatalogImageDto("https://cdn/primary.jpg", "primary", 0),
+                Image("https://cdn/secondary.jpg", displayOrder: 1),
+                Image("https://cdn/primary.jpg", displayOrder: 0),
             ],
         };
         var catalog = BuildCatalog(product);
@@ -258,49 +258,44 @@ public sealed class BasketPageComposerTests
     }
 
     private static BasketDto BuildBasket(params BasketItemDto[] items) =>
-        new(
-            UserId: UserId,
-            Version: 4,
-            Items: items,
-            Total: items.Length == 0 ? null : new BasketMoneyDto(items.Sum(i => i.LineTotal.Amount), "USD"),
-            CreatedAtUtc: GeneratedAt,
-            LastModifiedAtUtc: GeneratedAt);
+        new()
+        {
+            UserId = UserId,
+            Version = 4,
+            Items = items,
+            Total = items.Length == 0
+                ? null
+                : Money(items.Sum(i => i.SnapshotPrice.Amount * i.Quantity)),
+        };
 
     private static BasketItemDto BuildItem(Guid productId, decimal snapshot, int quantity) =>
-        new(
-            ProductId: productId,
-            Sku: $"SKU-{productId.ToString()[..4]}",
-            Name: $"Product {productId.ToString()[..4]}",
-            SnapshotPrice: new BasketMoneyDto(snapshot, "USD"),
-            Quantity: quantity,
-            CapturedAtUtc: GeneratedAt,
-            LineTotal: new BasketMoneyDto(snapshot * quantity, "USD"));
+        new()
+        {
+            ProductId = productId,
+            Sku = $"SKU-{productId.ToString()[..4]}",
+            Name = $"Product {productId.ToString()[..4]}",
+            SnapshotPrice = Money(snapshot),
+            Quantity = quantity,
+        };
 
-    private static CatalogProductsByIdsDto BuildCatalog(params CatalogProductDto[] products) =>
-        new(Products: products, MissingProductIds: []);
+    private static BasketMoneyDto Money(decimal amount) => new() { Amount = amount, Currency = "USD" };
 
-    private static CatalogProductDto BuildProduct(Guid productId, decimal current) =>
-        new(
-            ProductId: productId,
-            Sku: $"SKU-{productId.ToString()[..4]}",
-            Name: $"Product {productId.ToString()[..4]}",
-            Description: "desc",
-            BrandName: "Acme",
-            CategoryPath: "/c",
-            CategoryBreadcrumb: "C",
-            Price: new CatalogMoneyDto(current, "USD"),
-            Status: "Active",
-            Dimensions: null,
-            Images: [new CatalogImageDto("https://cdn/img.jpg", "img", 0)]);
+    private static CatalogProductsByIdsDto BuildCatalog(params CatalogProductPricingDto[] products) =>
+        new() { Products = products };
 
-    private static StockLevelsBulkDto BuildInventory(params BulkStockLevelDto[] items) =>
-        new(Items: items, MissingProductIds: []);
+    private static CatalogProductPricingDto BuildProduct(Guid productId, decimal current) =>
+        new()
+        {
+            ProductId = productId,
+            Price = new CatalogMoneyDto { Amount = current, Currency = "USD" },
+            Images = [Image("https://cdn/img.jpg", displayOrder: 0)],
+        };
+
+    private static CatalogThumbnailDto Image(string url, int displayOrder) =>
+        new() { Url = url, DisplayOrder = displayOrder };
+
+    private static StockLevelsBulkDto BuildInventory(params BulkStockLevelDto[] items) => new() { Items = items };
 
     private static BulkStockLevelDto BuildStock(Guid productId, int available) =>
-        new(
-            ProductId: productId,
-            OnHand: available + 2,
-            Reserved: 2,
-            Available: available,
-            LastUpdatedUtc: GeneratedAt);
+        new() { ProductId = productId, Available = available };
 }

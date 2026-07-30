@@ -77,7 +77,7 @@ src/EShop.BFF/
 
 - `EShop.BFF.Api` depends on `EShop.BFF.Infrastructure` and `Platform.*` only — no direct references to `Catalog.*`, `Basket.*`, `Ordering.*`, or `Inventory.*` assemblies.
 - `EShop.BFF.Infrastructure` depends on `Platform.*` and on `Platform.SchemaRegistry.Contracts` (for Avro records that drive cache invalidation) — no references to other service projects.
-- All upstream contracts are re-declared as BFF-internal DTOs (`CatalogProductDto`, `BasketDto`, etc.). Upstream service types never cross the BFF's process boundary — same Anti-Corruption discipline Basket uses toward Catalog.
+- All upstream contracts are re-declared as BFF-internal DTOs (`CatalogProductDetailDto`, `BasketDto`, etc.), one per upstream route (§ 4). Upstream service types never cross the BFF's process boundary — same Anti-Corruption discipline Basket uses toward Catalog.
 
 ---
 
@@ -552,16 +552,30 @@ Consumer basket access is **BFF-mediated** — there is no direct consumer→Bas
 
 One interface per internal service. All methods return `Task<Result<T>>` so BFF endpoints can compose with `FluentResults` and distinguish transport failure from 404. All DTOs below are BFF-internal; they are NOT the upstream service's DTOs — the BFF re-declares them as part of its Anti-Corruption discipline.
 
+**How the BFF binds an upstream response.** Three rules, enforced rather than documented:
+
+- **One record per upstream route.** Two routes never share a record, even when they emit the same shape today. Each is a separately-owned contract ([ADR-0037](../adr/0037-endpoint-owned-response-contracts.md) governs the producer side and explicitly leaves sibling endpoints free to diverge), so one record bound to both would assert an equivalence no service guarantees. `EveryUpstreamRecord_IsBoundBy_ExactlyOneClientMethod` fails the build otherwise; its allow-list names the exceptions and why each passes the knowledge test.
+- **A record declares only what its page renders.** Not what upstream emits — that is upstream's business. Binding is strict, so every declared member is a member that upstream can no longer drop without degrading a page; declaring one nothing renders buys a false alarm. A member arrives when a consumer needs it, per YAGNI.
+- **Binding is strict, and deliberately asymmetric.** `UpstreamJson.Web` sets `RespectNullableAnnotations` + `RespectRequiredConstructorParameters`, and inbound records declare their members `required`. A response that **drops or nulls** a bound member throws; one that **adds** a member binds unaffected. Removal breaks a page, addition does not — so unknown members stay tolerated, and tightening that would turn every upstream addition into a BFF outage.
+
+The throw lands in each client's existing `JsonException` catch, so an unbindable payload degrades exactly as an unreachable upstream does — enrichment reads go partial + stale (§ 3.2), gating reads fail closed with 503 (§ 3.1). Without strict binding a dropped member binds to `default` and surfaces as a `NullReferenceException` mid-composition: a 500 for a condition already modelled as a degradation.
+
+**Accepted gap: nothing here detects an upstream shape change.**
+
+- **What the guards do cover** — how the BFF *behaves* when a payload will not bind, not that a payload still binds in production. A BFF test observes only what the test stubs.
+- **Why build-time detection is unavailable** — the BFF references no BC assembly, so a shape change lands at runtime as a degradation, never as a compile or test failure. Closing it needs a shared artifact the repo does not have: a consumer-driven contract test, or an OpenAPI snapshot diffed against each service's generated document.
+- ***When to revisit*** — if generated clients return (see [ADR-0037 § Risks](../adr/0037-endpoint-owned-response-contracts.md)), or the first time an upstream trim reaches production. The degradation is designed to make that survivable, not invisible: it surfaces as a rise in the partial-response metric and the `X-BFF-PartialData` header (§ 2.4), not as a 5xx spike.
+
 ### 4.1 `ICatalogClient`
 
 ```csharp
-public interface ICatalogClient
+internal interface ICatalogClient
 {
-    Task<Result<CatalogProductDto>> GetProductByIdAsync(
+    Task<Result<CatalogProductDetailDto>> GetProductByIdAsync(
         Guid productId, CancellationToken ct);
 
-    Task<Result<IReadOnlyList<CatalogProductDto>>> GetProductsByIdsAsync(
-        IEnumerable<Guid> productIds, CancellationToken ct);
+    Task<Result<CatalogProductsByIdsDto>> GetProductsByIdsAsync(
+        IReadOnlyList<Guid> productIds, CancellationToken ct);
 
     Task<Result<PagedResult<CatalogProductSummaryDto>>> SearchProductsAsync(
         SearchProductsRequest request, CancellationToken ct);
@@ -573,67 +587,44 @@ public interface ICatalogClient
 
 **DTO shapes (BFF-internal):**
 
-```text
-record CatalogProductDto(
-    Guid ProductId,
-    string Sku,
-    string Name,
-    string Description,
-    Guid CategoryId,
-    string CategoryPath,
-    string CategoryBreadcrumb,
-    string BrandName,
-    MoneyDto Price,
-    string Status,           // "Draft" | "Active" | "Discontinued"
-    DimensionsDto? Dimensions,
-    IReadOnlyList<ImageDto> Images,
-    DateTimeOffset CreatedAtUtc,
-    DateTimeOffset LastUpdatedAtUtc);
+The records live in `EShop.BFF.Infrastructure/Clients/Catalog/`; what follows is what those
+declarations cannot state. Types whose bare name would be ambiguous inside the Api composers carry a
+`Catalog` prefix — those import `EShop.BFF.Api.Responses` (which declares its own public `MoneyDto`
+and `DimensionsDto`) alongside this namespace and its per-upstream siblings, so `CatalogMoneyDto`
+sits beside `BasketMoneyDto`. Names with no such clash (`SearchProductsRequest`, `PagedResult<T>`,
+`CategoryTreeDto`) stay bare. Nothing here is a compile-time collision with Catalog itself: the BFF
+references no BC assembly, and binds to these endpoints by JSON property name only.
 
-record CatalogProductSummaryDto(
-    Guid ProductId,
-    string Sku,
-    string Name,
-    string CategoryBreadcrumb,
-    string BrandName,
-    MoneyDto Price,
-    string Status,
-    string? PrimaryImageUrl);
-
-record SearchProductsRequest(
-    string? Text,
-    string? CategoryPathPrefix,
-    decimal? MinPrice,
-    decimal? MaxPrice,
-    string? Currency,
-    string? Status,
-    int PageNumber = 1,
-    int PageSize = 20);
-
-record PagedResult<T>(
-    int Total, int PageNumber, int PageSize, IReadOnlyList<T> Items);
-
-record CategoryTreeDto(IReadOnlyList<CategoryNodeDto> Nodes);
-
-record CategoryNodeDto(
-    Guid CategoryId,
-    string Name,
-    string Path,
-    Guid? ParentCategoryId,
-    int Depth,
-    int ProductCount);
-
-record ImageDto(string Url, string AltText, int DisplayOrder);
-record DimensionsDto(decimal Length, decimal Width, decimal Height, string Unit);
-record MoneyDto(decimal Amount, string Currency);
-```
+- **`CatalogProductDetailDto`** — the product page's projection of Catalog's single-product read; what
+  that page renders and no more, per § 4's binding rules. Nests `CatalogMoneyDto`,
+  `CatalogDimensionsDto` (`null` for digital/service products with no dimensions) and
+  `CatalogImageDto`.
+- **`CatalogProductsByIdsDto`** — `Products` only, of `CatalogProductPricingDto`. Partial-tolerant by
+  contract: an id matching no product is simply absent, which the basket page renders as "current
+  price unknown" rather than failing the read (§ 3.2). That tolerance covers unmatched ids only — a
+  batch over Catalog's 100-id cap is rejected outright. Catalog also returns the unmatched ids; the
+  BFF leaves them unbound, because absence from `Products` already carries that signal.
+- **`CatalogProductPricingDto`** — the batch read's item type: `ProductId` to merge on, `Price` to
+  drift-check against the basket snapshot, and `Images` (of `CatalogThumbnailDto` — URL + display
+  order, no alt text) to pick the line's primary thumbnail. That is the whole of what the basket page
+  renders per line.
+- **`CatalogProductSummaryDto`** — the search-hit projection; carries a single `PrimaryImageUrl`
+  rather than the full image list.
+- **`SearchProductsRequest`** — `Status` plus paging only. The richer facets (free text,
+  category path, price band, currency) are added when a consumer needs them, per YAGNI; the
+  home page's "featured" set is just the first page of active products.
+- **`PagedResult<T>`**, **`CategoryTreeDto`** / **`CategoryNodeDto`** — paging envelope and category
+  tree. The envelope binds `Items` alone: the BFF asks for a fixed page and renders no pager, so
+  upstream's total and echoed paging parameters go unbound. The tree is a flat node list carrying
+  `ParentCategoryId` + `Depth`, ordered by materialized path so each parent precedes its descendants —
+  not a nested structure, and not depth-major.
 
 **Upstream mapping:**
 
 | Client method | Upstream HTTP route | Upstream query / command |
 |---------------|---------------------|--------------------------|
 | `GetProductByIdAsync` | `GET /api/v1/catalog/products/{productId}` | `GetProductByIdQuery` |
-| `GetProductsByIdsAsync` | `GET /api/v1/catalog/products/by-ids?ids=id1,id2,...` — query string `ids` (comma-separated Guids, 1..100) | *(endpoint added in Catalog Stage 2 — required by the ACL in `basket.md` § 9.3 and the BFF here; must be added to Catalog's use-case catalog as `GetProductsByIdsQuery` with route `GET /api/v1/catalog/products/by-ids`)*. See § 5 below. |
+| `GetProductsByIdsAsync` | `GET /api/v1/catalog/products/by-ids?ids=…&ids=…` — one repeated `ids` param per Guid, 1..100 | `GetProductsByIdsQuery` — shared with the Basket ACL, see § 5 |
 | `SearchProductsAsync` | `GET /api/v1/catalog/products` (products-collection root + query params — **not** a `/search` sub-path) | `SearchProductsQuery` |
 | `GetCategoryTreeAsync` | `GET /api/v1/catalog/categories/tree` | `GetCategoryTreeQuery` |
 
@@ -663,18 +654,14 @@ record BasketDto(
     Guid UserId,
     int Version,
     IReadOnlyList<BasketItemDto> Items,
-    MoneyDto Total,
-    DateTimeOffset CreatedAtUtc,
-    DateTimeOffset LastModifiedAtUtc);
+    BasketMoneyDto? Total);      // null for an empty basket — Basket returns no total without items
 
 record BasketItemDto(
     Guid ProductId,
     string Sku,
     string Name,
-    MoneyDto SnapshotPrice,
-    int Quantity,
-    DateTimeOffset CapturedAtUtc,
-    MoneyDto LineTotal);
+    BasketMoneyDto SnapshotPrice,
+    int Quantity);               // the page multiplies by SnapshotPrice rather than binding a line total
 
 record AddItemDto(
     Guid ProductId,
@@ -795,18 +782,18 @@ public interface IInventoryClient
 **DTO shapes:**
 
 ```text
-record StockLevelDto(
-    Guid ProductId,
-    int OnHand,
-    int Reserved,
-    int Available,
-    int Version,
-    DateTimeOffset LastUpdatedUtc);
+record StockLevelDto(int Available);
 
-record StockLevelsBulkDto(
-    IReadOnlyList<StockLevelDto> Items,
-    IReadOnlyList<Guid> MissingProductIds);
+record StockLevelsBulkDto(IReadOnlyList<BulkStockLevelDto> Items);
+
+record BulkStockLevelDto(Guid ProductId, int Available);
 ```
+
+Availability is all either page renders (`InStock = Available > 0`), so per § 4's binding rules it is all
+these records bind; everything else Inventory returns stays unbound. The per-product id survives only on
+the bulk item, where the basket and home pages merge on it — the single read is already keyed by the id it
+was called with. Absence from `Items` renders as "availability unknown", so the ids Inventory reports as
+uninitialized need no binding of their own.
 
 **Upstream mapping:**
 
@@ -839,20 +826,27 @@ Today the BFF derives `OrderSummaryResponse.PaymentStatus` purely from Ordering 
 
 ---
 
-## 5. Dependency on New Upstream Endpoints
+## 5. Shared Upstream Batch Reads
 
-Two batch upstream endpoints the BFF depends on. **Build status verified against the code** (the BFF dispatch must confirm before relying on either):
+The two upstream batch reads the BFF's multi-product pages depend on. Each carries a constraint the
+per-method mapping tables in § 4 have no room for.
 
-1. **Catalog: `GetProductsByIdsQuery`** — `GET /api/v1/catalog/products/by-ids?ids=id1,id2,...`, query param `ids: Guid[] (1..100, comma-separated)`, returns `{ products: CatalogProductDto[], missingProductIds: Guid[] }`. **✅ Built and shipping** (`Catalog.Api` `GetProductsByIdsEndpoint`, `Get("by-ids")` under the `/catalog/products` group). Consumed by:
-   - Basket's ACL (`IProductCatalogQueryPort.GetManyAsync`) — also documented in `basket.md` § 9.2.
-   - BFF's `ICatalogClient.GetProductsByIdsAsync`.
+1. **Catalog: `GetProductsByIdsQuery`** — `GET /api/v1/catalog/products/by-ids`, `ids: Guid[]`
+   (1..100), partial-tolerant: ids matching no product come back alongside the found ones rather
+   than failing the read. The batch counterpart of `GetProductByIdQuery`, served from the same
+   `product_search_view`. **It has a second consumer outside the BFF** — Basket's ACL
+   (`IProductCatalogQueryPort.GetManyAsync`, `basket.md` § 9.2) alongside the BFF's
+   `ICatalogClient.GetProductsByIdsAsync` (§ 4.1) — so changing its shape is a cross-BC breaking
+   change, not a BFF-local one. The two callers encode `ids` differently (Basket comma-separates,
+   the BFF repeats the param); Catalog accepts both.
 
-   *Partial-tolerant batch variant of `GetProductByIdQuery` reading from the same `product_search_view` via a single SQL `WHERE ProductId = ANY(@ids)`.*
-
-2. **Inventory: `GetStockLevelsBulkQuery`** — `POST /api/v1/inventory/stock-items/bulk`, body `{ productIds: Guid[] }` (up to 200), partial-tolerant (unknown ids returned in `missingProductIds`). Spec'd (`use-cases.md` § 4.4.2); **committed design is [ADR-0034](../adr/0034-inventory-stock-availability-read-path.md)** (Inventory-owned read-through cache behind the API; the BFF never materializes availability from `stock-events`). **✅ Built and shipping** (`Inventory.Api` `GetStockLevelsBulkEndpoint`, `Post("stock-items/bulk")` under the `/inventory/stock-items` group, `AllowAnonymous`). Consumed by:
-   - BFF's `IInventoryClient.GetStockLevelsBulkAsync` — the `/home-page` stock overlay (§ 3.4, built) and the `/basket` availability overlay (§ 3.2, later slice).
-
-Future maintainers: when extending BFF endpoints, first check whether the upstream query exists **in code**; if not, build it (or flag the gap) rather than assuming the doc implies an implementation.
+2. **Inventory: `GetStockLevelsBulkQuery`** — `POST /api/v1/inventory/stock-items/bulk`, body
+   `{ productIds: Guid[] }` (up to 200), partial-tolerant (unknown ids returned in
+   `missingProductIds`). The BFF is its only caller, but the ownership line is the point:
+   availability is read through Inventory's own cache behind this API and the BFF never materializes
+   it from `stock-events` ([ADR-0034](../adr/0034-inventory-stock-availability-read-path.md)).
+   Consumed by `IInventoryClient.GetStockLevelsBulkAsync` (§ 4.4), backing both the home-page stock
+   overlay (§ 3.4) and the basket availability overlay (§ 3.2).
 
 ---
 
@@ -896,6 +890,7 @@ Planned scope is catalogued in [roadmap.md § 2.3 BFF](../roadmap.md):
 - **gRPC between BFF and services** — today uses HTTP/JSON (already matching the service endpoints). gRPC would halve latency but adds contract-generation surface; deferred.
 - **Payments BFF query endpoint** — once Payments exposes a read API, `OrderSummary` switches from derived `PaymentStatus` to authoritative.
 - **GraphQL gateway** — an alternative to this per-endpoint BFF; explicitly NOT chosen (REST + manual aggregation is the teaching goal).
+- **Upstream contract verification** — no build-time detection of an upstream shape change; the BFF's guards pin its own degradation instead (§ 4, *Accepted gap*). Would need a consumer-driven contract test or an OpenAPI snapshot diffed against each service's generated document.
 
 ---
 

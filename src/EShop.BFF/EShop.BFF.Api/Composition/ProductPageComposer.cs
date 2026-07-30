@@ -19,7 +19,7 @@ internal static class ProductPageComposer
     /// become <c>null</c> and <see cref="ProductPageResponse.HasStaleData"/> is set.
     /// </summary>
     public static ProductPageResponse Compose(
-        CatalogProductDto product,
+        CatalogProductDetailDto product,
         StockLevelDto? stockOrNull,
         DateTimeOffset generatedAtUtc)
     {
@@ -67,7 +67,7 @@ internal static class ProductPageComposer
         };
     }
 
-    private static ProductDetailDto MapProduct(CatalogProductDto product) =>
+    private static ProductDetailDto MapProduct(CatalogProductDetailDto product) =>
         new()
         {
             ProductId = product.ProductId,

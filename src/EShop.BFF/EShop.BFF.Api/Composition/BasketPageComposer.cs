@@ -81,12 +81,12 @@ internal static class BasketPageComposer
 
     private static BasketPageItemDto MapItem(
         BasketItemDto item,
-        Dictionary<Guid, CatalogProductDto>? productsById,
+        Dictionary<Guid, CatalogProductPricingDto>? productsById,
         Dictionary<Guid, BulkStockLevelDto>? availabilityById)
     {
         var snapshotPrice = new MoneyDto(item.SnapshotPrice.Amount, item.SnapshotPrice.Currency);
 
-        CatalogProductDto? product = null;
+        CatalogProductPricingDto? product = null;
         if (productsById is not null && productsById.TryGetValue(item.ProductId, out var foundProduct))
         {
             product = foundProduct;
@@ -123,7 +123,7 @@ internal static class BasketPageComposer
         };
     }
 
-    private static string? PrimaryImageUrl(CatalogProductDto product) =>
+    private static string? PrimaryImageUrl(CatalogProductPricingDto product) =>
         product.Images.Count == 0
             ? null
             : product.Images.OrderBy(image => image.DisplayOrder).First().Url;

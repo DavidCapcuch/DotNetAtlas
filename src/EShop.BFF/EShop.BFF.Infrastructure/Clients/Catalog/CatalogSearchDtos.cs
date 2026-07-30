@@ -12,15 +12,33 @@ internal sealed record SearchProductsRequest(string? Status, int PageNumber = 1,
 /// BFF-internal projection of a single Catalog search hit — the trimmed product summary the home page
 /// renders. Mirrors Catalog's <c>GET /api/v1/catalog/products</c> result item.
 /// </summary>
-internal sealed record CatalogProductSummaryDto(
-    Guid ProductId,
-    string Sku,
-    string Name,
-    string CategoryBreadcrumb,
-    string BrandName,
-    CatalogMoneyDto Price,
-    string Status,
-    string? PrimaryImageUrl);
+internal sealed record CatalogProductSummaryDto
+{
+    public required Guid ProductId { get; init; }
 
-/// <summary>BFF-internal paged result envelope (anti-corruption, bff.md § 4.1).</summary>
-internal sealed record PagedResult<T>(int Total, int PageNumber, int PageSize, IReadOnlyList<T> Items);
+    public required string Sku { get; init; }
+
+    public required string Name { get; init; }
+
+    public required string CategoryBreadcrumb { get; init; }
+
+    public required string BrandName { get; init; }
+
+    public required CatalogMoneyDto Price { get; init; }
+
+    public required string Status { get; init; }
+
+    /// <summary><c>null</c> upstream for a product with no images.</summary>
+    public string? PrimaryImageUrl { get; init; }
+}
+
+/// <summary>
+/// BFF-internal projection of an upstream paged envelope (anti-corruption, bff.md § 4.1). Binds only
+/// <see cref="Items"/>: the BFF requests a fixed page and renders no pager, so upstream's total and echoed
+/// paging parameters are members no page reads (bff.md § 4.1). A consumer that renders a pager binds them
+/// then.
+/// </summary>
+internal sealed record PagedResult<T>
+{
+    public required IReadOnlyList<T> Items { get; init; }
+}

@@ -136,12 +136,10 @@ public sealed class HomePageComposerTests
     [Trait("Category", "resilience")]
     public void Compose_WhenProductMissingFromBulk_NullsThatItemsAvailability()
     {
-        // Arrange — the mouse has no initialized stock item (returned in MissingProductIds);
-        // the bulk overlay itself succeeded, so the page is not globally stale (bff.md § 3.4).
+        // Arrange — the mouse has no initialized stock item, so the bulk read omits it; the overlay
+        // itself succeeded, so the page is not globally stale (bff.md § 3.4).
         var featured = new[] { Summary(LaptopId, "Laptop"), Summary(MouseId, "Mouse") };
-        var stock = new StockLevelsBulkDto(
-            Items: [new BulkStockLevelDto(LaptopId, OnHand: 9, Reserved: 2, Available: 7, GeneratedAt)],
-            MissingProductIds: [MouseId]);
+        var stock = Bulk((LaptopId, 7));
 
         // Act
         var response = HomePageComposer.Compose(featured, Tree(), stock, GeneratedAt);
@@ -158,29 +156,40 @@ public sealed class HomePageComposerTests
     }
 
     private static CatalogProductSummaryDto Summary(Guid productId, string name) =>
-        new(
-            ProductId: productId,
-            Sku: $"SKU-{name}",
-            Name: name,
-            CategoryBreadcrumb: "Electronics > Computers",
-            BrandName: "Acme",
-            Price: new CatalogMoneyDto(1299.99m, "USD"),
-            Status: "Active",
-            PrimaryImageUrl: $"https://cdn/{name}.jpg");
+        new()
+        {
+            ProductId = productId,
+            Sku = $"SKU-{name}",
+            Name = name,
+            CategoryBreadcrumb = "Electronics > Computers",
+            BrandName = "Acme",
+            Price = new CatalogMoneyDto { Amount = 1299.99m, Currency = "USD" },
+            Status = "Active",
+            PrimaryImageUrl = $"https://cdn/{name}.jpg",
+        };
 
     private static CategoryTreeDto Tree() =>
-        new([new CategoryNodeDto(
-            CategoryId: Guid.Parse("44444444-4444-4444-4444-444444444444"),
-            Name: "Electronics",
-            Path: "/electronics",
-            ParentCategoryId: null,
-            Depth: 0,
-            ProductCount: 12)]);
+        new()
+        {
+            Nodes =
+            [
+                new CategoryNodeDto
+                {
+                    CategoryId = Guid.Parse("44444444-4444-4444-4444-444444444444"),
+                    Name = "Electronics",
+                    Path = "/electronics",
+                    ParentCategoryId = null,
+                    Depth = 0,
+                    ProductCount = 12,
+                },
+            ],
+        };
 
     private static StockLevelsBulkDto Bulk(params (Guid ProductId, int Available)[] items) =>
-        new(
-            Items: items
-                .Select(i => new BulkStockLevelDto(i.ProductId, OnHand: i.Available + 2, Reserved: 2, i.Available, GeneratedAt))
+        new()
+        {
+            Items = items
+                .Select(i => new BulkStockLevelDto { ProductId = i.ProductId, Available = i.Available })
                 .ToList(),
-            MissingProductIds: []);
+        };
 }
