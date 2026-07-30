@@ -117,7 +117,7 @@ internal sealed class HomePageProvider
         if (productIds.Count == 0)
         {
             // Nothing to overlay — an empty (not absent) overlay keeps the page non-degraded.
-            return new StockLevelsBulkDto([], []);
+            return new StockLevelsBulkDto { Items = [] };
         }
 
         var bulkResult = await _inventory.GetStockLevelsBulkAsync(productIds, ct);

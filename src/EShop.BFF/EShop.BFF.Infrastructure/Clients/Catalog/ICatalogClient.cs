@@ -9,13 +9,14 @@ namespace EShop.BFF.Infrastructure.Clients.Catalog;
 /// </summary>
 internal interface ICatalogClient
 {
-    Task<Result<CatalogProductDto>> GetProductByIdAsync(Guid productId, CancellationToken ct);
+    Task<Result<CatalogProductDetailDto>> GetProductByIdAsync(Guid productId, CancellationToken ct);
 
     /// <summary>
     /// Bulk product read (bff.md § 4.1) — backs the basket page's current-price / drift enrichment.
-    /// Partial-tolerant: ids with no product come back in
-    /// <see cref="CatalogProductsByIdsDto.MissingProductIds"/> (→ current price unknown). A failed result
-    /// (transport / 5xx) is non-gating — the basket still renders with null current prices + a stale flag.
+    /// Partial-tolerant: an id with no product is simply absent from
+    /// <see cref="CatalogProductsByIdsDto.Products"/> (→ current price unknown). A failed result
+    /// (transport / 5xx / an unbindable payload) is non-gating — the basket still renders with null current
+    /// prices + a stale flag.
     /// </summary>
     Task<Result<CatalogProductsByIdsDto>> GetProductsByIdsAsync(IReadOnlyList<Guid> productIds, CancellationToken ct);
 

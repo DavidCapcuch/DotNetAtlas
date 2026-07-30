@@ -179,44 +179,39 @@ public sealed class ProductPageComposerTests
     }
 
     private static BasketDto BuildBasket(params BasketItemDto[] items) =>
-        new(
-            UserId: Guid.NewGuid(),
-            Version: 1,
-            Items: items,
-            Total: new BasketMoneyDto(0m, "USD"),
-            CreatedAtUtc: GeneratedAt,
-            LastModifiedAtUtc: GeneratedAt);
+        new()
+        {
+            UserId = Guid.NewGuid(),
+            Version = 1,
+            Items = items,
+            Total = new BasketMoneyDto { Amount = 0m, Currency = "USD" },
+        };
 
     private static BasketItemDto BasketItem(Guid productId, int quantity) =>
-        new(
-            ProductId: productId,
-            Sku: "SKU",
-            Name: "Item",
-            SnapshotPrice: new BasketMoneyDto(10m, "USD"),
-            Quantity: quantity,
-            CapturedAtUtc: GeneratedAt,
-            LineTotal: new BasketMoneyDto(10m * quantity, "USD"));
+        new()
+        {
+            ProductId = productId,
+            Sku = "SKU",
+            Name = "Item",
+            SnapshotPrice = new BasketMoneyDto { Amount = 10m, Currency = "USD" },
+            Quantity = quantity,
+        };
 
-    private static CatalogProductDto BuildProduct() =>
-        new(
-            ProductId: ProductId,
-            Sku: "SKU-1",
-            Name: "Laptop",
-            Description: "A fast laptop",
-            BrandName: "Acme",
-            CategoryPath: "/electronics/computers/laptops",
-            CategoryBreadcrumb: "Electronics > Computers > Laptops",
-            Price: new CatalogMoneyDto(1299.99m, "USD"),
-            Status: "Active",
-            Dimensions: new CatalogDimensionsDto(35.5m, 24.0m, 2.0m, "cm"),
-            Images: [new CatalogImageDto("https://cdn/img-1.jpg", "Laptop front", 0)]);
+    private static CatalogProductDetailDto BuildProduct() =>
+        new()
+        {
+            ProductId = ProductId,
+            Sku = "SKU-1",
+            Name = "Laptop",
+            Description = "A fast laptop",
+            BrandName = "Acme",
+            CategoryPath = "/electronics/computers/laptops",
+            CategoryBreadcrumb = "Electronics > Computers > Laptops",
+            Price = new CatalogMoneyDto { Amount = 1299.99m, Currency = "USD" },
+            Status = "Active",
+            Dimensions = new CatalogDimensionsDto { Length = 35.5m, Width = 24.0m, Height = 2.0m, Unit = "cm" },
+            Images = [new CatalogImageDto { Url = "https://cdn/img-1.jpg", AltText = "Laptop front", DisplayOrder = 0 }],
+        };
 
-    private static StockLevelDto BuildStock(int available) =>
-        new(
-            ProductId: ProductId,
-            OnHand: available + 2,
-            Reserved: 2,
-            Available: available,
-            LastUpdatedUtc: GeneratedAt,
-            LastVersion: 4);
+    private static StockLevelDto BuildStock(int available) => new() { Available = available };
 }

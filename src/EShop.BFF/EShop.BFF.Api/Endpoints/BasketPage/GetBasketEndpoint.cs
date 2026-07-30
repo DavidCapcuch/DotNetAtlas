@@ -193,5 +193,5 @@ internal sealed class GetBasketEndpoint : EndpointWithoutRequest<BasketPageRespo
     }
 
     private static BasketDto EmptyBasket(Guid userId) =>
-        new(userId, Version: 0, Items: [], Total: null, CreatedAtUtc: default, LastModifiedAtUtc: default);
+        new() { UserId = userId, Version = 0, Items = [], Total = null };
 }
