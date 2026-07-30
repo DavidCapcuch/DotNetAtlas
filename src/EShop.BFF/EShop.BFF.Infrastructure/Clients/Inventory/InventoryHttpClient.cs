@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using EShop.BFF.Infrastructure.Clients.Common;
+using EShop.BFF.Infrastructure.Common.Observability;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 
@@ -61,6 +62,7 @@ internal sealed class InventoryHttpClient : IInventoryClient
                 or Polly.ExecutionRejectedException)
         {
             _logger.LogWarning(ex, "Inventory call failed for product {ProductId}; treating availability as unknown", productId);
+            BffMetrics.RecordUnbindablePayload("inventory", ex);
             return Result.Fail<StockLevelDto>(InventoryClientErrors.Unavailable(ex.GetType().Name));
         }
     }
@@ -106,6 +108,7 @@ internal sealed class InventoryHttpClient : IInventoryClient
                 or Polly.ExecutionRejectedException)
         {
             _logger.LogWarning(ex, "Inventory bulk call failed; treating availability as unknown");
+            BffMetrics.RecordUnbindablePayload("inventory", ex);
             return Result.Fail<StockLevelsBulkDto>(InventoryClientErrors.Unavailable(ex.GetType().Name));
         }
     }

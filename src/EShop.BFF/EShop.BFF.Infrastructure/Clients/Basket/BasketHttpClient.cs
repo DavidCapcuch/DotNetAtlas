@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using EShop.BFF.Infrastructure.Clients.Common;
+using EShop.BFF.Infrastructure.Common.Observability;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 
@@ -64,6 +65,7 @@ internal sealed class BasketHttpClient : IBasketClient
                 or Polly.ExecutionRejectedException)
         {
             _logger.LogError(ex, "Basket call failed");
+            BffMetrics.RecordUnbindablePayload("basket", ex);
             return Result.Fail<BasketDto>(BasketClientErrors.Unavailable(ex.GetType().Name));
         }
     }

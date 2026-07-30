@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using System.Text.Json;
 
 namespace EShop.BFF.Infrastructure.Common.Observability;
 
@@ -26,6 +27,9 @@ public static class BffMetrics
     /// <summary>Tag key carrying the logical BFF endpoint name on counters + the request span.</summary>
     public const string EndpointTag = "bff.endpoint";
 
+    /// <summary>Tag key carrying the upstream service name on upstream-scoped counters.</summary>
+    public const string UpstreamTag = "bff.upstream";
+
     /// <summary>Request-span tag key: did the BFF return from cache without composing? (bool)</summary>
     public const string CacheHitTag = "bff.cache.hit";
 
@@ -48,6 +52,31 @@ public static class BffMetrics
         "bff.partial_response",
         unit: "{responses}",
         description: "BFF 200s served with partial/degraded data (an upstream failed but the page still rendered), tagged by endpoint. Nothing else emits this — the canonical degraded-UX signal (bff.md § 2.4).");
+
+    private static readonly Counter<long> UnbindablePayloads = Meter.CreateCounter<long>(
+        "bff.upstream.unbindable_payload",
+        unit: "{responses}",
+        description: "Upstream 2xx responses the BFF could not bind to its anti-corruption record, tagged by upstream — a contract change, not an outage (bff.md § 4).");
+
+    /// <summary>
+    /// Records that <paramref name="upstream"/> answered successfully with a payload the BFF could not
+    /// bind. Strict binding routes that into the same degradation an unreachable upstream produces
+    /// (bff.md § 4), so a dashboard cannot otherwise tell a contract change from an outage — only the
+    /// exception type in the log can. This counter is that distinction.
+    /// </summary>
+    /// <param name="cause">
+    /// The caught failure. Clients catch every upstream failure mode in one block, so this method
+    /// classifies rather than asking each call site to: it counts <see cref="JsonException"/> — the
+    /// binding failure — and is a deliberate no-op for transport, timeout and circuit-open causes,
+    /// which the resilience instrumentation already covers.
+    /// </param>
+    public static void RecordUnbindablePayload(string upstream, Exception cause)
+    {
+        if (cause is JsonException)
+        {
+            UnbindablePayloads.Add(1, new KeyValuePair<string, object?>(UpstreamTag, upstream));
+        }
+    }
 
     /// <summary>
     /// Records one composed-response cache outcome for <paramref name="endpoint"/>: a hit (served from
