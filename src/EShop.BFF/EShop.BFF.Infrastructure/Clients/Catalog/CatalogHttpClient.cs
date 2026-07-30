@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using EShop.BFF.Infrastructure.Clients.Common;
+using EShop.BFF.Infrastructure.Common.Observability;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 
@@ -65,8 +66,10 @@ internal sealed class CatalogHttpClient : ICatalogClient
                 or JsonException
                 or Polly.ExecutionRejectedException)
         {
-            // Transport failure, resilience timeout, or open circuit — degrade to "unavailable".
+            // Transport failure, resilience timeout, open circuit, or a payload this BFF cannot bind —
+            // all degrade to "unavailable"; the counter is what separates the last one on a dashboard.
             _logger.LogError(ex, "Catalog call failed for product {ProductId}", productId);
+            BffMetrics.RecordUnbindablePayload("catalog", ex);
             return Result.Fail<CatalogProductDetailDto>(CatalogClientErrors.Unavailable(ex.GetType().Name));
         }
     }
@@ -118,6 +121,7 @@ internal sealed class CatalogHttpClient : ICatalogClient
                 or Polly.ExecutionRejectedException)
         {
             _logger.LogWarning(ex, "Catalog by-ids call failed; basket current-price enrichment dropped");
+            BffMetrics.RecordUnbindablePayload("catalog", ex);
             return Result.Fail<CatalogProductsByIdsDto>(CatalogClientErrors.Unavailable(ex.GetType().Name));
         }
     }
@@ -165,6 +169,7 @@ internal sealed class CatalogHttpClient : ICatalogClient
                 or Polly.ExecutionRejectedException)
         {
             _logger.LogError(ex, "Catalog search call failed");
+            BffMetrics.RecordUnbindablePayload("catalog", ex);
             return Result.Fail<PagedResult<CatalogProductSummaryDto>>(
                 CatalogClientErrors.Unavailable(ex.GetType().Name));
         }
@@ -212,6 +217,7 @@ internal sealed class CatalogHttpClient : ICatalogClient
                 or Polly.ExecutionRejectedException)
         {
             _logger.LogWarning(ex, "Catalog category tree call failed; home page will drop the tree");
+            BffMetrics.RecordUnbindablePayload("catalog", ex);
             return Result.Fail<CategoryTreeDto>(CatalogClientErrors.Unavailable(ex.GetType().Name));
         }
     }

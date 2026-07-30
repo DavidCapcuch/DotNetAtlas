@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using System.Text.Json;
 using EShop.BFF.Infrastructure.Common.Observability;
 
 namespace EShop.BFF.UnitTests.Observability;
@@ -68,6 +69,47 @@ public sealed class BffMetricsTests
                 tag.Key == BffMetrics.EndpointTag && (string?)tag.Value == BffMetrics.HomePageEndpoint);
         }
     }
+
+    [Fact]
+    public void RecordUnbindablePayload_WhenTheCauseIsABindingFailure_IncrementsTaggedByUpstream()
+    {
+        // Arrange
+        using var capture = new LongCounterCapture("bff.upstream.unbindable_payload");
+
+        // Act — what strict binding throws when an upstream drops a member the BFF requires.
+        BffMetrics.RecordUnbindablePayload("catalog", new JsonException("missing required properties"));
+
+        // Assert
+        using (new AssertionScope())
+        {
+            capture.Values.Should().ContainSingle().Which.Should().Be(1);
+            capture.Tags.Should().ContainSingle().Which.Should().Contain(tag =>
+                tag.Key == BffMetrics.UpstreamTag && (string?)tag.Value == "catalog");
+        }
+    }
+
+    [Theory]
+    [Trait("Category", "boundary")]
+    [MemberData(nameof(NonBindingFailures))]
+    public void RecordUnbindablePayload_WhenTheCauseIsNotABindingFailure_DoesNotIncrement(Exception cause)
+    {
+        // Arrange — an outage, a timeout and an open circuit all reach the same catch block. Counting them
+        // here would destroy the counter's only purpose: telling a contract change apart from an outage.
+        using var capture = new LongCounterCapture("bff.upstream.unbindable_payload");
+
+        // Act
+        BffMetrics.RecordUnbindablePayload("catalog", cause);
+
+        // Assert
+        capture.Values.Should().BeEmpty();
+    }
+
+    public static TheoryData<Exception> NonBindingFailures() =>
+    [
+        new HttpRequestException("connection refused"),
+        new TaskCanceledException("timeout"),
+        new TimeoutException("resilience timeout"),
+    ];
 
     [Fact]
     public void TagRequest_SetsEndpointCacheHitAndStaleTagsOnTheCurrentSpan()
