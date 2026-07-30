@@ -18,6 +18,17 @@ namespace Basket.Domain.Baskets.ValueObjects;
 /// </remarks>
 public sealed record ProductSnapshot : ValueObject
 {
+    /// <summary>
+    /// Ceiling on <see cref="Sku"/>, sized to what the downstream consumers of the checkout event
+    /// enforce when they rebuild the snapshot, rather than to Catalog's own tighter one. The
+    /// four-context constraint chain this belongs to is in basket.md § 3.2 — read it before
+    /// changing this number.
+    /// </summary>
+    public const int MaxSkuLength = 64;
+
+    /// <summary>Same rule as <see cref="MaxSkuLength"/>, for <see cref="Name"/>.</summary>
+    public const int MaxNameLength = 200;
+
     /// <summary>Catalog SKU at the moment of capture.</summary>
     public string Sku { get; private init; } = null!;
 
@@ -38,8 +49,9 @@ public sealed record ProductSnapshot : ValueObject
     /// Creates a frozen snapshot of Catalog product data.
     /// </summary>
     /// <exception cref="DataIntegrityException">
-    /// <paramref name="sku"/> or <paramref name="name"/> is blank, or <paramref name="price"/> is
-    /// not strictly positive — bug-class, so callers fail closed rather than branching on it.
+    /// <paramref name="sku"/> or <paramref name="name"/> is blank or over its ceiling, or
+    /// <paramref name="price"/> is not strictly positive — bug-class, so callers fail closed
+    /// rather than branching on it.
     /// </exception>
     public static ProductSnapshot Create(string sku, string name, Money price, DateTimeOffset capturedAtUtc)
     {
@@ -63,6 +75,21 @@ public sealed record ProductSnapshot : ValueObject
         Throw.If(string.IsNullOrWhiteSpace(name), new DataIntegrityException(
             "Basket.ProductSnapshotNameRequired",
             $"ProductSnapshot name must be non-blank; sku was '{sku}'."));
+
+        // Unreachable from the ACL while Catalog's own ceilings stay tighter than Ordering's — a
+        // tripwire for the day they don't. The rehydration seam carries no such bound, so this is
+        // a live guard there. Measured raw rather than trimmed: Ordering trims first, so raw <= the
+        // ceiling implies trimmed <= it too, and Basket can never pass a value Ordering rejects.
+        Throw.If(sku.Length > MaxSkuLength, new DataIntegrityException(
+            "Basket.ProductSnapshotSkuTooLong",
+            $"ProductSnapshot sku must be at most {MaxSkuLength} characters; was {sku.Length}."));
+
+        // Only this message can name the offending product. By here sku has cleared both its own
+        // guards, so it is bounded and safe to embed; at the sku guard above, name is still
+        // unbounded, and echoing it could put an arbitrarily large string in a log line.
+        Throw.If(name.Length > MaxNameLength, new DataIntegrityException(
+            "Basket.ProductSnapshotNameTooLong",
+            $"ProductSnapshot name must be at most {MaxNameLength} characters; was {name.Length}; sku was '{sku}'."));
 
         return new()
         {

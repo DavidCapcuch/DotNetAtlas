@@ -522,6 +522,43 @@ public class ProductCatalogHttpAdapterTests
             .Which.ErrorCode.Should().Be("Basket.ProductSnapshotSkuRequired");
     }
 
+    [Fact]
+    [Trait("Category", "boundary")]
+    public async Task GetMany_WhenNameExceedsMaxLength_ThrowsInsteadOfDegradingToCatalogUnavailable()
+    {
+        // One route, not both: unlike the blank guards, the ceiling is reached through the shared
+        // MapToSnapshot, so a per-route pair would kill one mutant twice. The batch route is the
+        // one to keep — it reclassifies its own mapping failure as CatalogUnavailable a line later,
+        // which is exactly where a "tidy up the length case" edit would land.
+        // Name rather than Sku: Catalog's Name ceiling already equals Ordering's, zero headroom.
+        var productId = Guid.CreateVersion7();
+        var handler = new StubHttpMessageHandler((_, _) => Task.FromResult(JsonResponse(
+            HttpStatusCode.OK,
+            new
+            {
+                products = new[]
+                {
+                    new
+                    {
+                        productId,
+                        sku = "SKU-A",
+                        name = new string('x', 201),
+                        price = new { amount = 9.99m, currency = "USD" },
+                    },
+                },
+                missingProductIds = Array.Empty<Guid>(),
+            })));
+
+        // Act
+        var act = async () => await CreateSut(handler).GetManyAsync(
+            new[] { productId },
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        (await act.Should().ThrowAsync<DataIntegrityException>())
+            .Which.ErrorCode.Should().Be("Basket.ProductSnapshotNameTooLong");
+    }
+
     private static void AssertCatalogUnavailable<T>(Result<T> result)
     {
         using (new AssertionScope())
