@@ -1,6 +1,7 @@
 using Basket.Infrastructure.Persistence;
 using Basket.Infrastructure.Persistence.Documents;
 using Microsoft.Extensions.Time.Testing;
+using Platform.SharedKernel.Exceptions;
 using Platform.SharedKernel.ValueObjects;
 using BasketAggregate = Basket.Domain.Baskets.Basket;
 
@@ -121,6 +122,39 @@ public class BasketStateMapperTests
             basket.PopDomainEvents().Should().BeEmpty(
                 "Rehydrate must not emit BasketCreatedDomainEvent — that only fires on first creation");
         }
+    }
+
+    [Fact]
+    [Trait("Category", "regression")]
+    public void ToDomain_WhenPersistedSkuIsBlank_ThrowsRatherThanRehydratingCorruptState()
+    {
+        // MemoryPack enforces no nullability annotations, so the persisted payload can carry a
+        // null Sku. Rehydration must run it through the validating factory rather than a
+        // BuildUnchecked-style bypass: BasketItem has one for trusted state, and reusing that
+        // shape here would let the blank reach BasketCheckoutInitiatedMapper's non-nullable
+        // Avro string fields.
+
+        // Arrange
+        var document = new BasketStateDocument(
+            Version: 1,
+            Payload: new BasketDocument(
+                Guid.CreateVersion7(),
+                new[]
+                {
+                    new BasketItemDocument(
+                        Guid.CreateVersion7(),
+                        new ProductSnapshotDocument(null!, "Widget", 12.34m, CurrencyCode.Usd.Name, UtcNow),
+                        Quantity: 2),
+                },
+                UtcNow,
+                UtcNow));
+
+        // Act
+        var act = () => BasketStateMapper.ToDomain(document);
+
+        // Assert
+        act.Should().Throw<DataIntegrityException>()
+            .Which.ErrorCode.Should().Be("Basket.ProductSnapshotSkuRequired");
     }
 
     [Fact]

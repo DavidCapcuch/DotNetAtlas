@@ -21,6 +21,10 @@ namespace Basket.Application.Abstractions;
 ///   cancellation-by-timeout, or a 200 whose body the ACL cannot bind — all of which mean "no
 ///   usable product". Caller-initiated cancellation is rethrown, not mapped.</item>
 ///   <item><see cref="BasketAclErrors.ProductNotFound"/> on HTTP 404 (single-id call only).</item>
+///   <item>A <c>DataIntegrityException</c> is <b>thrown, not returned</b>, when a body that binds
+///   violates a <see cref="ProductSnapshot"/> field invariant. Bug-class: retrying cannot fix
+///   the upstream's data, so it fails closed instead of joining the retryable bucket above
+///   (basket.md &#xa7; 3.2).</item>
 /// </list>
 /// </para>
 /// </remarks>
