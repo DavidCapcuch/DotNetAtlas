@@ -591,19 +591,21 @@ services.AddInbox<PaymentsDbContext>();
 
 ## 8. Internal Service HTTP API Surfaces (for BFF)
 
-This section lists the **minimum** HTTP endpoints each service must expose so that the BFF (and operator tooling) can call them. Endpoint shapes are descriptive — the canonical command/query signatures live in each BC's design doc and will be finalised by Stage 2 Agent 7 (Use Case Catalog). This document lists **which** endpoints must exist, not their full request/response DTOs.
+This section lists the **minimum** HTTP endpoints each service must expose so that the BFF (and operator tooling) can call them — **which** endpoints must exist, not their full request/response shapes. Response contracts are owned per-endpoint by the originating slice ([ADR-0037](../adr/0037-endpoint-owned-response-contracts.md)); each BC's entry in [use-cases.md](use-cases.md) is their source of truth.
 
 All endpoints below are **internal** (service-to-service), routed through YARP / in-cluster DNS. Authentication is a service-to-service JWT (not a user JWT) per `ordering.md § 11` and confirmed for the other BCs by this catalog.
 
 ### 8.1 Catalog Service
 
+Query contracts and their JSON shapes: [use-cases.md](use-cases.md) § 1.2 — which covers every row below **except** `by-ids`; `GetProductsByIdsQuery` is not yet catalogued there.
+
 | Method | Path | Purpose | Response |
 |--------|------|---------|----------|
-| GET | `/api/v1/catalog/products/{productId}` | Single product detail. Backs BFF product-detail page. | `CatalogProductResponse` — full product with category path, brand, price, images, status |
-| GET | `/api/v1/catalog/products?q=&categoryPrefix=&minPrice=&maxPrice=&currency=&status=&page=&size=` | Paged search — the products-collection root with query params (**not** a `/search` sub-path). Backs BFF browse/search. | `Paged<CatalogProductResponse>` |
-| GET | `/api/v1/catalog/products/by-ids?ids=...` | Fetch by IDs (max 100, comma-separated). Used by Basket ACL's `GetProductsByIdsAsync` (see `basket.md § 9.3`). | `IReadOnlyList<CatalogProductResponse>` — partial-tolerant |
-| GET | `/api/v1/catalog/categories/tree` | Full category tree for navigation UI. Backs BFF category menu. | `CategoryTreeNode` (recursive) |
-| GET | `/api/v1/catalog/categories/{categoryId}/products` | Products within a category. | `Paged<CatalogProductResponse>` |
+| GET | `/api/v1/catalog/products/{productId}` | Single product detail. Backs BFF product-detail page. | Full product — category path, brand, price, images, status |
+| GET | `/api/v1/catalog/products?text=&categoryPath=&minPrice=&maxPrice=&currency=&status=&page=&limit=` | Paged search — the products-collection root with query params (**not** a `/search` sub-path). Backs BFF browse/search. | Paged product summaries |
+| GET | `/api/v1/catalog/products/by-ids?ids=...` | Fetch by IDs (1..100; repeated `ids=` params or one comma-separated list). Used by the Basket ACL's `GetManyAsync` (see `basket.md § 9.2`). | Found products plus the requested ids that matched none — partial-tolerant |
+| GET | `/api/v1/catalog/categories/tree` | Full category tree for navigation UI. Backs BFF category menu. | Flat node list in materialized-path order, so each parent precedes its descendants |
+| GET | `/api/v1/catalog/categories/{categoryId}/products` | Products within a category. | Paged product summaries |
 
 **Admin/write endpoints** (not BFF-consumed, listed for completeness so implementation agents don't miss them):
 - `POST /api/v1/catalog/products` — create product (admin only).
@@ -646,7 +648,7 @@ All endpoints below are **internal** (service-to-service), routed through YARP /
 | Method | Path | Purpose | Response |
 |--------|------|---------|----------|
 | GET | `/api/v1/inventory/stock-items/{productId}` | Single product stock level. Backs BFF product-detail page availability badge. | `StockLevelResponse` — `{ productId, onHand, reserved, available, lastUpdatedUtc }` |
-| POST | `/api/v1/inventory/stock-items/bulk` | Batch fetch (product ids in body). Backs BFF browse/basket availability overlays. Committed design: [ADR-0034](../adr/0034-inventory-stock-availability-read-path.md) (Inventory-owned read-through cache). **Spec'd (use-cases.md § 4.4.2); NOT yet built in Inventory** — build before BFF dispatch. | `IReadOnlyList<StockLevelResponse>` — partial-tolerant |
+| POST | `/api/v1/inventory/stock-items/bulk` | Batch fetch (up to 200 product ids in body). Backs BFF browse/basket availability overlays. Committed design: [ADR-0034](../adr/0034-inventory-stock-availability-read-path.md) (Inventory-owned read-through cache). | `GetStockLevelsBulkResponse` — found stock levels plus the requested ids with no projection row; partial-tolerant |
 | GET | `/api/v1/inventory/reservations/{reservationId}` | Single reservation detail (ops/audit). | `ReservationResponse` |
 
 **Admin/Ops endpoints:**

@@ -70,7 +70,7 @@ You own these. Justify each in your session summary.
 2. `docs/bc-design/bff.md` — the full spec
 3. `docs/bc-design/rate-limiting.md` — YARP is in front of you; the BFF itself is unrestricted
 4. `docs/bc-design/events-catalog.md` — your invalidator consumes these topics
-5. `docs/bc-design/bff.md § 5` (Dependency on New Upstream Endpoints) + the per-BC **HTTP surface** subsections in `use-cases.md` — your upstream contract. Catalog's bulk `GetProductsByIdsQuery` (`GET /api/v1/catalog/products/by-ids`) backs `/api/v1/bff/basket` and **already ships**; if any required upstream endpoint were actually missing, FLAG per `<stop_conditions>` rather than working around it.
+5. `docs/bc-design/bff.md § 5` (Shared Upstream Batch Reads) + the per-BC **HTTP surface** subsections in `use-cases.md` — your upstream contract. Catalog's bulk `GetProductsByIdsQuery` (`GET /api/v1/catalog/products/by-ids`) backs `/api/v1/bff/basket`; if any required upstream endpoint were actually missing, FLAG per `<stop_conditions>` rather than working around it.
 6. `docs/eshop-master-design.md` — the BFF-relevant sections (§ 3 event discipline, § 9 BFF overview, § 11.3 observability, § 11.7 async/sync). **Additive to `_shared.md § 2`'s universal reads, not a replacement.**
 7. **All ADRs in `<applicable_adrs>` below**
 8. Golden reference (`_shared.md § 4`): **Basket** (`services/Basket/`) for the FusionCache + Redis wiring, and existing BCs' typed-client setup (`grep -rn "AddHttpClient" services/`).

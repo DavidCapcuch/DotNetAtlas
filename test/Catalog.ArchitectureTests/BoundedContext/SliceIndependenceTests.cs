@@ -6,8 +6,11 @@ namespace Catalog.ArchitectureTests.BoundedContext;
 /// Per eshop-master-design.md § 11.4, each BC keeps its vertical slices independent: no slice
 /// references a sibling slice. Cross-slice sharing goes through the two sanctioned sinks —
 /// <c>Common</c> (shared read models, contracts, services) and <c>Domain</c> — never a direct
-/// feature-to-feature reference. This is the intra-BC counterpart to
-/// <see cref="CrossBcReferenceTests"/> (which guards the cross-BC boundary).
+/// feature-to-feature reference. Response envelopes and their endpoint-specific item types are the
+/// exception: ADR-0037 gives each endpoint its own, so those are copied into the referencing slice
+/// rather than moved to a sink. Value DTOs that pass ADR-0037's knowledge test stay shared. This is
+/// the intra-BC counterpart to <see cref="CrossBcReferenceTests"/> (which guards the cross-BC
+/// boundary).
 /// </summary>
 /// <remarks>
 /// Generic by construction — slices are discovered by reflection over
@@ -94,8 +97,11 @@ public class SliceIndependenceTests : BaseTest
         }
 
         allFailingTypes.Should().BeEmpty(
-            "No vertical slice may reference a sibling slice — share through Common/Domain instead. " +
-            "Offending types: " + string.Join(", ", allFailingTypes));
+            "No vertical slice may reference a sibling slice. Where the referenced type is shared " +
+            "knowledge — a value DTO, a projection row — move it into Common/Domain. Where it is a " +
+            "published wire contract — a response envelope or its endpoint-specific item type — " +
+            "ADR-0037 requires each endpoint to own one, so copy it into this slice instead of " +
+            "sharing it. Types holding a sibling dependency: " + string.Join(", ", allFailingTypes));
     }
 
     /// <summary>
