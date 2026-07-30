@@ -15,7 +15,7 @@ Basket is deliberately narrow — it is a **pre-checkout session** for one user,
 |-------------|--------------------|---------------------|
 | **Basket** | Ephemeral shopping session keyed by `UserId`, lives in Redis, auto-expires | ≠ `Order` (Ordering); ≠ `Cart` in external catalog systems |
 | **BasketItem** | One line in the basket: `ProductId` + frozen `ProductSnapshot` + `Quantity` | ≠ `OrderLine` (enriched differently after checkout) |
-| **ProductSnapshot** | Frozen copy of Catalog product data captured at add-time — Sku, Name, Price, CapturedAtUtc | Translated from Catalog's `CatalogProductResponse` DTO via ACL |
+| **ProductSnapshot** | Frozen copy of Catalog product data captured at add-time — Sku, Name, Price, CapturedAtUtc | Translated from Basket's per-route Catalog response records via ACL |
 | **Price refresh** | User-initiated reconciliation between snapshots and current Catalog prices | Deliberate — no auto-refresh |
 | **Checkout** | Irreversible transition: basket → `BasketCheckoutInitiatedEvent` → basket deleted | Hand-off to Ordering/Checkout Saga |
 | **Basket expiry** | 30-day sliding TTL purge by Redis (no event emitted; abandonment is silent) | — |
@@ -485,7 +485,7 @@ The entire raison d'être of the internal/external split (master design § 3) is
 
 ### 9.1 Why an ACL here specifically
 
-Catalog owns the Product aggregate, its pricing, its hierarchy. Basket needs *only* a narrow projection: Sku, Name, Price. If Basket consumed Catalog's full `CatalogProductResponse` DTO directly (categories, inventory flags, image URLs, localization, etc.), the Basket domain would silently couple to Catalog's transport shape. Any Catalog DTO change would ripple into Basket.
+Catalog owns the Product aggregate, its pricing, its hierarchy. Basket needs *only* a narrow projection: Sku, Name, Price. If Basket consumed Catalog's full product payload directly, the Basket domain would silently couple to Catalog's transport shape, and any change to it would ripple into Basket.
 
 The ACL enforces: **Catalog's shape stops at the Infrastructure seam. Only `ProductSnapshot` crosses into Basket.Domain/Basket.Application.**
 
@@ -508,7 +508,7 @@ interface IProductCatalogQueryPort
 
 **Contract rules:**
 
-- Returns `Result.Fail(BasketAclErrors.CatalogUnavailable)` on any of: HTTP 5xx, network error, timeout, cancellation-by-timeout.
+- Returns `Result.Fail(BasketAclErrors.CatalogUnavailable)` whenever the call yields no usable product — the causes are enumerated once, in § 9.3's failure-behavior list.
 - Returns `Result.Fail(BasketAclErrors.ProductNotFound(productId))` on HTTP 404.
 - `GetManyAsync` is **partial-tolerant**: if the Catalog response includes 9 of 10 requested products, the result is `Result.Ok(IReadOnlyList with 9 items)`. The missing `productId`s are silently dropped — the caller (e.g., `RefreshPricesCommandHandler`) decides what to do (here: leave the existing snapshot untouched).
 - Both methods are read-only and idempotent.
@@ -520,13 +520,16 @@ Location: `Basket.Infrastructure.ExternalServices`.
 
 - Injected typed `HttpClient` (`"Catalog"`), configured with a `BaseAddress` reading from `CatalogServiceOptions.BaseUrl` and a request timeout of ~2 seconds (subject to revision by solution-architect).
 - Calls: `GET /api/v1/catalog/products/{id}` (single) and `GET /api/v1/catalog/products/by-ids?ids=id1,id2,...` (by-ids, max 100) — these are Catalog's endpoints (see Catalog BC design).
-- Deserializes into **private internal DTOs** (e.g., `CatalogProductResponse`) that **never** escape this assembly. The DTOs match Catalog's wire shape.
-- Maps `CatalogProductResponse → ProductSnapshot` using a small, explicit `Map(CatalogProductResponse r) → ProductSnapshot` method. Fields not needed by Basket (categories, images, availability flags, translations) are dropped on the floor.
+- Deserializes into **private internal records that never escape this assembly — one per route**, not one shared by both. [ADR-0037](../adr/0037-endpoint-owned-response-contracts.md) leaves Catalog's two product endpoints free to diverge, so a single record bound to both would assert an equivalence Catalog does not guarantee. A type both routes bind is licensed only where a change at one binding site would always be the same change at the other; `CatalogAclContractOwnershipTests.SharedAclTypes` holds the exemptions and is the only place they are listed. This is Basket's inbound adoption of ADR-0037's principle — the ADR governs Catalog's published contracts, not a consumer's mirrors of them.
+- Each record declares **only the members Basket reads from that route**, not Catalog's full wire shape. Binding is strict, so every declared member is one Catalog can no longer drop without failing a Basket use case; declaring one nothing reads buys a false alarm.
+- Maps each route's record to `ProductSnapshot` through one `MapToSnapshot(sku, name, price)`. The wire shape is per-route and duplicated; how a Catalog product becomes a snapshot is a single rule Basket owns.
 - **Failure behavior, in priority order:**
   1. `TaskCanceledException` or `HttpRequestException` → log at warning, return `Result.Fail(BasketAclErrors.CatalogUnavailable)`.
   2. HTTP 404 → return `Result.Fail(BasketAclErrors.ProductNotFound(productId))`.
   3. HTTP 5xx → return `Result.Fail(BasketAclErrors.CatalogUnavailable)` (bucketed as "unreachable" from Basket's perspective; Catalog's own availability story is not Basket's concern).
   4. HTTP 4xx other than 404 (e.g., 400 malformed) → log at error, return `Result.Fail(BasketAclErrors.CatalogUnavailable)` — treat as a programming bug on our own call.
+  5. HTTP 200 carrying a body the ACL cannot bind — malformed JSON, a **member** Basket reads arriving absent or null, or a null entry inside a bound collection → log at error, return `Result.Fail(BasketAclErrors.CatalogUnavailable)`. Binding is **deliberately asymmetric**: a member Basket reads that fails to arrive throws, while a member Catalog *adds* binds unaffected. Removal breaks a Basket use case; addition does not, so unknown members stay tolerated — tightening that would turn every Catalog addition into a Basket outage. Collection *elements* are the one shape the serializer settings do not reach, so the adapter guards those by hand.
+  - **Accepted risk:** an unbindable contract and an unreachable Catalog are indistinguishable in every signal that drives alerting — same error code, same status, and Basket publishes no metric separating them. A Catalog contract break therefore pages as a Basket outage, deterministically, on every add-item. The log line is the only place the two differ. Revisit if a Catalog trim ever reaches an environment where that matters.
 
 ### 9.4 Command-side behavior under Catalog outage
 
@@ -605,7 +608,7 @@ All commands/queries route through `Platform.CQRS` mediator. Handlers sit in `Ba
 **What it demonstrates:**
 
 - **Port-Adapter pattern.** Port (`IProductCatalogQueryPort`) in Application, adapter (`ProductCatalogHttpAdapter`) in Infrastructure. Zero Catalog types in `Basket.Domain` or `Basket.Application`.
-- **Translation layer.** Explicit mapping from Catalog's `CatalogProductResponse` DTO to internal `ProductSnapshot`. The adapter intentionally drops everything Basket does not need.
+- **Translation layer.** Explicit mapping from Basket's per-route Catalog response records to the internal `ProductSnapshot`. Each record declares only what its route's caller reads; everything else Catalog sends is never bound.
 - **Explicit failure classification.** Network-layer errors collapse to `BasketAclErrors.CatalogUnavailable`; 404s become `BasketAclErrors.ProductNotFound`. The domain never sees HTTP status codes.
 - **Partial-success tolerance** on batch reads (§ 9.2) — a behavioral choice the caller decides how to react to.
 - **Snapshot-freeze discipline.** The ACL is called on add and on explicit refresh only. Checkout does *not* re-call. This is a conscious architectural commitment and is testable end-to-end.
@@ -618,7 +621,7 @@ All commands/queries route through `Platform.CQRS` mediator. Handlers sit in `Ba
 
 | Direction | Mechanism | What flows | Freshness |
 |-----------|-----------|------------|-----------|
-| Catalog → Basket | HTTP (sync, via ACL) | `CatalogProductResponse` → `ProductSnapshot` | Point-in-time on add / on refresh |
+| Catalog → Basket | HTTP (sync, via ACL) | per-route Catalog response record → `ProductSnapshot` | Point-in-time on add / on refresh |
 | Basket → Ordering/Checkout Saga | Kafka `basket.sessions` (async, via outbox) | `BasketCheckoutInitiatedEvent` (Avro) | At-least-once |
 | *(explicitly not a consumer)* | — | — | Basket does not subscribe to any Kafka topic in v1 |
 

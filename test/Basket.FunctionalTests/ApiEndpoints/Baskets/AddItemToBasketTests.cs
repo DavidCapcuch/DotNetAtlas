@@ -91,6 +91,37 @@ public class AddItemToBasketTests : BaseApiTest
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
+    public async Task AddItem_WhenCatalogUnavailable_Returns503_AndPersistsNoLine()
+    {
+        // Arrange — this pins the endpoint's half of the contract only: CatalogUnavailable maps to
+        // 503 and the failed add writes nothing. It stubs the port, so no binding runs here; which
+        // upstream shapes produce CatalogUnavailable is settled in ProductCatalogHttpAdapterTests.
+        var userId = Guid.CreateVersion7();
+        var productId = Guid.CreateVersion7();
+        Catalog.GetProductSnapshotAsync(productId, Arg.Any<CancellationToken>())
+            .Returns(Result.Fail<ProductSnapshot>(BasketAclErrors.CatalogUnavailable()));
+
+        var client = HttpClientRegistry.RegularUserAuthClient(userId);
+        var request = new AddItemToBasketRequest { ProductId = productId, Quantity = 1 };
+
+        // Act
+        var (response, problemDetails) = await client
+            .POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest, ProblemDetails>(request);
+
+        // Assert
+        using (new AssertionScope())
+        {
+            response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+            problemDetails.Errors.Should().ContainSingle(e => e.Code == "Basket.CatalogUnavailable");
+
+            var (_, basket) = await client
+                .GETAsync<Basket.Api.Endpoints.Baskets.GetByUserId.GetBasketEndpoint, Basket.Application.Baskets.GetByUserId.GetBasketResponse>();
+            basket.Items.Should().BeEmpty("a failed add must persist no line");
+        }
+    }
+
+    [Fact]
     public async Task AddItem_WhenIdempotencyKeyMissing_StillSucceeds_DoubleClickGuardOnly()
     {
         // basket.md § ADR-0013 makes Idempotency-Key OPTIONAL on /items (double-click

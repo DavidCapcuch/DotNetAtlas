@@ -300,6 +300,98 @@ public class ProductCatalogHttpAdapterTests
     }
 
     [Fact]
+    [Trait("Category", "resilience")]
+    public async Task GetProductSnapshot_WhenPriceIsNull_ReturnsCatalogUnavailable()
+    {
+        // Arrange — the single-product route owns its own record, so its strictness is not implied
+        // by the batch route's: the two are independently declared and free to diverge, with no
+        // compiler link between their annotations. This is the add-item path, where an unbound
+        // price would reach Money.Create as a null dereference.
+        var handler = new StubHttpMessageHandler((_, _) => Task.FromResult(JsonResponse(
+            HttpStatusCode.OK,
+            new { sku = "SKU-A", name = "Widget", price = (object?)null })));
+
+        // Act
+        var result = await CreateSut(handler).GetProductSnapshotAsync(
+            Guid.CreateVersion7(),
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        AssertCatalogUnavailable(result);
+    }
+
+    [Fact]
+    [Trait("Category", "resilience")]
+    public async Task GetProductSnapshot_WhenPriceCurrencyMissing_ReturnsCatalogUnavailable()
+    {
+        // Arrange — a present price object missing one member. CatalogPriceDto is positional, so
+        // only RespectRequiredConstructorParameters rejects this; a nulled price is caught by a
+        // different setting entirely. Without it the currency binds null and Money.Create fails as
+        // a *validation* error, reporting a Catalog contract break as a client fault.
+        var handler = new StubHttpMessageHandler((_, _) => Task.FromResult(JsonResponse(
+            HttpStatusCode.OK,
+            new { sku = "SKU-A", name = "Widget", price = new { amount = 9.99m } })));
+
+        // Act
+        var result = await CreateSut(handler).GetProductSnapshotAsync(
+            Guid.CreateVersion7(),
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        AssertCatalogUnavailable(result);
+    }
+
+    [Fact]
+    [Trait("Category", "resilience")]
+    public async Task GetMany_WhenProductElementIsNull_ReturnsCatalogUnavailable()
+    {
+        // Arrange — System.Text.Json enforces nullability on members, not on collection *elements*,
+        // so a null array item binds and no strict-binding setting rejects it. The adapter must
+        // guard it explicitly or it dereferences into an uncaught NullReferenceException — a 500 on
+        // the very path this ACL fails closed everywhere else.
+        var handler = new StubHttpMessageHandler((_, _) => Task.FromResult(JsonResponse(
+            HttpStatusCode.OK,
+            new { products = new object?[] { null }, missingProductIds = Array.Empty<Guid>() })));
+
+        // Act
+        var result = await CreateSut(handler).GetManyAsync(
+            new[] { Guid.CreateVersion7() },
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        AssertCatalogUnavailable(result);
+    }
+
+    [Fact]
+    [Trait("Category", "resilience")]
+    public async Task GetMany_WhenPriceIsNull_ReturnsCatalogUnavailable()
+    {
+        // Arrange — Catalog answers 200, but the item carries no bindable price. ADR-0037 leaves
+        // the by-ids contract free to diverge from the single-product one, so this is a contract
+        // change rather than a malformed body, and it must land in the same failure an unreachable
+        // Catalog produces — never a snapshot composed from a half-bound product.
+        var productId = Guid.CreateVersion7();
+        var handler = new StubHttpMessageHandler((_, _) => Task.FromResult(JsonResponse(
+            HttpStatusCode.OK,
+            new
+            {
+                products = new[]
+                {
+                    new { productId, sku = "A", name = "Alpha", price = (object?)null },
+                },
+                missingProductIds = Array.Empty<Guid>(),
+            })));
+
+        // Act
+        var result = await CreateSut(handler).GetManyAsync(
+            new[] { productId },
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        AssertCatalogUnavailable(result);
+    }
+
+    [Fact]
     public async Task GetMany_JoinsIdsAsSingleCommaSeparatedQuery()
     {
         // Arrange

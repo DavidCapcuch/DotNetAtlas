@@ -10,14 +10,16 @@ namespace Basket.Application.Abstractions;
 /// <remarks>
 /// <para>
 /// Concrete implementation: <c>ProductCatalogHttpAdapter</c> in <c>Basket.Infrastructure</c>.
-/// The adapter converts Catalog's <c>CatalogProductResponse</c> DTO into the
-/// Basket-owned <see cref="ProductSnapshot"/> VO (see <c>basket.md § 9</c>). Nothing below
-/// this port references Catalog types — keeping the coupling pointed at a single seam.
+/// The adapter converts Catalog's per-route response records into the Basket-owned
+/// <see cref="ProductSnapshot"/> VO (see <c>basket.md § 9</c>). Nothing below this port
+/// references Catalog types — keeping the coupling pointed at a single seam.
 /// </para>
 /// <para>
 /// <b>Error contract</b> (basket.md § 9.1):
 /// <list type="bullet">
-///   <item><see cref="BasketAclErrors.CatalogUnavailable"/> on HTTP 5xx, network error, timeout, cancellation.</item>
+///   <item><see cref="BasketAclErrors.CatalogUnavailable"/> on HTTP 5xx, network error,
+///   cancellation-by-timeout, or a 200 whose body the ACL cannot bind — all of which mean "no
+///   usable product". Caller-initiated cancellation is rethrown, not mapped.</item>
 ///   <item><see cref="BasketAclErrors.ProductNotFound"/> on HTTP 404 (single-id call only).</item>
 /// </list>
 /// </para>
@@ -27,7 +29,7 @@ public interface IProductCatalogQueryPort
     /// <summary>
     /// Fetches a single product snapshot. Returns <see cref="BasketAclErrors.ProductNotFound"/>
     /// when the product does not exist, and <see cref="BasketAclErrors.CatalogUnavailable"/>
-    /// on transport failures.
+    /// on a transport failure or a response body the ACL cannot bind.
     /// </summary>
     Task<Result<ProductSnapshot>> GetProductSnapshotAsync(Guid productId, CancellationToken ct);
 
@@ -38,7 +40,8 @@ public interface IProductCatalogQueryPort
     /// Partial-tolerant — ids that are not present in the Catalog response are silently
     /// dropped; the caller decides what to do with the missing ones (typically
     /// <c>RefreshPrices</c> leaves them untouched). Returns
-    /// <see cref="BasketAclErrors.CatalogUnavailable"/> only on a full transport failure.
+    /// <see cref="BasketAclErrors.CatalogUnavailable"/> on a transport failure or a response body
+    /// the ACL cannot bind — partial-tolerance covers unmatched ids, not an unusable payload.
     /// </summary>
     Task<Result<IReadOnlyList<(Guid ProductId, ProductSnapshot Snapshot)>>> GetManyAsync(
         IEnumerable<Guid> productIds,
