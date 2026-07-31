@@ -221,9 +221,12 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
         // Source-state guard: authorize-failure can only come from Requested. The FSM table also
         // permits Authorized → Failed (for MarkCaptureFailed), so the target-guard alone is not
         // enough to reject wrong-phase calls.
-        Throw.If(Status != PaymentStatus.Requested, new DataIntegrityException(
-            "Payments.MarkAuthorizationFailed.InvalidSourceStatus",
-            $"MarkAuthorizationFailed is only valid from '{PaymentStatus.Requested.Name}'; current: '{Status.Name}'."));
+        if (Status != PaymentStatus.Requested)
+        {
+            throw new DataIntegrityException(
+                "Payments.MarkAuthorizationFailed.InvalidSourceStatus",
+                $"MarkAuthorizationFailed is only valid from '{PaymentStatus.Requested.Name}'; current: '{Status.Name}'.");
+        }
 
         GuardTransition(PaymentStatus.Failed);
 
@@ -332,9 +335,12 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
         // Source-state guard: capture-failure can only come from Authorized. The FSM target-guard
         // alone would accept Requested → Failed (needed for MarkAuthorizationFailed) which is the
         // wrong phase for this method.
-        Throw.If(Status != PaymentStatus.Authorized, new DataIntegrityException(
-            "Payments.MarkCaptureFailed.InvalidSourceStatus",
-            $"MarkCaptureFailed is only valid from '{PaymentStatus.Authorized.Name}'; current: '{Status.Name}'."));
+        if (Status != PaymentStatus.Authorized)
+        {
+            throw new DataIntegrityException(
+                "Payments.MarkCaptureFailed.InvalidSourceStatus",
+                $"MarkCaptureFailed is only valid from '{PaymentStatus.Authorized.Name}'; current: '{Status.Name}'.");
+        }
 
         GuardTransition(PaymentStatus.Failed);
 
@@ -390,9 +396,12 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
 
         GuardTransition(PaymentStatus.Voided);
 
-        Throw.If(GatewayTransactionId is null, new DataIntegrityException(
-            "Payments.VoidWithoutGatewayTransactionId",
-            "Cannot void a payment that has no gateway transaction id."));
+        if (GatewayTransactionId is null)
+        {
+            throw new DataIntegrityException(
+                "Payments.VoidWithoutGatewayTransactionId",
+                "Cannot void a payment that has no gateway transaction id.");
+        }
 
         GatewayResponseCode = gatewayResponseCode;
         VoidedAtUtc = utcNow;
@@ -435,9 +444,12 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
 
         GuardTransition(PaymentStatus.Refunded);
 
-        Throw.If(GatewayTransactionId is null, new DataIntegrityException(
-            "Payments.RefundWithoutGatewayTransactionId",
-            "Cannot refund a payment that has no gateway transaction id."));
+        if (GatewayTransactionId is null)
+        {
+            throw new DataIntegrityException(
+                "Payments.RefundWithoutGatewayTransactionId",
+                "Cannot refund a payment that has no gateway transaction id.");
+        }
 
         GatewayResponseCode = gatewayResponseCode;
         RefundedAtUtc = utcNow;
@@ -460,17 +472,22 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
 
     private void GuardTransition(PaymentStatus target)
     {
-        Throw.If(!Status.CanTransitionTo(target), new DataIntegrityException(
-            "Payments.InvalidStatusTransition",
-            $"Invalid payment status transition from '{Status.Name}' to '{target.Name}'."));
+        if (!Status.CanTransitionTo(target))
+        {
+            throw new DataIntegrityException(
+                "Payments.InvalidStatusTransition",
+                $"Invalid payment status transition from '{Status.Name}' to '{target.Name}'.");
+        }
     }
 
     private void GuardAppendOnlyGatewayTransactionId(string incoming)
     {
-        Throw.If(
-            GatewayTransactionId is not null && !string.Equals(GatewayTransactionId, incoming, StringComparison.Ordinal),
-            new DataIntegrityException(
+        if (GatewayTransactionId is not null
+            && !string.Equals(GatewayTransactionId, incoming, StringComparison.Ordinal))
+        {
+            throw new DataIntegrityException(
                 "Payments.GatewayTransactionIdImmutable",
-                $"GatewayTransactionId is append-only (I-4): stored '{GatewayTransactionId}', incoming '{incoming}'."));
+                $"GatewayTransactionId is append-only (I-4): stored '{GatewayTransactionId}', incoming '{incoming}'.");
+        }
     }
 }

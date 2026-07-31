@@ -89,15 +89,26 @@ public sealed record CreditNoteLine : ValueObject
         // so negate produces strictly-negative amounts and quantity stays positive. Untestable
         // through valid call paths; documents the sign + count invariants after the School-B
         // Money sign-neutrality.
-        Throw.If(line.Quantity <= 0, new DataIntegrityException(
-            "Invoicing.CreditNoteLineQuantityNotPositive",
-            $"CreditNoteLine Quantity must be strictly positive; was {line.Quantity}."));
-        Throw.If(creditUnitPrice.Amount >= 0, new DataIntegrityException(
-            "Invoicing.CreditNoteLineUnitPriceNotNegative",
-            $"CreditNoteLine UnitPrice must be strictly negative; was {creditUnitPrice.Amount} {creditUnitPrice.Currency.Name}."));
-        Throw.If(creditLineTotal.Amount >= 0, new DataIntegrityException(
-            "Invoicing.CreditNoteLineTotalNotNegative",
-            $"CreditNoteLine LineTotal must be strictly negative; was {creditLineTotal.Amount} {creditLineTotal.Currency.Name}."));
+        if (line.Quantity <= 0)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.CreditNoteLineQuantityNotPositive",
+                $"CreditNoteLine Quantity must be strictly positive; was {line.Quantity}.");
+        }
+
+        if (creditUnitPrice.Amount >= 0)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.CreditNoteLineUnitPriceNotNegative",
+                $"CreditNoteLine UnitPrice must be strictly negative; was {creditUnitPrice.Amount} {creditUnitPrice.Currency.Name}.");
+        }
+
+        if (creditLineTotal.Amount >= 0)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.CreditNoteLineTotalNotNegative",
+                $"CreditNoteLine LineTotal must be strictly negative; was {creditLineTotal.Amount} {creditLineTotal.Currency.Name}.");
+        }
 
         return new CreditNoteLine(
             line.LineNumber,

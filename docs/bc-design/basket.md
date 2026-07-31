@@ -60,7 +60,7 @@ Full glossary: [glossary-basket.md](glossary-basket.md).
 
 ```text
 static Basket Create(Guid userId)
-    Throw.If(userId == Guid.Empty, DataIntegrityException("Basket.InvalidUserId"))
+    if (userId == Guid.Empty) throw DataIntegrityException("Basket.InvalidUserId")
     → AddDomainEvent(BasketCreatedDomainEvent)
 
 Result AddItem(ProductSnapshot snapshot, int quantity)
@@ -567,7 +567,7 @@ Location: `Basket.Infrastructure.ExternalServices`.
 
 | # | Invariant | Enforcement point |
 |---|-----------|-------------------|
-| 1 | `UserId != Guid.Empty` and immutable | `Basket.Create` factory (`Throw.If`) |
+| 1 | `UserId != Guid.Empty` and immutable | `Basket.Create` factory (throws `DataIntegrityException`) |
 | 2 | `1 ≤ Quantity` per line | `AddItem` / `ChangeQuantity` (Result.Fail with `BasketErrors.InvalidQuantity`) |
 | 3 | Items.Count ≤ 50 (distinct products) | `AddItem` (Result.Fail) |
 | 4 | No duplicate ProductId in Items | `AddItem` (collapses into quantity increase) |
@@ -576,7 +576,7 @@ Location: `Basket.Infrastructure.ExternalServices`.
 | 7 | Empty basket cannot be checked out | `Checkout` (Result.Fail with EmptyBasket) |
 | 8 | `Version` strictly monotonic | `SaveAsync` CAS (Result.Fail with BasketConcurrencyError) |
 | 9 | 30-day inactivity → expiry | Redis TTL (infrastructure-level, not domain) |
-| 10 | Snapshot fields well-formed (`Sku`/`Name` non-blank and within their ceilings, `Price > 0`) | `ProductSnapshot.Create` (`Throw.If` → `DataIntegrityException`) — see § 3.2 |
+| 10 | Snapshot fields well-formed (`Sku`/`Name` non-blank and within their ceilings, `Price > 0`) | `ProductSnapshot.Create` (throws `DataIntegrityException`) — see § 3.2 |
 
 ---
 

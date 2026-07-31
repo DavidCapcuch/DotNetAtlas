@@ -37,12 +37,19 @@ public sealed record VatLine : ValueObject
 
         // Invoicing-local invariant: Base >= 0 && Amount >= 0 (zero legal for zero-rate lines).
         // Money is sign-neutral (School B); sign-enforcement belongs to the consuming VO.
-        Throw.If(@base.Amount < 0, new DataIntegrityException(
-            "Invoicing.VatLineBaseNegative",
-            $"VatLine base must be non-negative; was {@base.Amount} {@base.Currency.Name}."));
-        Throw.If(amount.Amount < 0, new DataIntegrityException(
-            "Invoicing.VatLineAmountNegative",
-            $"VatLine amount must be non-negative; was {amount.Amount} {amount.Currency.Name}."));
+        if (@base.Amount < 0)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.VatLineBaseNegative",
+                $"VatLine base must be non-negative; was {@base.Amount} {@base.Currency.Name}.");
+        }
+
+        if (amount.Amount < 0)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.VatLineAmountNegative",
+                $"VatLine amount must be non-negative; was {amount.Amount} {amount.Currency.Name}.");
+        }
 
         return new VatLine
         {

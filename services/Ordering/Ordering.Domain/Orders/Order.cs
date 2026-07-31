@@ -101,25 +101,43 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
         ArgumentNullException.ThrowIfNull(billingAddress);
 
         // H-1 — symmetric with the other null/empty guards below.
-        Throw.If(basket.Currency is null, new DataIntegrityException(
-            "Order.BasketCurrencyNull",
-            "BasketSnapshot.Currency must not be null."));
+        if (basket.Currency is null)
+        {
+            throw new DataIntegrityException(
+                "Order.BasketCurrencyNull",
+                "BasketSnapshot.Currency must not be null.");
+        }
+
         var currency = basket.Currency!;
 
-        Throw.If(orderId == Guid.Empty, new DataIntegrityException(
-            "Order.OrderIdEmpty",
-            "OrderId must not be empty."));
-        Throw.If(buyerId == Guid.Empty, new DataIntegrityException(
-            "Order.BuyerIdEmpty",
-            "BuyerId must not be empty."));
-        Throw.If(paymentMethodId == Guid.Empty, new DataIntegrityException(
-            "Order.PaymentMethodIdEmpty",
-            "PaymentMethodId must not be empty."));
+        if (orderId == Guid.Empty)
+        {
+            throw new DataIntegrityException(
+                "Order.OrderIdEmpty",
+                "OrderId must not be empty.");
+        }
+
+        if (buyerId == Guid.Empty)
+        {
+            throw new DataIntegrityException(
+                "Order.BuyerIdEmpty",
+                "BuyerId must not be empty.");
+        }
+
+        if (paymentMethodId == Guid.Empty)
+        {
+            throw new DataIntegrityException(
+                "Order.PaymentMethodIdEmpty",
+                "PaymentMethodId must not be empty.");
+        }
 
         // I-7 — at least one item.
-        Throw.If(basket.Items.Count == 0, new DataIntegrityException(
-            "Order.BasketEmpty",
-            "Cannot create an order from an empty basket."));
+        if (basket.Items.Count == 0)
+        {
+            throw new DataIntegrityException(
+                "Order.BasketEmpty",
+                "Cannot create an order from an empty basket.");
+        }
 
         var items = new List<OrderItem>(basket.Items.Count);
         var totalAmount = 0m;
@@ -127,20 +145,30 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
         foreach (var basketItem in basket.Items)
         {
             // I-8 — positive quantity + unit price.
-            Throw.If(basketItem.Quantity <= 0, new DataIntegrityException(
-                "Order.ItemQuantityNotPositive",
-                $"Basket item for product '{basketItem.ProductId}' has non-positive quantity {basketItem.Quantity}."));
-            Throw.If(basketItem.UnitPriceAmount <= 0, new DataIntegrityException(
-                "Order.ItemUnitPriceNotPositive",
-                $"Basket item for product '{basketItem.ProductId}' has non-positive unit price {basketItem.UnitPriceAmount}."));
+            if (basketItem.Quantity <= 0)
+            {
+                throw new DataIntegrityException(
+                    "Order.ItemQuantityNotPositive",
+                    $"Basket item for product '{basketItem.ProductId}' has non-positive quantity {basketItem.Quantity}.");
+            }
+
+            if (basketItem.UnitPriceAmount <= 0)
+            {
+                throw new DataIntegrityException(
+                    "Order.ItemUnitPriceNotPositive",
+                    $"Basket item for product '{basketItem.ProductId}' has non-positive unit price {basketItem.UnitPriceAmount}.");
+            }
 
             var snapshotResult = ProductSnapshot.Create(basketItem.Sku, basketItem.Name);
-            Throw.If(snapshotResult.IsFailed, new DataIntegrityException(
-                "Order.InvalidProductSnapshot",
-                $"Basket item for product '{basketItem.ProductId}' has invalid snapshot: {FormatErrors(snapshotResult)}."));
+            if (snapshotResult.IsFailed)
+            {
+                throw new DataIntegrityException(
+                    "Order.InvalidProductSnapshot",
+                    $"Basket item for product '{basketItem.ProductId}' has invalid snapshot: {FormatErrors(snapshotResult)}.");
+            }
 
             // Money.Create is permissive post-School-B; .Value is safe (currency is non-null).
-            // Positivity of unitPrice is enforced by the Throw.If guard above + OrderItem.Create.
+            // Positivity of unitPrice is enforced by the guard above + OrderItem.Create.
             var unitPrice = Money.Create(basketItem.UnitPriceAmount, currency).Value;
 
             var itemResult = OrderItem.Create(
@@ -148,9 +176,12 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
                 snapshotResult.Value,
                 basketItem.Quantity,
                 unitPrice);
-            Throw.If(itemResult.IsFailed, new DataIntegrityException(
-                "Order.InvalidOrderItem",
-                $"Basket item for product '{basketItem.ProductId}' is invalid: {FormatErrors(itemResult)}."));
+            if (itemResult.IsFailed)
+            {
+                throw new DataIntegrityException(
+                    "Order.InvalidOrderItem",
+                    $"Basket item for product '{basketItem.ProductId}' is invalid: {FormatErrors(itemResult)}.");
+            }
 
             items.Add(itemResult.Value);
             totalAmount += itemResult.Value.LineTotal.Amount;
@@ -158,7 +189,7 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
 
         // I-9 is naturally enforced — every item is constructed with currency. Money.Create
         // is permissive post-School-B (currency-null check only); the .Value access is safe
-        // because currency is non-null here (validated by Throw.If at the top of this method).
+        // because currency is non-null here (validated by the guard at the top of this method).
         var total = Money.Create(totalAmount, currency).Value;
 
         var order = new Order
@@ -203,9 +234,13 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
     public Result MarkStockReserved(Guid reservationId, DateTimeOffset utcNow)
     {
         GuardTransition(OrderStatus.StockReserved);
-        Throw.If(reservationId == Guid.Empty, new DataIntegrityException(
-            "Order.ReservationIdEmpty",
-            "ReservationId must not be empty."));
+
+        if (reservationId == Guid.Empty)
+        {
+            throw new DataIntegrityException(
+                "Order.ReservationIdEmpty",
+                "ReservationId must not be empty.");
+        }
 
         Status = OrderStatus.StockReserved;
         StockReservationId = reservationId;
@@ -227,9 +262,13 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
     public Result MarkPaymentCompleted(Guid paymentTransactionId, DateTimeOffset utcNow)
     {
         GuardTransition(OrderStatus.PaymentCompleted);
-        Throw.If(paymentTransactionId == Guid.Empty, new DataIntegrityException(
-            "Order.PaymentTransactionIdEmpty",
-            "PaymentTransactionId must not be empty."));
+
+        if (paymentTransactionId == Guid.Empty)
+        {
+            throw new DataIntegrityException(
+                "Order.PaymentTransactionIdEmpty",
+                "PaymentTransactionId must not be empty.");
+        }
 
         Status = OrderStatus.PaymentCompleted;
         PaymentTransactionId = paymentTransactionId;
@@ -280,9 +319,12 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
         GuardTransition(OrderStatus.Shipped);
 
         var shipmentResult = ShipmentInfo.Create(carrier, trackingNumber, utcNow);
-        Throw.If(shipmentResult.IsFailed, new DataIntegrityException(
-            "Order.InvalidShipmentInfo",
-            $"ShipmentInfo is invalid: {FormatErrors(shipmentResult)}."));
+        if (shipmentResult.IsFailed)
+        {
+            throw new DataIntegrityException(
+                "Order.InvalidShipmentInfo",
+                $"ShipmentInfo is invalid: {FormatErrors(shipmentResult)}.");
+        }
 
         Status = OrderStatus.Shipped;
         Shipment = shipmentResult.Value;
@@ -341,9 +383,12 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
         }
 
         var cancellationResult = CancellationInfo.Create(reason, Status, utcNow);
-        Throw.If(cancellationResult.IsFailed, new DataIntegrityException(
-            "Order.InvalidCancellationInfo",
-            $"CancellationInfo is invalid: {FormatErrors(cancellationResult)}."));
+        if (cancellationResult.IsFailed)
+        {
+            throw new DataIntegrityException(
+                "Order.InvalidCancellationInfo",
+                $"CancellationInfo is invalid: {FormatErrors(cancellationResult)}.");
+        }
 
         var previousStatus = Status;
         Status = OrderStatus.Cancelled;
@@ -376,9 +421,12 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
         GuardTransition(OrderStatus.Failed);
 
         var failureResult = FailureInfo.Create(errorCode, errorMessage, Status, utcNow);
-        Throw.If(failureResult.IsFailed, new DataIntegrityException(
-            "Order.InvalidFailureInfo",
-            $"FailureInfo is invalid: {FormatErrors(failureResult)}."));
+        if (failureResult.IsFailed)
+        {
+            throw new DataIntegrityException(
+                "Order.InvalidFailureInfo",
+                $"FailureInfo is invalid: {FormatErrors(failureResult)}.");
+        }
 
         var previousStatus = Status;
         Status = OrderStatus.Failed;
@@ -400,9 +448,12 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
 
     private void GuardTransition(OrderStatus target)
     {
-        Throw.If(!Status.CanTransitionTo(target), new DataIntegrityException(
-            "Order.InvalidStatusTransition",
-            $"Cannot transition order '{Id}' from '{Status.Name}' to '{target.Name}'."));
+        if (!Status.CanTransitionTo(target))
+        {
+            throw new DataIntegrityException(
+                "Order.InvalidStatusTransition",
+                $"Cannot transition order '{Id}' from '{Status.Name}' to '{target.Name}'.");
+        }
     }
 
     private static string FormatErrors(ResultBase result) =>

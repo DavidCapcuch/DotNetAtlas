@@ -62,34 +62,49 @@ public sealed record ProductSnapshot : ValueObject
         // nullability. What a blank costs downstream, and why the two producers fail differently:
         // basket.md § 3.2. Price > 0 mirrors Catalog.Product; Money is sign-neutral (School B),
         // so that rule lives on the consuming VO.
-        Throw.If(price.Amount <= 0, new DataIntegrityException(
-            "Basket.ProductSnapshotPriceNotPositive",
-            $"ProductSnapshot price must be strictly positive; was {price.Amount} {price.Currency.Name}."));
+        if (price.Amount <= 0)
+        {
+            throw new DataIntegrityException(
+                "Basket.ProductSnapshotPriceNotPositive",
+                $"ProductSnapshot price must be strictly positive; was {price.Amount} {price.Currency.Name}.");
+        }
 
         // Each message carries the sibling field: on the batch ACL path a chunk covers up to 20
         // products and the throw escapes uncaught, so this is the only thing that says which one.
-        Throw.If(string.IsNullOrWhiteSpace(sku), new DataIntegrityException(
-            "Basket.ProductSnapshotSkuRequired",
-            $"ProductSnapshot sku must be non-blank; name was '{name}'."));
+        if (string.IsNullOrWhiteSpace(sku))
+        {
+            throw new DataIntegrityException(
+                "Basket.ProductSnapshotSkuRequired",
+                $"ProductSnapshot sku must be non-blank; name was '{name}'.");
+        }
 
-        Throw.If(string.IsNullOrWhiteSpace(name), new DataIntegrityException(
-            "Basket.ProductSnapshotNameRequired",
-            $"ProductSnapshot name must be non-blank; sku was '{sku}'."));
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new DataIntegrityException(
+                "Basket.ProductSnapshotNameRequired",
+                $"ProductSnapshot name must be non-blank; sku was '{sku}'.");
+        }
 
         // Unreachable from the ACL while Catalog's own ceilings stay tighter than Ordering's — a
         // tripwire for the day they don't. The rehydration seam carries no such bound, so this is
         // a live guard there. Measured raw rather than trimmed: Ordering trims first, so raw <= the
         // ceiling implies trimmed <= it too, and Basket can never pass a value Ordering rejects.
-        Throw.If(sku.Length > MaxSkuLength, new DataIntegrityException(
-            "Basket.ProductSnapshotSkuTooLong",
-            $"ProductSnapshot sku must be at most {MaxSkuLength} characters; was {sku.Length}."));
+        if (sku.Length > MaxSkuLength)
+        {
+            throw new DataIntegrityException(
+                "Basket.ProductSnapshotSkuTooLong",
+                $"ProductSnapshot sku must be at most {MaxSkuLength} characters; was {sku.Length}.");
+        }
 
         // Only this message can name the offending product. By here sku has cleared both its own
         // guards, so it is bounded and safe to embed; at the sku guard above, name is still
         // unbounded, and echoing it could put an arbitrarily large string in a log line.
-        Throw.If(name.Length > MaxNameLength, new DataIntegrityException(
-            "Basket.ProductSnapshotNameTooLong",
-            $"ProductSnapshot name must be at most {MaxNameLength} characters; was {name.Length}; sku was '{sku}'."));
+        if (name.Length > MaxNameLength)
+        {
+            throw new DataIntegrityException(
+                "Basket.ProductSnapshotNameTooLong",
+                $"ProductSnapshot name must be at most {MaxNameLength} characters; was {name.Length}; sku was '{sku}'.");
+        }
 
         return new()
         {

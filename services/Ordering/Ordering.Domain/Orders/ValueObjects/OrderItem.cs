@@ -63,9 +63,12 @@ public sealed record OrderItem : ValueObject
         // factory keeps the construction defensive against future Money
         // invariants without bypassing them.
         var lineTotalResult = Money.Create(unitPrice.Amount * quantity, unitPrice.Currency);
-        Throw.If(lineTotalResult.IsFailed, new DataIntegrityException(
-            "OrderItem.InvalidLineTotal",
-            $"Computed LineTotal failed Money.Create: {string.Join("; ", lineTotalResult.Errors.Select(e => e.Message))}."));
+        if (lineTotalResult.IsFailed)
+        {
+            throw new DataIntegrityException(
+                "OrderItem.InvalidLineTotal",
+                $"Computed LineTotal failed Money.Create: {string.Join("; ", lineTotalResult.Errors.Select(e => e.Message))}.");
+        }
 
         return new OrderItem
         {
