@@ -281,10 +281,10 @@ cross-BC pattern is the level of rigor.
   `RequestRefundCommandHandler`. Drops the `Platform.SharedKernel.Base.DomainEvents`
   using statement from each.
 - **Authorize handler cleanup** — trim the 8-line in-handler WHY comment
-  block added in commit `9767e753` so that the four Payments handlers
-  are textually parallel and the convention lives in this ADR rather
-  than being duplicated at four call sites. Keep the H-3 anchor comment
-  (it explains a different, local invariant).
+  block so that the four Payments handlers are textually parallel and
+  the convention lives in this ADR rather than being duplicated at four
+  call sites. Keep the H-3 anchor comment (it explains a different,
+  local invariant).
 - **Test files** — drop `Dispatcher` from each handler's `BuildHandler()`
   call. Replace `Dispatcher.Received().DispatchAsync(Arg.Any<X>(), …)`
   assertions with reads of the aggregate's `PopDomainEvents()` to

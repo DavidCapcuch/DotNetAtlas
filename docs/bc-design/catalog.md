@@ -2,7 +2,7 @@
 
 > **Scope:** Product information authority for the eShop reference solution — what is sold, how it is categorized, and at what price.
 > **Pattern showcased:** **CQRS read-side projections** — a denormalized `product_search_view` is built in-process from internal domain events via a projection handler in the same Catalog database.
-> **Storage:** PostgreSQL (per [eshop-general-plan.md § Infrastructure Changes](../eshop-general-plan.md) and recent `0aaf53c feat: migrate SqlServer to Postgre`), schema `catalog`.
+> **Storage:** PostgreSQL (per [eshop-general-plan.md § Infrastructure Changes](../eshop-general-plan.md)), schema `catalog`.
 > **Related ADR:** [ADR-0002 — Pricing inside Catalog (v1)](../adr/0002-pricing-in-catalog.md). Prices are flat and single-currency per product; dynamic pricing/promotions are deferred to a future Pricing BC.
 
 ### Ubiquitous Language
@@ -608,7 +608,7 @@ This is the single performance layer for Catalog reads — per the success crite
 
 ### Infrastructure Notes
 
-- **Storage:** PostgreSQL (moved from SqlServer per commit `0aaf53c feat: migrate SqlServer to Postgre`). Schema: `catalog`.
+- **Storage:** PostgreSQL. Schema: `catalog`.
   - Write-model tables: `catalog.products`, `catalog.categories`, `catalog.product_images`.
   - Read-view table: `catalog.product_search_view`.
   - `catalog.outbox_messages`, `catalog.inbox_messages` — following the `Platform.ReliableMessaging.Outbox.EFCore` / `Inbox` conventions.

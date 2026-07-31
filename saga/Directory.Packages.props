@@ -9,8 +9,8 @@
     <!--
       Pinned to 8.5.7 OSS. MassTransit v9 (Sep 2025) requires a commercial license
       key for all transports — bus startup throws ConfigurationException without
-      one (https://masstransit.massient.com/configuration/license). The c123c78
-      bump to 9.1.1 was reverted because no license is available.
+      one (https://masstransit.massient.com/configuration/license). The 9.1.1
+      bump was reverted because no license is available.
     -->
     <PackageVersion Include="MassTransit" Version="8.5.7" />
     <PackageVersion Include="MassTransit.EntityFrameworkCore" Version="8.5.7" />
