@@ -56,8 +56,8 @@ internal sealed class GetOrdersByBuyerEndpoint
         {
             BuyerId = buyerId.Value,
             Status = req.Status,
-            PageNumber = req.PageNumber,
-            PageSize = req.PageSize,
+            PageNumber = req.PageNumber ?? GetOrdersByBuyerRequest.DefaultPageNumber,
+            PageSize = req.PageSize ?? GetOrdersByBuyerRequest.DefaultPageSize,
         };
 
         var result = await _handler.HandleAsync(query, ct);

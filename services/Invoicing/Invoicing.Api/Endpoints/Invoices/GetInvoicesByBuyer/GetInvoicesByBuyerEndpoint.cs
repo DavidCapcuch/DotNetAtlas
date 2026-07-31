@@ -84,8 +84,8 @@ internal sealed class GetInvoicesByBuyerEndpoint
         var query = new GetInvoicesByBuyerQuery
         {
             BuyerId = effectiveBuyerId,
-            PageNumber = req.PageNumber,
-            PageSize = req.PageSize,
+            PageNumber = req.PageNumber ?? GetInvoicesByBuyerRequest.DefaultPageNumber,
+            PageSize = req.PageSize ?? GetInvoicesByBuyerRequest.DefaultPageSize,
         };
 
         var result = await _handler.HandleAsync(query, ct);

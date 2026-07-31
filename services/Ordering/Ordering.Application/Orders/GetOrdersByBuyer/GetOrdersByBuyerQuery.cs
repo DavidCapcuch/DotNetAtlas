@@ -13,7 +13,7 @@ public sealed record GetOrdersByBuyerQuery : IQuery<GetOrdersByBuyerResponse>
 
     public string? Status { get; init; }
 
-    public int PageNumber { get; init; } = 1;
+    public required int PageNumber { get; init; }
 
-    public int PageSize { get; init; } = 20;
+    public required int PageSize { get; init; }
 }
