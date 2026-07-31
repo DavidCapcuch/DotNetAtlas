@@ -30,7 +30,7 @@ On top of this file, every BC reads (in order):
 
 .NET 10 microservices:
 
-- **ASP.NET Core** + **FastEndpoints 7.0.1** (HTTP)
+- **ASP.NET Core** + **FastEndpoints** (HTTP) — version pinned in `platform/Directory.Packages.props`
 - **EF Core** + **PostgreSQL** (`Npgsql.EntityFrameworkCore.PostgreSQL`), snake_case via `EFCore.NamingConventions`
 - **KafkaFlow** for Kafka consumers/producers
 - **Confluent Schema Registry** + **Avro** via `Platform.Avro.UniversalSerDes`

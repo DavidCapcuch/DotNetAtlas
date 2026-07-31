@@ -9,6 +9,5 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Platform.Api\Platform.Api.csproj"/>
-        <ProjectReference Include="..\Platform.Test.Framework\Platform.Test.Framework.csproj"/>
     </ItemGroup>
 </Project>

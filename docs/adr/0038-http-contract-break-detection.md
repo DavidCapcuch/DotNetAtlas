@@ -127,12 +127,17 @@ provider's model in the consumer's process — that is the Conformist pattern, a
 knowledge of this repo's domain to translate into. The per-route ACL records and the ownership rule they
 carry ([bff.md § 4](../bc-design/bff.md)) stand unchanged; generation feeds them.
 
-**The artifact pins structure, not deployment metadata.** `servers` and the OAuth2 scheme URLs are
-environment-derived — NSwag's middleware overwrites `servers` from the request URL unconditionally, and
-the security scheme is built from `Authentication:JwtBearer:Authority`, which a deployed tier supplies and
-the base configuration deliberately omits. Both are normalized out of the snapshot. Neither layer would
-have caught the drift: oasdiff defines no rules for server changes and rates security-scheme changes below
-its breaking-change floor.
+**The snapshot is committed exactly as emitted — no normalization step.** `servers` and the OAuth2
+scheme URLs are environment-derived: NSwag's middleware overwrites `servers` from the request URL
+unconditionally, and the security scheme is built from `Authentication:JwtBearer:Authority`, which a
+deployed tier supplies and the base configuration omits. That does **not** make them unstable here,
+because the snapshot is only ever produced by the test host under the Testing configuration — which
+fixes both, and fixes the security scheme's *presence* along with them (a tier with no authority emits
+no scheme at all). They are inert to the gates either way: oasdiff defines no rules for server changes
+and rates security-scheme changes below its breaking-change floor, and a consumer sets its own base
+address rather than reading `servers`. Scrubbing them was considered and rejected as machinery that
+buys only a tidier file. The accepted cost: changing the Testing-tier authority regenerates every
+producer's snapshot.
 
 **Publication is out of scope, and the committed file is the artifact.** Deployed tiers serve no document
 (`UsePlatformAuthSwaggerGen` is gated on `!IsDeployedEnvironment()`), so there is no live endpoint to
@@ -188,13 +193,13 @@ the fourth repetition demonstrates nothing the first did not, and driver 3 count
   namespace and delegates collisions to NJsonSchema, which allocates `Foo` / `Foo2` in document-traversal
   order — so an unrelated endpoint change can swap which server shape a generated type binds, and still
   compile. No collision exists today (no BC declares two same-named types), and the setting is kept for the
-  readable names it gives generated code. **Mitigation: each producer's snapshot test asserts no
-  `components.schemas` key is a numeric-suffix sibling of another.** This fires the revisit trigger
-  [ADR-0037 § Risks](0037-endpoint-owned-response-contracts.md) recorded for the return of generated
-  clients; the assertion is chosen over the custom `SchemaNameGenerator` that ADR weighed, because it
-  checks the emitted artifact rather than approximating it from type names, and it needs no platform code.
-  Note the collision surface is wider than declared type names alone — generic arguments contribute
-  `Type.Name` in both modes, and framework types on the wire contribute too.
+  readable names it gives generated code. **Accepted, unmitigated — no guard is built for this.** The
+  collision is hypothetical, a real one surfaces as a compile error or an obviously wrong generated type,
+  and a standing assertion in every producer's snapshot test costs more than the failure mode it prevents.
+  This leaves open the revisit trigger [ADR-0037 § Risks](0037-endpoint-owned-response-contracts.md)
+  recorded for the return of generated clients; revisit if a collision ever actually lands. Note the
+  collision surface is wider than declared type names alone — generic arguments contribute `Type.Name` in
+  both modes, and framework types on the wire contribute too, so a shared generic envelope would widen it.
 - **A query parameter has one encoding in the document.** Catalog's `by-ids` route was reached with two
   (comma-joined and repeated), which no document can describe; it is normalized to repeated parameters,
   the OpenAPI 3.0 default and the only form minimal-API binding accepts.

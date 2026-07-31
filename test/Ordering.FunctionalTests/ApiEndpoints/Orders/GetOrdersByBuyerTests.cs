@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using FastEndpoints;
+using Microsoft.Extensions.Time.Testing;
 using Ordering.Api.Endpoints.Orders.GetOrdersByBuyer;
 using Ordering.Application.Orders.GetOrdersByBuyer;
 using Ordering.FunctionalTests.Common;
@@ -17,6 +18,10 @@ public class GetOrdersByBuyerTests : BaseApiTest
     // Positive control for the requiredness assertions — a path parameter is required by
     // construction, so it proves the document still expresses requiredness at all.
     private const string OrderByIdRoute = "/api/v1/ordering/orders/{orderId}";
+
+    // ADR-0015: seed through a pinned clock so nothing in this class depends on wall-clock time.
+    private static readonly DateTimeOffset PinnedNow =
+        new(2026, 4, 23, 10, 0, 0, TimeSpan.Zero);
 
     public GetOrdersByBuyerTests(ApiTestFixture app)
         : base(app)
@@ -38,7 +43,7 @@ public class GetOrdersByBuyerTests : BaseApiTest
     [Trait("Category", "critical-path")]
     public async Task WhenBuyerHasOrders_ReturnsOnlyOwnOrdersAndPagingEnvelope()
     {
-        var seed = new OrderSeed(DbContext, TimeProvider.System);
+        var seed = new OrderSeed(DbContext, new FakeTimeProvider(PinnedNow));
         var ownA = await seed.CreateOrderAsync(TestUsers.BuyerId);
         var ownB = await seed.CreateOrderAsync(TestUsers.BuyerId);
         var someoneElses = await seed.CreateOrderAsync(TestUsers.OtherBuyerId);
@@ -72,7 +77,7 @@ public class GetOrdersByBuyerTests : BaseApiTest
         // here passes both params explicitly, so nothing else pins that — and the OpenAPI
         // document is generated from the same members, so this is the behaviour the
         // document must agree with (ADR-0038).
-        var seed = new OrderSeed(DbContext, TimeProvider.System);
+        var seed = new OrderSeed(DbContext, new FakeTimeProvider(PinnedNow));
         await seed.CreateOrderAsync(TestUsers.BuyerId);
 
         using var response = await HttpClientRegistry.BuyerClient.GetAsync(
