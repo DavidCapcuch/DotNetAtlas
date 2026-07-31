@@ -43,6 +43,7 @@ This directory contains Architecture Decision Records (ADRs) for DotNetAtlas.
 | [0035](0035-edge-owned-cors-yarp.md) | Edge-owned CORS — browser traffic terminates at YARP, SignalR included | Accepted | 2026-06-10 |
 | [0036](0036-shared-kernel-value-objects.md) | Shared-Kernel Value Objects (`Money`, `Address`) | Accepted | 2026-07-24 |
 | [0037](0037-endpoint-owned-response-contracts.md) | Endpoint-Owned Response Contracts | Accepted | 2026-07-24 |
+| [0038](0038-http-contract-break-detection.md) | HTTP contract-break detection — a committed artifact, not a registry | Accepted | 2026-07-30 |
 
 ## Creating a New ADR
 
