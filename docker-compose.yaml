@@ -157,7 +157,7 @@ services:
           memory: 256M
 
   seq:
-    image: datalust/seq:2025.2@sha256:080ccf44e0593cd4698ba1404b90b4f8bf51ff342e45242f611c91e329554f50
+    image: datalust/seq:2025.2@sha256:868a12e93ec0b8c993767a7dd4cd6c8ebc441511c79e4cfac66c911f62d4db65
     container_name: seq5341
     profiles:
       - full
