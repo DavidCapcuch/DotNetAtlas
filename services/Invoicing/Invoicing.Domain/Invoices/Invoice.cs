@@ -100,12 +100,23 @@ public sealed class Invoice : AggregateRoot<Guid>
         ArgumentNullException.ThrowIfNull(vatLines);
         ArgumentNullException.ThrowIfNull(deliveryChannel);
 
-        Throw.If(buyerId == Guid.Empty, new DataIntegrityException(
-            "Invoicing.InvalidBuyerId", "Invoice BuyerId must not be empty."));
-        Throw.If(orderId == Guid.Empty, new DataIntegrityException(
-            "Invoicing.InvalidOrderId", "Invoice OrderId must not be empty."));
-        Throw.If(paymentId == Guid.Empty, new DataIntegrityException(
-            "Invoicing.InvalidPaymentId", "Invoice PaymentId must not be empty."));
+        if (buyerId == Guid.Empty)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.InvalidBuyerId", "Invoice BuyerId must not be empty.");
+        }
+
+        if (orderId == Guid.Empty)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.InvalidOrderId", "Invoice OrderId must not be empty.");
+        }
+
+        if (paymentId == Guid.Empty)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.InvalidPaymentId", "Invoice PaymentId must not be empty.");
+        }
 
         // I-2: Lines non-empty.
         if (lines.Count == 0)
@@ -131,12 +142,19 @@ public sealed class Invoice : AggregateRoot<Guid>
         // Defense-in-depth: by construction subtotal/total are non-negative (lines.Count >= 1,
         // InvoiceLine.UnitPrice > 0, VatRate >= 0). Untestable through valid call paths;
         // documents the invariant for refactor safety after the School-B Money sign-neutrality.
-        Throw.If(subtotal.Amount < 0, new DataIntegrityException(
-            "Invoicing.InvoiceSubtotalNegative",
-            $"Invoice subtotal must be non-negative; was {subtotal.Amount} {subtotal.Currency.Name}."));
-        Throw.If(total.Amount < 0, new DataIntegrityException(
-            "Invoicing.InvoiceTotalNegative",
-            $"Invoice total must be non-negative; was {total.Amount} {total.Currency.Name}."));
+        if (subtotal.Amount < 0)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.InvoiceSubtotalNegative",
+                $"Invoice subtotal must be non-negative; was {subtotal.Amount} {subtotal.Currency.Name}.");
+        }
+
+        if (total.Amount < 0)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.InvoiceTotalNegative",
+                $"Invoice total must be non-negative; was {total.Amount} {total.Currency.Name}.");
+        }
 
         var invoice = new Invoice
         {
@@ -360,9 +378,12 @@ public sealed class Invoice : AggregateRoot<Guid>
     {
         ArgumentNullException.ThrowIfNull(reason);
 
-        Throw.If(creditNoteId == Guid.Empty, new DataIntegrityException(
-            "Invoicing.InvalidCreditNoteIdOnCancel",
-            "Cancellation requires a non-empty CreditNoteId (I-6)."));
+        if (creditNoteId == Guid.Empty)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.InvalidCreditNoteIdOnCancel",
+                "Cancellation requires a non-empty CreditNoteId (I-6).");
+        }
 
         var transition = Status.CanTransitionTo(InvoiceStatus.Cancelled);
         if (transition.IsFailed)

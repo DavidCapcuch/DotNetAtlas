@@ -77,13 +77,19 @@ public sealed class StockItem : AggregateRoot<Guid>
     /// </summary>
     public Result Initialize(Guid productId, DateTimeOffset occurredOnUtc)
     {
-        Throw.If(productId == Guid.Empty, new DataIntegrityException(
-            "Inventory.ProductIdRequired",
-            "ProductId must not be the empty Guid when initializing a stock item."));
+        if (productId == Guid.Empty)
+        {
+            throw new DataIntegrityException(
+                "Inventory.ProductIdRequired",
+                "ProductId must not be the empty Guid when initializing a stock item.");
+        }
 
-        Throw.If(Version != 0, new DataIntegrityException(
-            "Inventory.StreamAlreadyInitialized",
-            $"Stream {Id} is already initialized at version {Version}."));
+        if (Version != 0)
+        {
+            throw new DataIntegrityException(
+                "Inventory.StreamAlreadyInitialized",
+                $"Stream {Id} is already initialized at version {Version}.");
+        }
 
         Raise(new StockItemInitializedDomainEvent
         {
@@ -105,9 +111,12 @@ public sealed class StockItem : AggregateRoot<Guid>
 
         EnsureInitialized();
 
-        Throw.If(quantity <= 0, new DataIntegrityException(
-            "Inventory.QuantityMustBePositive",
-            $"ReceiveStock quantity must be positive; got {quantity}."));
+        if (quantity <= 0)
+        {
+            throw new DataIntegrityException(
+                "Inventory.QuantityMustBePositive",
+                $"ReceiveStock quantity must be positive; got {quantity}.");
+        }
 
         Raise(new StockReceivedDomainEvent
         {
@@ -138,21 +147,33 @@ public sealed class StockItem : AggregateRoot<Guid>
 
         EnsureInitialized();
 
-        Throw.If(quantity <= 0, new DataIntegrityException(
-            "Inventory.QuantityMustBePositive",
-            $"Reserve quantity must be positive; got {quantity}."));
+        if (quantity <= 0)
+        {
+            throw new DataIntegrityException(
+                "Inventory.QuantityMustBePositive",
+                $"Reserve quantity must be positive; got {quantity}.");
+        }
 
-        Throw.If(orderId == Guid.Empty, new DataIntegrityException(
-            "Inventory.OrderIdRequired",
-            "Reserve requires a non-empty OrderId."));
+        if (orderId == Guid.Empty)
+        {
+            throw new DataIntegrityException(
+                "Inventory.OrderIdRequired",
+                "Reserve requires a non-empty OrderId.");
+        }
 
-        Throw.If(ttl <= TimeSpan.Zero, new DataIntegrityException(
-            "Inventory.TtlMustBePositive",
-            $"Reserve TTL must be positive; got {ttl}."));
+        if (ttl <= TimeSpan.Zero)
+        {
+            throw new DataIntegrityException(
+                "Inventory.TtlMustBePositive",
+                $"Reserve TTL must be positive; got {ttl}.");
+        }
 
-        Throw.If(_reservations.ContainsKey(reservationId), new DataIntegrityException(
-            "Inventory.ReservationAlreadyExists",
-            $"ReservationId {reservationId} already exists on stream {Id}."));
+        if (_reservations.ContainsKey(reservationId))
+        {
+            throw new DataIntegrityException(
+                "Inventory.ReservationAlreadyExists",
+                $"ReservationId {reservationId} already exists on stream {Id}.");
+        }
 
         if (Available < quantity)
         {
@@ -282,9 +303,12 @@ public sealed class StockItem : AggregateRoot<Guid>
     {
         EnsureInitialized();
 
-        Throw.If(string.IsNullOrWhiteSpace(reason), new DataIntegrityException(
-            "Inventory.ReasonRequired",
-            "AdjustStock reason must not be empty."));
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new DataIntegrityException(
+                "Inventory.ReasonRequired",
+                "AdjustStock reason must not be empty.");
+        }
 
         if (delta == 0)
         {
@@ -293,13 +317,19 @@ public sealed class StockItem : AggregateRoot<Guid>
 
         var projectedOnHand = OnHand + delta;
 
-        Throw.If(projectedOnHand < 0, new DataIntegrityException(
-            "Inventory.AdjustmentBelowZero",
-            $"AdjustStock would drive OnHand below zero on stream {Id}: {OnHand} + {delta} = {projectedOnHand}."));
+        if (projectedOnHand < 0)
+        {
+            throw new DataIntegrityException(
+                "Inventory.AdjustmentBelowZero",
+                $"AdjustStock would drive OnHand below zero on stream {Id}: {OnHand} + {delta} = {projectedOnHand}.");
+        }
 
-        Throw.If(projectedOnHand - Reserved < 0, new DataIntegrityException(
-            "Inventory.AdjustmentBelowReservations",
-            $"AdjustStock would drive Available below zero on stream {Id}: OnHand would be {projectedOnHand}, Reserved is {Reserved}."));
+        if (projectedOnHand - Reserved < 0)
+        {
+            throw new DataIntegrityException(
+                "Inventory.AdjustmentBelowReservations",
+                $"AdjustStock would drive Available below zero on stream {Id}: OnHand would be {projectedOnHand}, Reserved is {Reserved}.");
+        }
 
         Raise(new StockAdjustedDomainEvent
         {
@@ -357,9 +387,12 @@ public sealed class StockItem : AggregateRoot<Guid>
 
     private void ApplyInitialized(StockItemInitializedDomainEvent e)
     {
-        Throw.If(Version != 0, new DataIntegrityException(
-            "Inventory.StreamAlreadyInitialized",
-            $"StockItemInitializedDomainEvent applied to stream {Id} already at version {Version}."));
+        if (Version != 0)
+        {
+            throw new DataIntegrityException(
+                "Inventory.StreamAlreadyInitialized",
+                $"StockItemInitializedDomainEvent applied to stream {Id} already at version {Version}.");
+        }
 
         Id = e.ProductId;
         OnHand = 0;
@@ -378,14 +411,21 @@ public sealed class StockItem : AggregateRoot<Guid>
         EnsureAppliedToInitialized(nameof(StockReservedDomainEvent));
 
         var ridResult = ReservationId.Create(e.ReservationId);
-        Throw.If(ridResult.IsFailed, new DataIntegrityException(
-            "Inventory.ReservationIdInvalid",
-            $"StockReservedDomainEvent on stream {Id} carries invalid ReservationId {e.ReservationId}."));
+        if (ridResult.IsFailed)
+        {
+            throw new DataIntegrityException(
+                "Inventory.ReservationIdInvalid",
+                $"StockReservedDomainEvent on stream {Id} carries invalid ReservationId {e.ReservationId}.");
+        }
+
         var rid = ridResult.Value;
 
-        Throw.If(_reservations.ContainsKey(rid), new DataIntegrityException(
-            "Inventory.ReservationAlreadyExists",
-            $"StockReservedDomainEvent on stream {Id} duplicates ReservationId {rid}."));
+        if (_reservations.ContainsKey(rid))
+        {
+            throw new DataIntegrityException(
+                "Inventory.ReservationAlreadyExists",
+                $"StockReservedDomainEvent on stream {Id} duplicates ReservationId {rid}.");
+        }
 
         Reserved += e.Quantity;
         _reservations[rid] = ReservationInfo.Create(
@@ -411,9 +451,12 @@ public sealed class StockItem : AggregateRoot<Guid>
                 $"ReservationConfirmedDomainEvent on stream {Id} references unknown ReservationId {rid}.");
         }
 
-        Throw.If(reservation.Status != ReservationStatus.Active, new DataIntegrityException(
-            "Inventory.ReservationNotActive",
-            $"ReservationConfirmedDomainEvent on stream {Id} targets reservation {rid} in status {reservation.Status}."));
+        if (reservation.Status != ReservationStatus.Active)
+        {
+            throw new DataIntegrityException(
+                "Inventory.ReservationNotActive",
+                $"ReservationConfirmedDomainEvent on stream {Id} targets reservation {rid} in status {reservation.Status}.");
+        }
 
         OnHand -= reservation.Quantity;
         Reserved -= reservation.Quantity;
@@ -433,9 +476,12 @@ public sealed class StockItem : AggregateRoot<Guid>
                 $"ReservationReleasedDomainEvent on stream {Id} references unknown ReservationId {rid}.");
         }
 
-        Throw.If(reservation.Status != ReservationStatus.Active, new DataIntegrityException(
-            "Inventory.ReservationNotActive",
-            $"ReservationReleasedDomainEvent on stream {Id} targets reservation {rid} in status {reservation.Status}."));
+        if (reservation.Status != ReservationStatus.Active)
+        {
+            throw new DataIntegrityException(
+                "Inventory.ReservationNotActive",
+                $"ReservationReleasedDomainEvent on stream {Id} targets reservation {rid} in status {reservation.Status}.");
+        }
 
         Reserved -= reservation.Quantity;
         _reservations[rid] = reservation with { Status = ReservationStatus.Released };
@@ -447,13 +493,19 @@ public sealed class StockItem : AggregateRoot<Guid>
 
         var projectedOnHand = OnHand + e.Delta;
 
-        Throw.If(projectedOnHand < 0, new DataIntegrityException(
-            "Inventory.AdjustmentBelowZero",
-            $"StockAdjustedDomainEvent on stream {Id} would drive OnHand below zero: {OnHand} + {e.Delta}."));
+        if (projectedOnHand < 0)
+        {
+            throw new DataIntegrityException(
+                "Inventory.AdjustmentBelowZero",
+                $"StockAdjustedDomainEvent on stream {Id} would drive OnHand below zero: {OnHand} + {e.Delta}.");
+        }
 
-        Throw.If(projectedOnHand - Reserved < 0, new DataIntegrityException(
-            "Inventory.AdjustmentBelowReservations",
-            $"StockAdjustedDomainEvent on stream {Id} would drive Available below zero."));
+        if (projectedOnHand - Reserved < 0)
+        {
+            throw new DataIntegrityException(
+                "Inventory.AdjustmentBelowReservations",
+                $"StockAdjustedDomainEvent on stream {Id} would drive Available below zero.");
+        }
 
         OnHand = projectedOnHand;
     }
@@ -462,16 +514,22 @@ public sealed class StockItem : AggregateRoot<Guid>
 
     private void EnsureInitialized()
     {
-        Throw.If(Version == 0, new DataIntegrityException(
-            "Inventory.StreamNotInitialized",
-            $"Stream {Id} has not been initialized. Issue InitializeStockItemCommand first."));
+        if (Version == 0)
+        {
+            throw new DataIntegrityException(
+                "Inventory.StreamNotInitialized",
+                $"Stream {Id} has not been initialized. Issue InitializeStockItemCommand first.");
+        }
     }
 
     private void EnsureAppliedToInitialized(string eventTypeName)
     {
-        Throw.If(Version == 0, new DataIntegrityException(
-            "Inventory.StreamNotInitialized",
-            $"{eventTypeName} applied to stream {Id} before StockItemInitializedDomainEvent."));
+        if (Version == 0)
+        {
+            throw new DataIntegrityException(
+                "Inventory.StreamNotInitialized",
+                $"{eventTypeName} applied to stream {Id} before StockItemInitializedDomainEvent.");
+        }
     }
 
     private ReservationId ReservationIdOrThrow(Guid value, string eventTypeName)

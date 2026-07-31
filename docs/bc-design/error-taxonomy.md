@@ -189,7 +189,7 @@ Value-object validators — each declares a small static class returning `Valida
 | `CannotCancelInStatus(string status)` | `ConflictError` | 409 |
 | `OrderNotFound(Guid orderId)` | `NotFoundError` | 404 |
 
-All invalid **FSM transitions** from saga commands are bug-class — they do not use `OrderingErrors`; they throw `DataIntegrityException` from `Order.MarkStockReserved` / `MarkPaymentCompleted` / `Confirm` / etc. via the `Throw.If(!Status.CanTransitionTo(...))` guard. See [ordering.md § State transitions](ordering.md) and [use-cases.md § 3.3](use-cases.md).
+All invalid **FSM transitions** from saga commands are bug-class — they do not use `OrderingErrors`; they throw `DataIntegrityException` from `Order.MarkStockReserved` / `MarkPaymentCompleted` / `Confirm` / etc. via the `!Status.CanTransitionTo(...)` guard. See [ordering.md § State transitions](ordering.md) and [use-cases.md § 3.3](use-cases.md).
 
 ### 3.4 `Inventory`
 

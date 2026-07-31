@@ -103,9 +103,12 @@ public sealed class Basket : AggregateRoot<Guid>
     /// <exception cref="DataIntegrityException">Thrown when <paramref name="userId"/> is <see cref="Guid.Empty"/>.</exception>
     public static Basket Create(Guid userId, DateTimeOffset utcNow)
     {
-        Throw.If(userId == Guid.Empty, new DataIntegrityException(
-            "Basket.InvalidUserId",
-            "Basket UserId must not be empty."));
+        if (userId == Guid.Empty)
+        {
+            throw new DataIntegrityException(
+                "Basket.InvalidUserId",
+                "Basket UserId must not be empty.");
+        }
 
         var basket = new Basket
         {
@@ -138,9 +141,12 @@ public sealed class Basket : AggregateRoot<Guid>
         DateTimeOffset lastModifiedAtUtc,
         IReadOnlyList<BasketItem> items)
     {
-        Throw.If(userId == Guid.Empty, new DataIntegrityException(
-            "Basket.InvalidUserId",
-            "Basket UserId must not be empty."));
+        if (userId == Guid.Empty)
+        {
+            throw new DataIntegrityException(
+                "Basket.InvalidUserId",
+                "Basket UserId must not be empty.");
+        }
 
         ArgumentNullException.ThrowIfNull(items);
 
@@ -324,9 +330,12 @@ public sealed class Basket : AggregateRoot<Guid>
                 continue;
             }
 
-            Throw.If(newSnapshot.Price.Currency != basketCurrency, new DataIntegrityException(
-                "Basket.RefreshCurrencyMismatch",
-                $"Refresh snapshot currency '{newSnapshot.Price.Currency.Name}' does not match basket currency '{basketCurrency.Name}'."));
+            if (newSnapshot.Price.Currency != basketCurrency)
+            {
+                throw new DataIntegrityException(
+                    "Basket.RefreshCurrencyMismatch",
+                    $"Refresh snapshot currency '{newSnapshot.Price.Currency.Name}' does not match basket currency '{basketCurrency.Name}'.");
+            }
 
             if (existing.Snapshot.Price == newSnapshot.Price)
             {
@@ -408,14 +417,22 @@ public sealed class Basket : AggregateRoot<Guid>
         // OrderId via Guid.CreateVersion7(), so reaching here with Guid.Empty implies a
         // direct domain caller bug — treated as exceptional, not a user-facing
         // Result.Fail (mirrors the Create/Rehydrate identity guards).
-        Throw.If(orderId == Guid.Empty, new DataIntegrityException(
-            "Basket.InvalidOrderId",
-            "OrderId must not be empty."));
+        if (orderId == Guid.Empty)
+        {
+            throw new DataIntegrityException(
+                "Basket.InvalidOrderId",
+                "OrderId must not be empty.");
+        }
+
         ArgumentNullException.ThrowIfNull(shippingAddress);
         ArgumentNullException.ThrowIfNull(billingAddress);
-        Throw.If(paymentMethodId == Guid.Empty, new DataIntegrityException(
-            "Basket.InvalidPaymentMethodId",
-            "PaymentMethodId must not be empty."));
+
+        if (paymentMethodId == Guid.Empty)
+        {
+            throw new DataIntegrityException(
+                "Basket.InvalidPaymentMethodId",
+                "PaymentMethodId must not be empty.");
+        }
 
         if (_items.Count == 0)
         {

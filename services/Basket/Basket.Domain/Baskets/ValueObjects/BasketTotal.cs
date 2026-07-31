@@ -32,9 +32,14 @@ public sealed record BasketTotal : ValueObject
     public static BasketTotal From(Money amount)
     {
         ArgumentNullException.ThrowIfNull(amount);
-        Throw.If(amount.Amount <= 0m, new DataIntegrityException(
-            "Basket.NonPositiveTotal",
-            $"BasketTotal must wrap a strictly-positive amount; got {amount.Amount}."));
+
+        if (amount.Amount <= 0m)
+        {
+            throw new DataIntegrityException(
+                "Basket.NonPositiveTotal",
+                $"BasketTotal must wrap a strictly-positive amount; got {amount.Amount}.");
+        }
+
         return new() { Amount = amount };
     }
 }

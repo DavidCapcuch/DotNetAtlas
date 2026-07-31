@@ -70,19 +70,19 @@ A single commitment to purchase, tracked from creation through delivery or termi
 
 #### Aggregate-scope invariants
 
-The aggregate enforces the following invariants. Violations are classified as **user errors** (→ `Result.Fail`) vs. **bugs / data integrity** (→ `Throw.If` with `DataIntegrityException`):
+The aggregate enforces the following invariants. Violations are classified as **user errors** (→ `Result.Fail`) vs. **bugs / data integrity** (→ `throw new DataIntegrityException(...)`):
 
 | # | Invariant | Enforcement | Kind |
 |---|-----------|-------------|------|
-| I-1 | **Status transitions follow the FSM.** Any call that sets `Status` must pass `Status.CanTransitionTo(target)`. | `Throw.If(!Status.CanTransitionTo(target), DataIntegrityException)` inside transition methods. Saga-reachable transitions are callers' contract. | Bug — saga dispatching wrong event ordering is a system-wide bug, not a user mistake. |
+| I-1 | **Status transitions follow the FSM.** Any call that sets `Status` must pass `Status.CanTransitionTo(target)`. | `if (!Status.CanTransitionTo(target)) { throw new DataIntegrityException(...); }` inside transition methods. Saga-reachable transitions are callers' contract. | Bug — saga dispatching wrong event ordering is a system-wide bug, not a user mistake. |
 | I-2 | **Items are immutable after `StockReserved`.** After stock is reserved at Inventory, the set of items, quantities, and prices are frozen. | Future methods that would mutate items must throw `DataIntegrityException` if `Status >= StockReserved` (no such methods exist in v1; this is a future-guard). | Bug. |
 | I-3 | **Addresses are immutable after creation.** | No mutator methods exist. Properties have `private` setters. | N/A. |
 | I-4 | **BuyerId is immutable.** | No mutator. Captured in factory. | N/A. |
 | I-5 | **The Order's `Id` is the pre-assigned `OrderId` and is the saga key.** | Set once in factory from the saga-supplied id ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)); the saga correlates all later events by this id (its MassTransit `CorrelationId == OrderId`). | N/A. |
 | I-6 | **Total equals sum of line totals.** `Total.Amount == Σ Items.LineTotal.Amount`, single currency across all items. | Factory computes `Total` from items; subsequent immutability ensures it stays correct. | Bug (input validation). |
-| I-7 | **At least one item at creation.** | `Throw.If(basket.Items.Count == 0, DataIntegrityException)` in factory. | Bug — Basket should never emit an empty checkout. |
-| I-8 | **All line items have positive unit price and positive quantity.** | `Throw.If(item.UnitPrice.Amount <= 0, DataIntegrityException)` and `quantity > 0`. | Bug — Catalog/Basket should never produce non-positive prices. |
-| I-9 | **All items share one currency.** | `Throw.If(basket.Items.Any(i => i.UnitPrice.Currency != basket.Currency), DataIntegrityException)`. | Bug. |
+| I-7 | **At least one item at creation.** | `if (basket.Items.Count == 0) { throw new DataIntegrityException(...); }` in factory. | Bug — Basket should never emit an empty checkout. |
+| I-8 | **All line items have positive unit price and positive quantity.** | `if (item.UnitPrice.Amount <= 0) { throw new DataIntegrityException(...); }` and `quantity > 0`. | Bug — Catalog/Basket should never produce non-positive prices. |
+| I-9 | **All items share one currency.** | By construction — `BasketSnapshot` carries a single `Currency` and every `OrderItem` is built with it, so no runtime guard exists. The only currency guard is H-1, on `basket.Currency` being null. | Structural. |
 | I-10 | **Valid country code on addresses.** ISO 3166-1 alpha-2; uppercase. | Validated inside `Address.Create`. | User-facing if address is directly input; the BFF is responsible for uppercasing/validating on its boundary. |
 | I-11 | **Terminal status is terminal.** Once `Delivered`, `Cancelled`, or `Failed`, no further transitions are possible. | Enforced by `OrderStatus.CanTransitionTo` returning `false` from all terminal states. | Bug. |
 | I-12 | **No cancellation after `Shipped`.** Once the parcel is in the carrier's hands, order commitment is fulfilled; returns are a separate concern (planned scope — see [roadmap.md § 2.2 Returns / RMA](../roadmap.md)). | `CanTransitionTo(Cancelled)` returns `false` from `Shipped` and `Delivered`. | User error — API returns `409 Conflict` via `Result.Fail`. |
@@ -418,7 +418,7 @@ This BC is the reference implementation of the following patterns:
 1. **SmartEnum-guarded status FSM** — `OrderStatus` with `CanTransitionTo` is the most elaborate example in the solution (8 states, 13 transitions). Its pattern — SmartEnum + lookup dictionary + `CanTransitionTo` — is the template other BCs should mirror when they need lifecycle enforcement.
 2. **Factory from external ACL input** — `Order.CreateFromBasket(BasketSnapshot, Address, Address, ...)` is the canonical example of "the aggregate's factory takes a **frozen snapshot** of data that belongs to another BC, deep-copies it, and raises a domain event holding the snapshot." This pattern is key for Basket → Ordering (snapshot of product prices) and for Ordering → the saga (snapshot of items in `OrderCreatedEvent`).
 3. **Multi-event aggregate transitions** — cancellation and failure are single method calls that produce a single domain event, but the cumulative flow across `Create → MarkStockReserved → MarkPaymentCompleted → Confirm → MarkShipped → MarkDelivered` demonstrates an aggregate whose identity persists across many state-changing events, each with its own invariant guard. This is richer than `AlertSubscriber`'s two-terminal-state lifecycle.
-4. **Result pattern for user errors + Throw.If for bugs** — transition methods return `Result` for user-observable errors (e.g., `Cancel` on an already-shipped order is a legit user mistake → `Result.Fail(OrderingErrors.CannotCancelInStatus(Status.Name))`), but use `Throw.If(!CanTransitionTo(...))` for cases where the calling saga has a bug.
+4. **Result pattern for user errors + `throw` for bugs** — transition methods return `Result` for user-observable errors (e.g., `Cancel` on an already-shipped order is a legit user mistake → `Result.Fail(OrderingErrors.CannotCancelInStatus(Status.Name))`), but throw `DataIntegrityException` when `!CanTransitionTo(...)` — that can only mean the calling saga has a bug.
 5. **Outbox-published enriched external events** — six external events in `ordering.orders`, each enriched at domain-event-handler time with just enough data for downstream consumers to act without re-querying Ordering. Matches the discipline in master-design § 3.
 
 ---
@@ -474,14 +474,14 @@ public Result Fail(string errorCode, string errorMessage, DateTimeOffset utcNow)
 
 **Preconditions per method (checked in order):**
 
-- `CreateFromBasket` — `Throw.If` basket empty (I-7), any non-positive price (I-8), mixed currencies (I-9), non-ISO country code on either address (via `Address.Create` → cascaded `Result.Fail`).
-- `MarkStockReserved` — `Throw.If(!Status.CanTransitionTo(StockReserved))` (I-1); `Throw.If(reservationId == Guid.Empty)`.
-- `MarkPaymentCompleted` — `Throw.If(!Status.CanTransitionTo(PaymentCompleted))`; `Throw.If(paymentTransactionId == Guid.Empty)`.
-- `Confirm` — `Throw.If(!Status.CanTransitionTo(Confirmed))`.
-- `MarkShipped` — `Throw.If(!Status.CanTransitionTo(Shipped))`; validate carrier+tracking non-empty through `ShipmentInfo.Create`; any VO-validation failure **also** throws `DataIntegrityException` (an admin/Dev UI should pre-validate).
-- `MarkDelivered` — `Throw.If(!Status.CanTransitionTo(Delivered))`.
+- `CreateFromBasket` — throws on null `basket.Currency` (H-1), empty `orderId` / `buyerId` / `paymentMethodId`, basket empty (I-7); then per item, non-positive quantity or unit price (I-8), a failed `ProductSnapshot.Create` (`Order.InvalidProductSnapshot`), and a failed `OrderItem.Create` (`Order.InvalidOrderItem`). Addresses arrive as already-constructed `Address` VOs, so ISO-country validation is the caller's precondition, not this factory's.
+- `MarkStockReserved` — throws on `!Status.CanTransitionTo(StockReserved)` (I-1) and on `reservationId == Guid.Empty`.
+- `MarkPaymentCompleted` — throws on `!Status.CanTransitionTo(PaymentCompleted)` and on `paymentTransactionId == Guid.Empty`.
+- `Confirm` — throws on `!Status.CanTransitionTo(Confirmed)`.
+- `MarkShipped` — throws on `!Status.CanTransitionTo(Shipped)`; validate carrier+tracking non-empty through `ShipmentInfo.Create`; any VO-validation failure **also** throws `DataIntegrityException` (an admin/Dev UI should pre-validate).
+- `MarkDelivered` — throws on `!Status.CanTransitionTo(Delivered)`.
 - `Cancel` — `if (!Status.CanTransitionTo(Cancelled)) return Result.Fail(OrderingErrors.CannotCancelInStatus(Status));` — user-observable.
-- `Fail` — `Throw.If(!Status.CanTransitionTo(Failed))`.
+- `Fail` — throws on `!Status.CanTransitionTo(Failed)`.
 
 ---
 

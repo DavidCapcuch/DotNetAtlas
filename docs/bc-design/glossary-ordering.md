@@ -123,7 +123,7 @@ An ISO 4217 three-letter code. Modeled as the `CurrencyCode` enum on `Money`. On
 `Money` value on `OrderItem`. The per-unit price frozen at order-creation time. Must be strictly positive (I-8). Unrelated to the Catalog's *current* price — Ordering deliberately does not reprice on re-read.
 
 ### CanTransitionTo
-The guard method on `OrderStatus` that returns `true` iff moving from the current status to the argument status is legal in the FSM. Used by every transition method on `Order` — either via `Throw.If(!Status.CanTransitionTo(...), DataIntegrityException)` (for saga-driven transitions that can only fail due to bugs) or via `Result.Fail` (for user-triggered transitions like `Cancel`).
+The guard method on `OrderStatus` that returns `true` iff moving from the current status to the argument status is legal in the FSM. Used by every transition method on `Order` — either by throwing `DataIntegrityException` when `!Status.CanTransitionTo(...)` (for saga-driven transitions that can only fail due to bugs) or via `Result.Fail` (for user-triggered transitions like `Cancel`).
 
 ---
 

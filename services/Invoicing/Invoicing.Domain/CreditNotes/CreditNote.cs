@@ -88,10 +88,13 @@ public sealed class CreditNote : AggregateRoot<Guid>
         // negate produces a strictly-negative value. Untestable through valid call paths;
         // documents I-CN-2 after the School-B Money sign-neutrality (rejects both zero and
         // positive \u2014 zero-total credit notes have no business meaning).
-        Throw.If(negativeTotal.Amount >= 0, new DataIntegrityException(
-            "Invoicing.CreditNoteTotalNotNegative",
-            $"CreditNote total must be strictly negative (I-CN-2); was {negativeTotal.Amount} {negativeTotal.Currency.Name}. " +
-            $"Source invoice total was {originalInvoiceSnapshot.Total.Amount}."));
+        if (negativeTotal.Amount >= 0)
+        {
+            throw new DataIntegrityException(
+                "Invoicing.CreditNoteTotalNotNegative",
+                $"CreditNote total must be strictly negative (I-CN-2); was {negativeTotal.Amount} {negativeTotal.Currency.Name}. " +
+                $"Source invoice total was {originalInvoiceSnapshot.Total.Amount}.");
+        }
 
         var creditNote = new CreditNote
         {

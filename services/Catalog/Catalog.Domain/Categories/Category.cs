@@ -69,9 +69,12 @@ public sealed class Category : AggregateRoot<Guid>, IAuditableEntity
             return Result.Fail(CategoryErrors.NameRequired());
         }
 
-        Throw.If(parentCategoryId.HasValue && parentPath is null, new DataIntegrityException(
-            "Category.MissingParentPath",
-            "A parent category was specified but its path was not supplied."));
+        if (parentCategoryId.HasValue && parentPath is null)
+        {
+            throw new DataIntegrityException(
+                "Category.MissingParentPath",
+                "A parent category was specified but its path was not supplied.");
+        }
 
         Result<CategoryPath> newPath = parentCategoryId.HasValue
             ? parentPath!.Append(slug)
@@ -165,9 +168,12 @@ public sealed class Category : AggregateRoot<Guid>, IAuditableEntity
             return Result.Fail(CategoryErrors.CannotParentToSelf());
         }
 
-        Throw.If(newParentCategoryId.HasValue && newParentPath is null, new DataIntegrityException(
-            "Category.MissingParentPath",
-            "A new parent category was specified but its path was not supplied."));
+        if (newParentCategoryId.HasValue && newParentPath is null)
+        {
+            throw new DataIntegrityException(
+                "Category.MissingParentPath",
+                "A new parent category was specified but its path was not supplied.");
+        }
 
         var slug = ExtractFinalSlug(Path);
         Result<CategoryPath> rebuiltPath = newParentCategoryId.HasValue
