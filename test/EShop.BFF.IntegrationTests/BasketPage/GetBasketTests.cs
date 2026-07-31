@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using EShop.BFF.Api.Responses;
 using EShop.BFF.IntegrationTests.Common;
 
@@ -156,6 +157,50 @@ public sealed class GetBasketTests(BasketPageTestFixture fixture) : BaseBasketPa
             var item = page.Items.Should().ContainSingle().Subject;
             item.CurrentPrice.Should().BeNull();
             item.PriceDrifted.Should().BeFalse();
+            item.LineTotalCurrent.Amount.Should().Be(20m, "current falls back to snapshot when the batch cannot bind");
+            item.AvailableQty.Should().Be(10, "Inventory answered, so only the Catalog half degrades");
+            page.HasStaleData.Should().BeTrue();
+            response.Headers.GetValues("X-BFF-PartialData").Should().ContainSingle().Which.Should().Be("catalog");
+            response.Headers.GetValues("X-BFF-Stale").Should().ContainSingle().Which.Should().Be("true");
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "resilience")]
+    public async Task GetBasket_WhenCatalogBatchRepeatsAPriceKey_Returns200PartialCatalogWithStale()
+    {
+        // Arrange — Catalog answers 200 with `price` present TWICE: first the snapshot value (no drift),
+        // then a drifted one. The JSON specification defines no behaviour for duplicate keys and parsers
+        // disagree on which wins, so the payload has no single correct reading and must not be composed
+        // from. AllowDuplicateProperties=false on UpstreamJson.Web turns it into the same degradation an
+        // unavailable Catalog produces (bff.md § 3.2).
+        //
+        // Chosen so last-value-wins is observably WRONG rather than merely arbitrary: were the flag off,
+        // the second price would bind and the page would report drift with fresh data — every assertion
+        // below inverts.
+        var userId = Guid.NewGuid();
+        var body = JsonSerializer.Serialize(ByIdsBody([Product(ProductA, 12m)]));
+        var duplicatedPrice = body.Replace(
+            "\"price\":",
+            "\"price\":{\"amount\":10,\"currency\":\"USD\"},\"price\":",
+            StringComparison.Ordinal);
+
+        Fixture.StubBasket(BasketBody(userId, [Item(ProductA, 10m, 2)]));
+        Fixture.StubCatalogByIdsRawJson(duplicatedPrice);
+        Fixture.StubInventoryBulk(BulkBody([Stock(ProductA, 10)]));
+
+        // Act
+        var response = await SendAsync(userId);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var page = await ReadAsync(response);
+
+        using (new AssertionScope())
+        {
+            var item = page.Items.Should().ContainSingle().Subject;
+            item.CurrentPrice.Should().BeNull("an ambiguous payload supplies no current price");
+            item.PriceDrifted.Should().BeFalse("drift cannot be asserted from a payload with two prices");
             item.LineTotalCurrent.Amount.Should().Be(20m, "current falls back to snapshot when the batch cannot bind");
             item.AvailableQty.Should().Be(10, "Inventory answered, so only the Catalog half degrades");
             page.HasStaleData.Should().BeTrue();

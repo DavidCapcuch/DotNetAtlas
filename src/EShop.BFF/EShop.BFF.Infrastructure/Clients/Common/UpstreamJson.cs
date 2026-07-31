@@ -20,11 +20,19 @@ namespace EShop.BFF.Infrastructure.Clients.Common;
 /// <c>NullReferenceException</c> during composition — a 500 for a condition already modelled as degradation.
 /// </para>
 /// <para>
-/// The two settings close different holes.
+/// The three settings close different holes.
 /// <see cref="JsonSerializerOptions.RespectNullableAnnotations"/> rejects a member that is <em>present but
 /// null</em>, which <c>required</c> alone does not — the member is present, so the requirement is satisfied.
 /// <see cref="JsonSerializerOptions.RespectRequiredConstructorParameters"/> extends the absent-member check
 /// to positional records, so the guard does not depend on every ACL record being declared property-style.
+/// <see cref="JsonSerializerOptions.AllowDuplicateProperties"/> rejects a key that arrives twice, because the
+/// JSON specification defines no behaviour for duplicates and parsers disagree on which one wins — binding
+/// last-value-wins would silently pick one reading of an ambiguous payload.
+/// </para>
+/// <para>
+/// Duplicate rejection is <b>not</b> subject to the additive-change caveat above: an upstream that adds a
+/// field stays bindable, but no upstream legitimately emits the same key twice. It is the one member of
+/// <see cref="JsonSerializerOptions.Strict"/> that suits a consumer of an independently-deployed upstream.
 /// </para>
 /// </remarks>
 internal static class UpstreamJson
@@ -33,5 +41,6 @@ internal static class UpstreamJson
     {
         RespectNullableAnnotations = true,
         RespectRequiredConstructorParameters = true,
+        AllowDuplicateProperties = false,
     };
 }

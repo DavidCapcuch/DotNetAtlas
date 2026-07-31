@@ -101,6 +101,19 @@ public sealed class BasketPageTestFixture : AppFixture<Program>
     public void StubCatalogByIdsStatus(int statusCode) =>
         StubGet("/api/v1/catalog/products/by-ids", statusCode, body: null);
 
+    /// <summary>
+    /// Stubs Catalog's by-ids read with a <b>literal</b> JSON string rather than a serialized object.
+    /// Needed for payload shapes .NET object graphs cannot express — a duplicate property name being the
+    /// case in point, since <see cref="Dictionary{TKey,TValue}"/> and anonymous types both collapse them.
+    /// </summary>
+    public void StubCatalogByIdsRawJson(string json) =>
+        _upstreams
+            .Given(Request.Create().WithPath("/api/v1/catalog/products/by-ids").UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody(json));
+
     /// <summary>Stubs Inventory's <c>POST /api/v1/inventory/stock-items/bulk</c> with a 200 bulk body.</summary>
     public void StubInventoryBulk(object body) => StubPost("/api/v1/inventory/stock-items/bulk", 200, body);
 
