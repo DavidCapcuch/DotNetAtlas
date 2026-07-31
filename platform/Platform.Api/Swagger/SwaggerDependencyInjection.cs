@@ -65,6 +65,11 @@ public static class SwaggerDependencyInjection
                 settings.Version = version;
                 settings.Description = description;
 
+                // ADR-0038 § Decision: without this the document carries no `required` set at all
+                // and both contract gates go toothless. Kept ahead of the OAuth2 branch below so a
+                // tier that supplies no authority still gets it.
+                settings.MarkNonNullablePropsAsRequired();
+
                 settings.OperationProcessors.Add(
                     new AuthDescriptionOperationProcessor(
                         options.Services.GetRequiredService<IAuthorizationPolicyProvider>()));

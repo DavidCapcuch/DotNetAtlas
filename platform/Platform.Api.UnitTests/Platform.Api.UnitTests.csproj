@@ -3,9 +3,12 @@
     <ItemGroup>
         <FrameworkReference Include="Microsoft.AspNetCore.App"/>
         <PackageReference Include="FluentResults.Extensions.FluentAssertions"/>
+        <!-- The Swagger contract tests fetch the document from an in-memory host (ADR-0038 § Decision). -->
+        <PackageReference Include="Microsoft.AspNetCore.TestHost"/>
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\Platform.Api\Platform.Api.csproj"/>
+        <ProjectReference Include="..\Platform.Test.Framework\Platform.Test.Framework.csproj"/>
     </ItemGroup>
 </Project>
