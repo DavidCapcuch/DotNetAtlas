@@ -52,7 +52,7 @@ public class InvoiceLineTests
     public void Create_RejectsNonPositiveUnitPrice(decimal nonPositive)
     {
         // Local Invoicing-domain invariant: InvoiceLine.UnitPrice > 0. Money is a signed
-        // quantity (School B); sign-enforcement belongs to the aggregate / VO.
+        // quantity; sign-enforcement belongs to the aggregate / VO.
         var result = InvoiceLine.Create(
             1,
             Sku.Create("S").Value,

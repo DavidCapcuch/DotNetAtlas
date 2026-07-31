@@ -55,8 +55,7 @@ public sealed record InvoiceSnapshot : ValueObject
 
         // Defense-in-depth: sole caller (Invoice.ToReversalSnapshot) passes the source
         // invoice's already-validated Total. Untestable through valid call paths; documents
-        // the "positive; credit note inverts" invariant on the XML doc after the School-B
-        // Money sign-neutrality.
+        // the "positive; credit note inverts" invariant here because Money is sign-neutral.
         if (total.Amount <= 0)
         {
             throw new DataIntegrityException(

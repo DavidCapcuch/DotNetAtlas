@@ -39,7 +39,7 @@ Both aggregates derive from [`AggregateRoot<TId>`](../../platform/Platform.Share
 **Invariants**
 
 - SKU is unique across all products (DB unique index + application-level `Product.SkuExistsAsync(sku)` check before `Create`).
-- `Price.Amount > 0` is a Catalog-local invariant enforced at `Product.Create` / `Product.UpdatePrice` via `ProductErrors.PriceMustBePositive()`. `Currency` validity (ISO 4217) is enforced by `Money.Create` (shared-kernel VO). Note: post-School-B refactor, `Money` is a signed quantity — positivity is the aggregate's invariant, not Money's.
+- `Price.Amount > 0` is a Catalog-local invariant enforced at `Product.Create` / `Product.UpdatePrice` via `ProductErrors.PriceMustBePositive()`. `Currency` validity (ISO 4217) is enforced by `Money.Create` (shared-kernel VO). `Money` is a signed quantity, so positivity is the aggregate's invariant, not Money's.
 - `CategoryId` is required; a product cannot be created without a category reference.
 - A `Discontinued` product cannot be referenced by Basket. This is a **query-time validator** (not a domain invariant) — Basket's product-snapshot fetch layer rejects non-`Active` products.
 - Status transitions are gated by [`ProductStatus.CanTransitionTo(...)`](#productstatus). User-actionable transition failures return `Result.Fail(ProductErrors.CannotDiscontinueInStatus / CannotReactivateInStatus)`; `DataIntegrityException` remains for genuinely impossible states.
@@ -122,7 +122,7 @@ All value objects are `sealed record` types deriving from [`ValueObject`](../../
 #### Money
 - **Fields:** `Amount : decimal`, `Currency : string` (ISO 4217, e.g. `"USD"`).
 - **Validation rules:**
-  - `Amount > 0` is enforced at the **Catalog aggregate boundary** (`Product.Create` / `Product.UpdatePrice`), NOT inside `Money` itself. Post-School-B, `Money` is a signed quantity (a credit-note line legitimately holds negative Money); positivity belongs to the aggregate that requires it.
+  - `Amount > 0` is enforced at the **Catalog aggregate boundary** (`Product.Create` / `Product.UpdatePrice`), NOT inside `Money` itself. `Money` is a signed quantity (a credit-note line legitimately holds negative Money); positivity belongs to the aggregate that requires it.
   - `Currency` matches ISO 4217 format (3 uppercase letters via `Money.Create`'s string overload + `CurrencyCode` SmartEnum lookup).
 - **Errors:** `ProductErrors.PriceMustBePositive()` (Catalog-local), `Money.InvalidCurrencyCode` / `Money.UnknownCurrencyCode` (shared-kernel).
 - **Note on units:** The CLAUDE.md hint ("minor units — e.g., cents for USD") means the integer-scaled representation is recommended at the storage layer; the domain type carries a `decimal` so consumers see `19.99 USD`, not `1999 cents`. Avro `decimal(19,4)` serialization preserves fractional precision.

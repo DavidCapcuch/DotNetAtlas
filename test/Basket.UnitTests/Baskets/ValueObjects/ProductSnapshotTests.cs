@@ -34,7 +34,7 @@ public class ProductSnapshotTests
     public void Create_WhenNonPositivePrice_ThrowsDataIntegrityException(decimal nonPositive)
     {
         // Local Basket-domain invariant: ProductSnapshot.Price > 0. Mirrors Catalog.Product;
-        // Money itself is sign-neutral (School B), so the rule lives on the consuming VO.
+        // Money itself is sign-neutral, so the rule lives on the consuming VO.
 
         // Arrange
         var captured = new DateTimeOffset(2026, 02, 20, 12, 00, 00, TimeSpan.Zero);

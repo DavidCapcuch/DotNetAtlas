@@ -26,7 +26,7 @@ public sealed record OrderItem : ValueObject
 
     /// <summary>
     /// Creates an <see cref="OrderItem"/>. Quantity and unit price must both be strictly
-    /// positive — Ordering-local invariant I-8. Money itself is permissive (School B), so
+    /// positive — Ordering-local invariant I-8. Money itself is permissive on sign, so
     /// positivity is enforced here at the VO boundary. The line total is stored rather
     /// than recomputed — lets EF Core map it as an owned value without <c>[NotMapped]</c>
     /// hacks (<c>ordering.md § 4.3</c>).

@@ -103,7 +103,7 @@ public sealed class PaymentTransaction : AggregateRoot<Guid>
     /// <param name="buyerId">Buyer JWT <c>sub</c>.</param>
     /// <param name="orderId">Associated Ordering aggregate id.</param>
     /// <param name="amount">Amount to charge; must be positive. Positivity (I-1) is enforced by this
-    /// factory — <see cref="Money"/> is permissive on sign (School B); single currency (I-2) is
+    /// factory — <see cref="Money"/> is permissive on sign; single currency (I-2) is
     /// structural to <see cref="Money"/>'s currency tag.</param>
     /// <param name="paymentMethodId">Tokenised payment instrument string (1-64 chars).</param>
     /// <returns>Ok with the new aggregate, or failure with <see cref="PaymentsErrors.InvalidAmount"/>

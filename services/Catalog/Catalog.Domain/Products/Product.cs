@@ -76,8 +76,8 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
             return Result.Fail(ProductErrors.CategoryIdRequired());
         }
 
-        // Catalog-local invariant I-1: Price.Amount > 0. Money is a signed quantity (School B),
-        // so this rule lives in the aggregate rather than in Money.Create.
+        // Catalog-local invariant I-1: Price.Amount > 0. Money is a signed quantity, so this
+        // rule lives in the aggregate rather than in Money.Create.
         if (price.Amount <= 0)
         {
             return Result.Fail(ProductErrors.PriceMustBePositive());
@@ -122,7 +122,7 @@ public sealed class Product : AggregateRoot<Guid>, IAuditableEntity
     {
         ArgumentNullException.ThrowIfNull(newPrice);
 
-        // Catalog-local invariant I-1: Price.Amount > 0 (Money is permissive post-School-B).
+        // Catalog-local invariant I-1: Price.Amount > 0 (Money is permissive on sign).
         if (newPrice.Amount <= 0)
         {
             return Result.Fail(ProductErrors.PriceMustBePositive());

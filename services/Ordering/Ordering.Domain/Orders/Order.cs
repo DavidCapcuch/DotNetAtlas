@@ -79,10 +79,11 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
     /// from a <see cref="BasketSnapshot"/>. The <paramref name="orderId"/> is
     /// client-assigned (pre-allocated at checkout initiation, UUID v7) and
     /// persisted as the aggregate identity rather than minted here — see
-    /// ADR-0029. Invariants I-6..I-9 are enforced here as bug-class
-    /// (<see cref="DataIntegrityException"/>): Basket / BFF should have already
-    /// validated them, so a failure reaching this factory is a system bug, not
-    /// a user error.
+    /// ADR-0029. The invariants this factory guards at runtime throw
+    /// <see cref="DataIntegrityException"/> rather than returning a failure result:
+    /// Basket / BFF should have already validated them, so a violation reaching here
+    /// is a system bug, not a user error. Which invariant is guarded, computed, or
+    /// structural is tabulated in <c>ordering.md § 3.1</c>.
     /// </summary>
     /// <remarks>
     /// Raises <see cref="OrderCreatedDomainEvent"/> on success.
@@ -167,8 +168,8 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
                     $"Basket item for product '{basketItem.ProductId}' has invalid snapshot: {FormatErrors(snapshotResult)}.");
             }
 
-            // Money.Create is permissive post-School-B; .Value is safe (currency is non-null).
-            // Positivity of unitPrice is enforced by the guard above + OrderItem.Create.
+            // Money.Create validates only the currency, so .Value is safe here (currency is
+            // non-null). Positivity of unitPrice is enforced by the guard above + OrderItem.Create.
             var unitPrice = Money.Create(basketItem.UnitPriceAmount, currency).Value;
 
             var itemResult = OrderItem.Create(
@@ -188,8 +189,8 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
         }
 
         // I-9 is naturally enforced — every item is constructed with currency. Money.Create
-        // is permissive post-School-B (currency-null check only); the .Value access is safe
-        // because currency is non-null here (validated by the guard at the top of this method).
+        // validates the currency only; the .Value access is safe because currency is
+        // non-null here (validated by the guard at the top of this method).
         var total = Money.Create(totalAmount, currency).Value;
 
         var order = new Order

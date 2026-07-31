@@ -27,7 +27,7 @@ public class BasketTotalTests
     {
         // BasketTotal wraps a strictly-positive Money — a zero/negative total indicates
         // a caller bug (the aggregate only builds totals from validated line items).
-        // Money itself is sign-neutral (School B), so the rule lives on this VO.
+        // Money itself is sign-neutral, so the rule lives on this VO.
 
         // Arrange
         var money = Money.Create(nonPositive, CurrencyCode.Gbp).Value;

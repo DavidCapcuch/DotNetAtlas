@@ -42,8 +42,8 @@ public class VatLineTests
     [InlineData(-100)]
     public void Create_NegativeBase_ThrowsDataIntegrityException(decimal negative)
     {
-        // Local Invoicing-domain invariant: VatLine.Base >= 0. Money itself is sign-neutral
-        // (School B); sign-enforcement belongs to the consuming VO.
+        // Local Invoicing-domain invariant: VatLine.Base >= 0. Money itself is sign-neutral;
+        // sign-enforcement belongs to the consuming VO.
         var act = () => VatLine.Create(
             VatRate.Create(21m).Value,
             Money.Create(negative, CurrencyCode.Eur).Value,

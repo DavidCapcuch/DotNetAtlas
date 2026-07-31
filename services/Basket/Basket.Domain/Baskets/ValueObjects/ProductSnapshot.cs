@@ -60,7 +60,7 @@ public sealed record ProductSnapshot : ValueObject
         // Bug-class field invariants, enforced here because neither call site can be trusted to
         // have applied them — the ACL binds "" clean and MemoryPack rehydration enforces no
         // nullability. What a blank costs downstream, and why the two producers fail differently:
-        // basket.md § 3.2. Price > 0 mirrors Catalog.Product; Money is sign-neutral (School B),
+        // basket.md § 3.2. Price > 0 mirrors Catalog.Product; Money is sign-neutral,
         // so that rule lives on the consuming VO.
         if (price.Amount <= 0)
         {

@@ -141,7 +141,7 @@ public sealed class Invoice : AggregateRoot<Guid>
 
         // Defense-in-depth: by construction subtotal/total are non-negative (lines.Count >= 1,
         // InvoiceLine.UnitPrice > 0, VatRate >= 0). Untestable through valid call paths;
-        // documents the invariant for refactor safety after the School-B Money sign-neutrality.
+        // documents the invariant for refactor safety, since Money itself is sign-neutral.
         if (subtotal.Amount < 0)
         {
             throw new DataIntegrityException(

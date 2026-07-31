@@ -87,8 +87,8 @@ public sealed record CreditNoteLine : ValueObject
 
         // Defense-in-depth: source InvoiceLine.Create enforces UnitPrice > 0 and Quantity > 0,
         // so negate produces strictly-negative amounts and quantity stays positive. Untestable
-        // through valid call paths; documents the sign + count invariants after the School-B
-        // Money sign-neutrality.
+        // through valid call paths; documents the sign + count invariants that Money's
+        // sign-neutrality leaves to this type.
         if (line.Quantity <= 0)
         {
             throw new DataIntegrityException(

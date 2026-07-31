@@ -52,7 +52,7 @@ public class PaymentTransactionCreateTests
     public void Create_WhenAmountNotPositive_ReturnsInvalidAmount(decimal amount)
     {
         // Arrange
-        // School B: Money is a signed quantity; positivity is the Payments BC's invariant
+        // Money is a signed quantity; positivity is the Payments BC's invariant
         // and lives at PaymentTransaction.Create. Confirm the local guard catches
         // zero/negative amounts and surfaces Payments.InvalidAmount.
         var nonPositiveAmount = Money.Create(amount, "USD").Value;

@@ -36,7 +36,7 @@ public sealed record VatLine : ValueObject
         ArgumentNullException.ThrowIfNull(amount);
 
         // Invoicing-local invariant: Base >= 0 && Amount >= 0 (zero legal for zero-rate lines).
-        // Money is sign-neutral (School B); sign-enforcement belongs to the consuming VO.
+        // Money is sign-neutral; sign-enforcement belongs to the consuming VO.
         if (@base.Amount < 0)
         {
             throw new DataIntegrityException(

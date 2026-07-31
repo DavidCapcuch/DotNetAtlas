@@ -220,7 +220,7 @@ public class MoneyTests
     public void WithAmount_WhenZeroOrNegative_StaysPermissive(decimal amount)
     {
         // WithAmount carries the aggregate's positivity rule nowhere — sign is a holder-aggregate
-        // concern (School B), so a guard here would duplicate Product.UpdatePrice's Amount > 0 check.
+        // concern, so a guard here would duplicate Product.UpdatePrice's Amount > 0 check.
 
         // Arrange
         var original = Money.Create(10m, CurrencyCode.Eur).Value;
