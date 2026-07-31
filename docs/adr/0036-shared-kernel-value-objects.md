@@ -56,7 +56,7 @@ Promote the **`Money`** value object (together with **`CurrencyCode`**, the ISO 
 - it is consumed by **≥2 BCs** on a shared path (contract math, cross-BC mapping);
 - it carries **no aggregate-level invariant** — those stay in the owning aggregate.
 
-The last clause is the boundary that keeps the kernel honest. `Money` is deliberately **permissive on sign** — a credit-note line is legitimately negative; each holding aggregate enforces its own positivity rule (`Product.Price > 0`, `OrderItem.UnitPrice > 0`, `CreditNoteLine < 0`). Sign is not `Money`'s concern *precisely because* it is BC-specific. Any candidate carrying that kind of rule stays out of the kernel.
+The last clause is the boundary that keeps the kernel honest. `Money` is deliberately **permissive on sign** — a credit-note line is legitimately negative; each holding aggregate enforces its own sign rule (`Product.Price > 0`, `OrderItem.UnitPrice > 0`, `CreditNoteLine < 0`). Sign is not `Money`'s concern *precisely because* it is BC-specific. Any candidate carrying that kind of rule stays out of the kernel.
 
 ## Rationale
 

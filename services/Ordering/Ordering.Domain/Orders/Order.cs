@@ -82,8 +82,8 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
     /// ADR-0029. The invariants this factory guards at runtime throw
     /// <see cref="DataIntegrityException"/> rather than returning a failure result:
     /// Basket / BFF should have already validated them, so a violation reaching here
-    /// is a system bug, not a user error. Which invariant is guarded, computed, or
-    /// structural is tabulated in <c>ordering.md § 3.1</c>.
+    /// is a system bug, not a user error. <c>ordering.md § 3.1</c> tabulates each
+    /// invariant's enforcement and kind.
     /// </summary>
     /// <remarks>
     /// Raises <see cref="OrderCreatedDomainEvent"/> on success.
@@ -188,9 +188,7 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
             totalAmount += itemResult.Value.LineTotal.Amount;
         }
 
-        // I-9 is naturally enforced — every item is constructed with currency. Money.Create
-        // validates the currency only; the .Value access is safe because currency is
-        // non-null here (validated by the guard at the top of this method).
+        // I-9 is naturally enforced — every item is constructed with currency.
         var total = Money.Create(totalAmount, currency).Value;
 
         var order = new Order

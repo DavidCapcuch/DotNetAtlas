@@ -39,7 +39,7 @@ Both aggregates derive from [`AggregateRoot<TId>`](../../platform/Platform.Share
 **Invariants**
 
 - SKU is unique across all products (DB unique index + application-level `Product.SkuExistsAsync(sku)` check before `Create`).
-- `Price.Amount > 0` is a Catalog-local invariant enforced at `Product.Create` / `Product.UpdatePrice` via `ProductErrors.PriceMustBePositive()`. `Currency` validity (ISO 4217) is enforced by `Money.Create` (shared-kernel VO). `Money` is a signed quantity, so positivity is the aggregate's invariant, not Money's.
+- `Price.Amount > 0` is a Catalog-local invariant enforced at `Product.Create` / `Product.UpdatePrice` via `ProductErrors.PriceMustBePositive()`. `Currency` validity (ISO 4217) is enforced by `Money.Create` (shared-kernel VO).
 - `CategoryId` is required; a product cannot be created without a category reference.
 - A `Discontinued` product cannot be referenced by Basket. This is a **query-time validator** (not a domain invariant) — Basket's product-snapshot fetch layer rejects non-`Active` products.
 - Status transitions are gated by [`ProductStatus.CanTransitionTo(...)`](#productstatus). User-actionable transition failures return `Result.Fail(ProductErrors.CannotDiscontinueInStatus / CannotReactivateInStatus)`; `DataIntegrityException` remains for genuinely impossible states.

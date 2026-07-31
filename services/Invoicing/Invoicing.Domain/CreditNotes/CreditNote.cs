@@ -86,8 +86,8 @@ public sealed class CreditNote : AggregateRoot<Guid>
 
         // Defense-in-depth: source invoice already enforces Total >= 0 at issuance, so
         // negate produces a strictly-negative value. Untestable through valid call paths;
-        // documents I-CN-2, which Money's sign-neutrality leaves to this type (rejects both zero and
-        // positive \u2014 zero-total credit notes have no business meaning).
+        // documents I-CN-2, which Money's sign-neutrality leaves to this type. Rejects zero as
+        // well as positive \u2014 a zero-total credit note has no business meaning.
         if (negativeTotal.Amount >= 0)
         {
             throw new DataIntegrityException(

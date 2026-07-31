@@ -79,7 +79,7 @@ The aggregate enforces the following invariants. Violations are classified as **
 | I-3 | **Addresses are immutable after creation.** | No mutator methods exist. Properties have `private` setters. | N/A. |
 | I-4 | **BuyerId is immutable.** | No mutator. Captured in factory. | N/A. |
 | I-5 | **The Order's `Id` is the pre-assigned `OrderId` and is the saga key.** | Set once in factory from the saga-supplied id ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)); the saga correlates all later events by this id (its MassTransit `CorrelationId == OrderId`). | N/A. |
-| I-6 | **Total equals sum of line totals.** `Total.Amount == Σ Items.LineTotal.Amount`, single currency across all items. | Factory computes `Total` from items; subsequent immutability ensures it stays correct. | Bug (input validation). |
+| I-6 | **Total equals sum of line totals.** `Total.Amount == Σ Items.LineTotal.Amount`, single currency across all items. | Factory computes `Total` from items; subsequent immutability ensures it stays correct. No runtime guard exists. | Structural. |
 | I-7 | **At least one item at creation.** | `if (basket.Items.Count == 0) { throw new DataIntegrityException(...); }` in factory. | Bug — Basket should never emit an empty checkout. |
 | I-8 | **All line items have positive unit price and positive quantity.** | `if (item.UnitPrice.Amount <= 0) { throw new DataIntegrityException(...); }` and `quantity > 0`. | Bug — Catalog/Basket should never produce non-positive prices. |
 | I-9 | **All items share one currency.** | By construction — `BasketSnapshot` carries a single `Currency` and every `OrderItem` is built with it, so no runtime guard exists. The only currency guard is H-1, on `basket.Currency` being null. | Structural. |
