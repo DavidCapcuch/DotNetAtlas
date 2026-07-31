@@ -28,6 +28,25 @@ docker compose --profile core up -d    # Postgres + redis-basket + Azurite (stor
 docker compose --profile full up -d    # All services (Jaeger, Seq, Kafka, etc.)
 ```
 
+## Worktrees
+
+Procedure lives in the `daca-dotnet-worktrees` skill. Repo-specific constraints:
+
+**Cap: 3 concurrent worktrees.** Each needs its own full build (~8.9 GB — `bin`/`obj` are not shared).
+
+- **Integration tests are parallel-safe**
+
+```bash
+dotnet test <proj> --no-build --blame-hang-timeout 10m -- xUnit.MaxParallelThreads=4
+```
+
+**Singletons — per machine, one worktree at a time:**
+- `docker compose --profile core|full` — 38 fixed `container_name:` and 35 fixed host ports collide daemon-wide. One stack is sized at 8 CPU / 32 GB. Do not parameterize the ports to work around this.
+- `dotnet run` / `preview_start` — `launchSettings.json` pins 5100–5108; `.claude/launch.json` pins 5104/5105/5106/65410/65420.
+- The `daca-gates` container-health and smoke-check steps, which depend on both of the above.
+
+**Known flake amplifier:** the Rancher Desktop WSL relay wedges with `WSAENOBUFS` under port-forward churn (memory `windows-integration-fixture-flaky-rerun`). Testcontainers' random host ports *are* that churn and concurrency multiplies it. Recovery: `wsl --terminate rancher-desktop`, then restart the app. If flakes worsen, drop the cap before suspecting code.
+
 ## Formatting (CI-enforced)
 
 ```bash
@@ -50,7 +69,6 @@ dotnet format style --no-restore --verify-no-changes
 - Codebase uses result pattern for expected errors and reserves exceptions only for exceptional situations
 - Codebase uses Avro schemas as contracts for event-driven messaging stored in platform/Platform.SchemaRegistry.Contracts
 - **Avro C# bindings (`.cs` files next to `.avsc`):** never hand-edit. They are regenerated via `platform/Platform.SchemaRegistry.Contracts/generate-avro.ps1 <path-to-schema.avsc>` (wraps `dotnet tool` `Apache.Avro.Tools` avrogen). Run after every `.avsc` edit; commit both the `.avsc` and the regenerated `.cs` together. The script runs `dotnet tool restore` against the pinned local manifest (`.config/dotnet-tools.json`), so every dev/CI machine uses the same `Apache.Avro.Tools` version — no global install required.
-- **Deletion-heavy work: close Rider (the IDE) first.** It auto-reconciles `DotNetAtlas.slnx` on bulk file deletion and silently drops *unrelated* projects + their `ProjectReference`s (and recreates deleted dirs) — which drops tests from CI. After any bulk delete, diff the slnx project set vs HEAD. See memory `ide-slnx-reconcile-corruption`.
 
 ## Agent skills
 
