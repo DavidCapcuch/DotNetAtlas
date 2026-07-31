@@ -103,12 +103,7 @@ public sealed class Basket : AggregateRoot<Guid>
     /// <exception cref="DataIntegrityException">Thrown when <paramref name="userId"/> is <see cref="Guid.Empty"/>.</exception>
     public static Basket Create(Guid userId, DateTimeOffset utcNow)
     {
-        if (userId == Guid.Empty)
-        {
-            throw new DataIntegrityException(
-                "Basket.InvalidUserId",
-                "Basket UserId must not be empty.");
-        }
+        EnsureUserIdNotEmpty(userId);
 
         var basket = new Basket
         {
@@ -141,12 +136,7 @@ public sealed class Basket : AggregateRoot<Guid>
         DateTimeOffset lastModifiedAtUtc,
         IReadOnlyList<BasketItem> items)
     {
-        if (userId == Guid.Empty)
-        {
-            throw new DataIntegrityException(
-                "Basket.InvalidUserId",
-                "Basket UserId must not be empty.");
-        }
+        EnsureUserIdNotEmpty(userId);
 
         ArgumentNullException.ThrowIfNull(items);
 
@@ -452,6 +442,20 @@ public sealed class Basket : AggregateRoot<Guid>
             PaymentMethodId = paymentMethodId,
         });
         return Result.Ok();
+    }
+
+    /// <summary>
+    /// Shared by <see cref="Create"/> and <see cref="Rehydrate"/> — a basket restored from our own
+    /// store is re-checked, because the store is not a trusted producer of its own key.
+    /// </summary>
+    private static void EnsureUserIdNotEmpty(Guid userId)
+    {
+        if (userId == Guid.Empty)
+        {
+            throw new DataIntegrityException(
+                "Basket.InvalidUserId",
+                "Basket UserId must not be empty.");
+        }
     }
 
     private BasketItem? FindItem(Guid productId)
