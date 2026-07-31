@@ -78,11 +78,6 @@ Canonical taxonomy: [error-taxonomy.md](error-taxonomy.md) (per-BC tables + C# s
 | Bug-class violation (precondition the caller should have satisfied) | `throw new DataIntegrityException("Bc.ErrorCode", "human-readable")` or a specialised `*Exception` per BC |
 | FSM transition guard | `if (!Status.CanTransitionTo(target)) { throw new DataIntegrityException(...); }` — bug-class, because saga / handler should have already filtered |
 
-Never route a bug-class guard through a helper taking an already-constructed exception — C#
-evaluates arguments eagerly, so the exception and its interpolated message get built on every call,
-including the passing ones. Guards sit on per-item paths (a basket read constructs one
-`ProductSnapshot` per line), which makes that a per-item cost rather than a per-request one.
-
 The result-vs-exception split is mandatory per [CLAUDE.md](../../CLAUDE.md). Cross-cutting middleware (HTTP, Kafka inbox) maps each error class to its transport-level representation (404 / 409 / 503 / DLT).
 
 ---
