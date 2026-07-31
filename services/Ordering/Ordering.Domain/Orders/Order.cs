@@ -108,7 +108,7 @@ public sealed class Order : AggregateRoot<Guid>, IAuditableEntity
                 "BasketSnapshot.Currency must not be null.");
         }
 
-        var currency = basket.Currency!;
+        var currency = basket.Currency;
 
         if (orderId == Guid.Empty)
         {
