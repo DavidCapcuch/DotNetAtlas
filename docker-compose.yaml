@@ -22,7 +22,7 @@ x-bc-base-image: &bc-base-image mcr.microsoft.com/dotnet/aspnet:10.0-alpine3.22-
 
 services:
   postgresdb:
-    image: postgres:18.3@sha256:52e6ffd11fddd081ae63880b635b2a61c14008c17fc98cdc7ce5472265516dd0
+    image: postgres:18.3@sha256:7e32e9833a6fb1c92c32552794cb6ed569d51b445a54907d35fc112ef39684db
     container_name: postgres5433
     shm_size: 256mb
     restart: always
