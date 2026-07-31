@@ -53,7 +53,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Every publishable Dockerfile has a matrix leg
         run: |
           set -euo pipefail
@@ -96,7 +96,7 @@ jobs:
             dockerfile: platform/Platform.OutboxRelay.WorkerService/Dockerfile
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Resolve image reference
         id: image
         # GHCR rejects upper-case paths and `github.repository` is mixed-case. `metadata-action`
