@@ -39,7 +39,7 @@ dotnet test <proj> --no-build --blame-hang-timeout 10m -- xUnit.MaxParallelThrea
 ```
 
 **Singletons — per machine, one worktree at a time:**
-- `docker compose --profile core|full` — 38 fixed `container_name:` and 35 fixed host ports collide daemon-wide. One stack is sized at 8 CPU / 32 GB. Do not parameterize the ports to work around this.
+- `docker compose --profile core|full` — **do not parameterize the ports to work around this.** 38 fixed `container_name:` and 35 fixed host ports collide daemon-wide; one stack is sized at 8 CPU / 32 GB.
 - `dotnet run` / `preview_start` — `launchSettings.json` pins 5100–5108; `.claude/launch.json` pins 5104/5105/5106/65410/65420.
 - The `daca-gates` container-health and smoke-check steps, which depend on both of the above.
 
@@ -56,7 +56,8 @@ dotnet format style --no-restore --verify-no-changes
 
 ## Non-obvious Conventions
 
-- **Central Package Management** — package versions are centralized in `Directory.Packages.props` at the `services/`, `saga/`, `platform/`, `src/`, and `test/` levels; add packages to the correct level's file. Never put a `Version=` on a `PackageReference`.
+- **Central Package Management** — package versions are centralized in `Directory.Packages.props` at the `services/`, `saga/`, `platform/`, `src/`, and `test/` levels; add packages to the correct level's file.
+  - **Never put a `Version=` on a `PackageReference`.**
 - **EF Core migrations** — generate via `dotnet ef migrations add`; never hand-write the `.cs` migration from scratch.
   - `*ModelSnapshot.cs` and `*.Designer.cs` are **agent-deny-protected**.
 - **SQL-script migrations** (`V*.sql` under each BC's `Persistence/Database/Migrations/SqlScripts/`) — emit with **both** `--idempotent` and `--no-transactions`: Flyway and Evolve both wrap each script in their own transaction.
@@ -67,7 +68,9 @@ dotnet format style --no-restore --verify-no-changes
     --startup-project services/<BC>/<BC>.Api \
     --output services/<BC>/<BC>.Infrastructure/Persistence/Database/Migrations/SqlScripts/V###__<Name>.sql
   ```
-- **Functional core, imperative shell** — this is DDD, preferring domain model **purity + performance** over completeness: domain types never touch out-of-process dependencies — application handlers read what a decision needs and pass it in. A rule decidable from aggregate state alone stays in the domain.
+- **Functional core, imperative shell** — this is DDD, preferring domain model **purity + performance** over completeness.
+  - **Domain types never touch out-of-process dependencies** — application handlers read what a decision needs and pass it in.
+  - **A rule decidable from aggregate state alone stays in the domain.**
 - **Use the result pattern for expected errors** — reserve exceptions only for exceptional situations.
 - **Define event-driven messaging contracts as Avro schemas** in `platform/Platform.SchemaRegistry.Contracts`.
 - **Avro C# bindings** (`.cs` files next to `.avsc`) — never hand-edit.
@@ -87,7 +90,11 @@ Five canonical roles (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-fo
 
 ### Domain docs
 
-Multi-context repo. `CONTEXT-MAP.md` at the root points to per-bounded-context `CONTEXT.md` files (one per service); system-wide ADRs live in `docs/adr/`, context-scoped ADRs in `services/<context>/docs/adr/`. Files are created lazily by `/grill-with-docs` — proceed silently if any are missing. See `docs/agents/domain.md`.
+Multi-context repo. See `docs/agents/domain.md`.
+
+- `CONTEXT-MAP.md` at the root points to per-bounded-context `CONTEXT.md` files (one per service).
+- System-wide ADRs live in `docs/adr/`; context-scoped ADRs in `services/<context>/docs/adr/`.
+- **Files are created lazily by `/grill-with-docs` — proceed silently if any are missing.**
 
 ## Project status
 

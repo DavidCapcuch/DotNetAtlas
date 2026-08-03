@@ -1,6 +1,6 @@
 # Standing rules
 
-Non-negotiable behavioral constraints for every session. The conventions + rationale they build on live in `CLAUDE.md` (auto-loaded) and `docs/bc-design/`. These add the **dispatch discipline** CLAUDE.md doesn't state.
+Non-negotiable behavioral constraints for every session. The conventions + rationale they build on live in `CLAUDE.md` and `docs/bc-design/`.
 
 - **Evidence before assertions.** Don't claim "done" without pasting the actual output of the **verification gates** — run them via the `daca-gates` skill, which owns the gate set and its flags; this repo's deltas are in `docs/verification-gates.md`.
 - **Ship every new behavior with new tests.** New behavior is not "done" on green pre-existing tests alone.
@@ -12,4 +12,4 @@ Non-negotiable behavioral constraints for every session. The conventions + ratio
   - **`--ff-only` is the guard, not a formality** — if it refuses, `main` moved, so `git fetch && git rebase origin/main` on the branch and retry.
   - **Never plain `git merge`** — a merge bubble is exactly what this keeps out of a linear history.
 - **Commit by explicit pathspec** (`git commit <path> …`), never bare `git add` — it sweeps unrelated staged work.
-- **Run parallel sessions in worktrees**, never in one shared tree. See the `daca-dotnet-worktrees` skill and CLAUDE.md's Worktrees section for the caps and the singletons.
+- **Run parallel sessions in worktrees**, never in one shared tree — CLAUDE.md's Worktrees section holds the caps and the singletons.
