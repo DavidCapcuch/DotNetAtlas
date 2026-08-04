@@ -272,7 +272,7 @@ services:
       - GOMEMLIMIT=160MiB
   
   kafka:
-    image: confluentinc/cp-kafka:7.5.9
+    image: confluentinc/cp-kafka:7.5.9@sha256:3b2c49943543980c76420cdf81799dbd36d6651608ec0728de2be352d174af12
     container_name: broker
     restart: unless-stopped
     profiles:
@@ -332,7 +332,7 @@ services:
   #   * Health probe — defaults, partitions=1 (healthchecks).
   kafka-create-topic:
     container_name: kafka-create-topic
-    image: confluentinc/cp-kafka:7.5.9
+    image: confluentinc/cp-kafka:7.5.9@sha256:3b2c49943543980c76420cdf81799dbd36d6651608ec0728de2be352d174af12
     profiles:
       - full
     command: >
@@ -368,7 +368,7 @@ services:
         condition: service_healthy
 
   schema-registry:
-    image: confluentinc/cp-schema-registry:7.5.0
+    image: confluentinc/cp-schema-registry:7.5.0@sha256:e51684b472a2481f065f44616d3d8ad2182029a7011f949a612d35b54566a1f6
     container_name: schema-registry
     restart: unless-stopped
     profiles:
@@ -399,7 +399,7 @@ services:
   # init container can run before any producer warmup.
   schema-registry-init:
     container_name: schema-registry-init
-    image: curlimages/curl:8.10.1
+    image: curlimages/curl:8.10.1@sha256:d9b4541e214bcd85196d6e92e2753ac6d0ea699f0af5741f8c6cccbfcf00ef4b
     profiles:
       - full
     depends_on:
@@ -964,7 +964,7 @@ services:
   #   - nginx-cdn     : reverse proxy demonstrating edge-cache semantics (production uses
   #                     Azure Front Door / Azure CDN). Cache: 1g size, 1h inactive (ADR-0017 literal).
   azurite:
-    image: mcr.microsoft.com/azure-storage/azurite:3.31.0
+    image: mcr.microsoft.com/azure-storage/azurite:3.31.0@sha256:d449d953a1c5bd1e26c800744a65c451e88f3387b696e02e3e2e79a995c3105b
     container_name: azurite
     restart: unless-stopped
     profiles:
@@ -998,7 +998,7 @@ services:
           memory: 256M
 
   azurite-init:
-    image: mcr.microsoft.com/azure-cli:latest
+    image: mcr.microsoft.com/azure-cli:latest@sha256:0926e9e5230a66eac8061beab122ffee5750c4fb924a7b5608c8d3cdd3511158
     container_name: azurite-init
     profiles:
       - core
@@ -1019,7 +1019,7 @@ services:
     restart: "no"
 
   nginx-cdn:
-    image: nginx:1.27-alpine
+    image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
     container_name: nginx-cdn
     restart: unless-stopped
     profiles:
@@ -1061,7 +1061,7 @@ services:
 
   # KEYCLOAK IDENTITY PROVIDER
   keycloak:
-    image: quay.io/keycloak/keycloak:26.3.2
+    image: quay.io/keycloak/keycloak:26.3.2@sha256:98fab020a3a490aba0978f237e2a06cd0ea42bf149c6cf10f11c0aaf27728ff2
     container_name: keycloak9011
     profiles:
       - full
