@@ -2,7 +2,8 @@
 
 Non-negotiable behavioral constraints for every session. The conventions + rationale they build on live in `CLAUDE.md` and `docs/bc-design/`.
 
-- **Evidence before assertions.** Don't claim "done" without pasting the actual output of the **verification gates** — run them via the `daca-gates` skill, which owns the gate set and its flags; this repo's deltas are in `docs/verification-gates.md`.
+- **Evidence before assertions.** Don't claim "done" without pasting the actual output of the **verification gates**.
+  - Run them via the `daca-gates` skill, which owns the gate set and its flags; this repo's deltas are in `docs/verification-gates.md`.
 - **Ship every new behavior with new tests.** New behavior is not "done" on green pre-existing tests alone.
 - **Ask, don't guess** — when uncertain about a cross-BC contract, an ADR, or an architectural seam. A 60-second pause beats a silent wrong assumption.
 - **Never force-push. Commit / push only when asked.**

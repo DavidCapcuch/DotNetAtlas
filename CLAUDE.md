@@ -21,6 +21,8 @@ dotnet restore --locked-mode
 
 Restore requires `--locked-mode` — lock files are committed and CI enforces them.
 
+- **`packages.lock.json` is agent-deny-protected** — never edit it. Regenerate it by running `dotnet restore` once **without** `--locked-mode`, then commit the lock delta.
+
 ## Local Infrastructure
 
 ```bash
@@ -43,7 +45,7 @@ dotnet test <proj> --no-build --blame-hang-timeout 10m -- xUnit.MaxParallelThrea
 - `dotnet run` / `preview_start` — `launchSettings.json` pins 5100–5108; `.claude/launch.json` pins 5104/5105/5106/65410/65420.
 - The `daca-gates` container-health and smoke-check steps, which depend on both of the above.
 
-**Known flake amplifier:** the Rancher Desktop WSL relay wedges with `WSAENOBUFS` under port-forward churn (memory `windows-integration-fixture-flaky-rerun`). Testcontainers' random host ports *are* that churn and concurrency multiplies it.
+**Known flake amplifier:** the Rancher Desktop WSL relay wedges with `WSAENOBUFS` under port-forward churn. Testcontainers' random host ports *are* that churn and concurrency multiplies it.
 - **Recovery:** `wsl --terminate rancher-desktop`, then restart the app.
 - **If flakes worsen, drop the cap before suspecting code.**
 
@@ -59,9 +61,9 @@ dotnet format style --no-restore --verify-no-changes
 - **Central Package Management** — package versions are centralized in `Directory.Packages.props` at the `services/`, `saga/`, `platform/`, `src/`, and `test/` levels; add packages to the correct level's file.
   - **Never put a `Version=` on a `PackageReference`.**
 - **EF Core migrations** — generate via `dotnet ef migrations add`; never hand-write the `.cs` migration from scratch.
-  - `*ModelSnapshot.cs` and `*.Designer.cs` are **agent-deny-protected**.
+  - Every `.cs` under `Persistence/Database/Migrations/` is **agent-deny-protected** — the migration, its `*.Designer.cs`, and `*ModelSnapshot.cs`.
 - **SQL-script migrations** (`V*.sql` under each BC's `Persistence/Database/Migrations/SqlScripts/`) — emit with **both** `--idempotent` and `--no-transactions`: Flyway and Evolve both wrap each script in their own transaction.
-  - `V*.sql` is likewise **agent-deny-protected** in `.claude/settings.json` — generate it with the command below; the flags produce the final form, so it is not hand-edited.
+  - `V*.sql` is likewise **agent-deny-protected** in `.claude/settings.json` — the flags produce the final form, so it is never hand-edited.
   ```bash
   dotnet ef migrations script <from> <to> --idempotent --no-transactions \
     --project services/<BC>/<BC>.Infrastructure \
@@ -76,7 +78,7 @@ dotnet format style --no-restore --verify-no-changes
 - **Avro C# bindings** (`.cs` files next to `.avsc`) — never hand-edit.
   - Regenerate via `platform/Platform.SchemaRegistry.Contracts/generate-avro.ps1 <path-to-schema.avsc>` (wraps `dotnet tool` `Apache.Avro.Tools` avrogen) after every `.avsc` edit.
   - Commit both the `.avsc` and the regenerated `.cs` together.
-  - The script runs `dotnet tool restore` against the pinned local manifest (`.config/dotnet-tools.json`), so every dev/CI machine uses the same `Apache.Avro.Tools` version — no global install required.
+  - The script restores the pinned manifest (`.config/dotnet-tools.json`), so every machine uses the same `Apache.Avro.Tools` version — no global install required.
 
 ## Agent skills
 
@@ -86,7 +88,7 @@ Issues live on GitHub (`DavidCapcuch/DotNetAtlas`); skills use the `gh` CLI. See
 
 ### Triage labels
 
-Five canonical roles (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) — default vocabulary, no remapping. See `docs/agents/triage-labels.md`.
+Five canonical roles (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) — default vocabulary, no remapping. See `docs/agents/triage-labels.md` for what each role means.
 
 ### Domain docs
 
