@@ -27,11 +27,11 @@
       },
       "Microsoft.Extensions.Logging.Abstractions": {
         "type": "Direct",
-        "requested": "[10.0.8, )",
-        "resolved": "10.0.8",
-        "contentHash": "fdVadZmsC8jRP0KvKy8mO8f6GV/HyBvElfcSxEhd+5FM5boAw/01iSaCto5G3G37ApJira4A3pNaVvBv8cUiLQ==",
+        "requested": "[10.0.10, )",
+        "resolved": "10.0.10",
+        "contentHash": "zkFxGYUvdxAvIKTyXHrmW+Sux53D4SezD9dMyZ6hrwwzPQJNuwCRy1f5W7AvYTqacEGhWF2XderRQG1OvbV8og==",
         "dependencies": {
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.8"
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.10"
         }
       },
       "StyleCop.Analyzers": {
@@ -50,8 +50,8 @@
       },
       "librdkafka.redist": {
         "type": "Transitive",
-        "resolved": "2.14.0",
-        "contentHash": "jqmYswYUiW9So5lce1Upo/zm5V7p/kWaqnUqkP5Lar1Ekq2yLrORoDCJ1JIiVLD3xdVkavwqW9iFKHBfkTsS7w=="
+        "resolved": "2.15.0",
+        "contentHash": "DzG2YcqWPT3Ly91aeDYsgsVcJXlOMiK9oqyRdPvQz9ZMbcV8Ob0rQA6fNUQ4sarmzFk4phqwPlVQxtZDGLP69w=="
       },
       "Microsoft.Bcl.AsyncInterfaces": {
         "type": "Transitive",
@@ -78,7 +78,7 @@
         "dependencies": {
           "Ardalis.SmartEnum": "[8.2.0, )",
           "FluentResults": "[4.0.0, )",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.8, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.10, )",
           "Scrutor": "[7.0.0, )"
         }
       },
@@ -90,11 +90,11 @@
       },
       "Confluent.Kafka": {
         "type": "CentralTransitive",
-        "requested": "[2.14.0, )",
-        "resolved": "2.14.0",
-        "contentHash": "NnG0UXR9Wnup3Nvik6SBVaHRzCu0Iit8BE7ayaWsLt+yRWrI0ZY6o8pxPB6B/jyu+fbUllZ9efsbyFwrowDcpg==",
+        "requested": "[2.15.0, )",
+        "resolved": "2.15.0",
+        "contentHash": "/BOEnIKAq1AHq6vPl+0RBDiKwI6L6tJaYBo1qH+OAUP5MFy0i0MhSfgtqKW9/M8J9dQPfb/izWU+R0Uc6DyW2w==",
         "dependencies": {
-          "librdkafka.redist": "2.14.0"
+          "librdkafka.redist": "2.15.0"
         }
       },
       "FluentResults": {
@@ -108,9 +108,9 @@
       },
       "Microsoft.Extensions.DependencyInjection.Abstractions": {
         "type": "CentralTransitive",
-        "requested": "[10.0.8, )",
-        "resolved": "10.0.8",
-        "contentHash": "21nbDV60SRPWGIivsyl6lqBeEJNG1sginhhfWgRrr3Ais7aQ12To25OAHQxgoiJkjqy1aQ6RxpZBGYuTi7Ge6A=="
+        "requested": "[10.0.10, )",
+        "resolved": "10.0.10",
+        "contentHash": "z/2xXlFw2aLGjHyEm6E0tQ+In6VfzQzTrtArbQ2c0TQE16ZbyDCMGPvaUT9I0s8rgy9sRWlU2P9waW37qV04qA=="
       },
       "Scrutor": {
         "type": "CentralTransitive",
@@ -126,8 +126,8 @@
     "net10.0/linux-x64": {
       "librdkafka.redist": {
         "type": "Transitive",
-        "resolved": "2.14.0",
-        "contentHash": "jqmYswYUiW9So5lce1Upo/zm5V7p/kWaqnUqkP5Lar1Ekq2yLrORoDCJ1JIiVLD3xdVkavwqW9iFKHBfkTsS7w=="
+        "resolved": "2.15.0",
+        "contentHash": "DzG2YcqWPT3Ly91aeDYsgsVcJXlOMiK9oqyRdPvQz9ZMbcV8Ob0rQA6fNUQ4sarmzFk4phqwPlVQxtZDGLP69w=="
       }
     }
   }
