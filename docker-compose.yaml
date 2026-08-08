@@ -22,7 +22,7 @@ x-bc-base-image: &bc-base-image mcr.microsoft.com/dotnet/aspnet:10.0-alpine3.22-
 
 services:
   postgresdb:
-    image: postgres:18.3@sha256:52e6ffd11fddd081ae63880b635b2a61c14008c17fc98cdc7ce5472265516dd0
+    image: postgres:18.4@sha256:a02db8cac496f15b094798a38254f14d6e00741f709360e5e00bb6668ea31636
     container_name: postgres5433
     shm_size: 256mb
     restart: always
@@ -64,7 +64,7 @@ services:
   #   - redis-cache  : volatile (BFF L2 FusionCache backplane + ephemeral cache for other services).
   #                    No persistence; 512 MB allkeys-lru eviction; loss = next request pays miss.
   redis-basket:
-    image: redis:7.4.6@sha256:d7432711a2a5c99c2e9dd0e006061cd274d7cb7a9e77f07ffe2ea99e21244677
+    image: redis:7.4.10@sha256:e9b2e45ecd47fbb69b877cf8d045d5cccaaaed52524b6e098b4abe8212994f73
     container_name: redis-basket
     restart: always
     profiles:
@@ -92,7 +92,7 @@ services:
   # email dispatcher delivers via MailKit → SMTP 1025; captured mail is browsable
   # on the web UI (8025) and assertable via its REST API in tests.
   mailpit:
-    image: axllent/mailpit:v1.21@sha256:81370195cd4a0eab9604d17c2617a7525b0486f9365555253b6c5376c6350f1a
+    image: axllent/mailpit:v1.30@sha256:d5ecbb067db3705fa953d79e1b7f81ef84038df67aba6c52825d8c02a1ea748a
     container_name: mailpit
     restart: always
     profiles:
@@ -115,7 +115,7 @@ services:
           memory: 64M
 
   redis-cache:
-    image: redis:7.4.6@sha256:d7432711a2a5c99c2e9dd0e006061cd274d7cb7a9e77f07ffe2ea99e21244677
+    image: redis:7.4.10@sha256:e9b2e45ecd47fbb69b877cf8d045d5cccaaaed52524b6e098b4abe8212994f73
     container_name: redis-cache
     restart: always
     profiles:
@@ -174,7 +174,7 @@ services:
           memory: 512M
 
   jaeger:
-    image: jaegertracing/all-in-one:1.74.0@sha256:c87fc1d9b22766284168abb2ac57ac2160dfc26484e4f965ff2dcc6b849b263a
+    image: jaegertracing/all-in-one:1.76.0@sha256:ab6f1a1f0fb49ea08bcd19f6b84f6081d0d44b364b6de148e1798eb5816bacac
     container_name: jaeger16686ui4317grpc
     profiles:
       - full
@@ -196,7 +196,7 @@ services:
           memory: 512M
   
   prometheus:
-    image: quay.io/prometheus/prometheus:v3.6.0@sha256:76947e7ef22f8a698fc638f706685909be425dbe09bd7a2cd7aca849f79b5f64
+    image: quay.io/prometheus/prometheus:v3.13.2@sha256:508729e0e2d18e11fd742a5a5ca70e557b940a93948c3c95fd0123a6fd538b69
     container_name: prometheus9090
     profiles:
       - full
@@ -222,7 +222,7 @@ services:
       - "9090:9090"
 
   grafana:
-    image: grafana/grafana:12.2.0@sha256:74144189b38447facf737dfd0f3906e42e0776212bf575dc3334c3609183adf7
+    image: grafana/grafana:12.4.8@sha256:7753ad493720e33560077e8bc5e05fbce4ade777f1387b19ab5050b6777111dd
     container_name: grafana3000
     profiles:
       - full
@@ -241,7 +241,7 @@ services:
       - "3000:3000"
 
   otel-collector:
-    image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.137.0@sha256:886722fe0f37af9d1fe24d29529253ec59fbf263b3b1df4facaf221373e19d23
+    image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.158.0@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5
     container_name: otel-collector
     profiles:
       - full
@@ -272,7 +272,7 @@ services:
       - GOMEMLIMIT=160MiB
   
   kafka:
-    image: confluentinc/cp-kafka:7.5.9
+    image: confluentinc/cp-kafka:7.9.9@sha256:50490d79766dd3a5680e22d4f0257619bb94314fecb01267e8c122214d1928de
     container_name: broker
     restart: unless-stopped
     profiles:
@@ -332,7 +332,7 @@ services:
   #   * Health probe — defaults, partitions=1 (healthchecks).
   kafka-create-topic:
     container_name: kafka-create-topic
-    image: confluentinc/cp-kafka:7.5.9
+    image: confluentinc/cp-kafka:7.9.9@sha256:50490d79766dd3a5680e22d4f0257619bb94314fecb01267e8c122214d1928de
     profiles:
       - full
     command: >
@@ -368,7 +368,7 @@ services:
         condition: service_healthy
 
   schema-registry:
-    image: confluentinc/cp-schema-registry:7.5.0
+    image: confluentinc/cp-schema-registry:7.9.9@sha256:d81e78cd85674c003784b4beae3baf469ba20131b0abf1d7f21bee67e6d09867
     container_name: schema-registry
     restart: unless-stopped
     profiles:
@@ -399,7 +399,7 @@ services:
   # init container can run before any producer warmup.
   schema-registry-init:
     container_name: schema-registry-init
-    image: curlimages/curl:8.10.1
+    image: curlimages/curl:8.21.0@sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13
     profiles:
       - full
     depends_on:
@@ -438,7 +438,7 @@ services:
 
   akhq:
     container_name: akhq
-    image: tchiotludo/akhq:0.26.0@sha256:833f9c3c32786e06c858589b2b1655a60caf3ca235c840308ad5754414945dd0
+    image: tchiotludo/akhq:0.28.0@sha256:c2824dc2ae442b7ec215581f7e60a9f4106ea9004057fa3a1f88a29464cd4e63
     profiles:
       - full
     depends_on:
@@ -876,7 +876,7 @@ services:
   # shell sees `$db`/`$schema` at run time.
   flyway:
     container_name: flyway
-    image: flyway/flyway:11.16-alpine@sha256:1d1ea82034deeaff5c8e7ed603f7719363367e7601d0479e0ed4e92c0479e6d0
+    image: flyway/flyway:11.20-alpine@sha256:aa01d87052ace414b7fb33ddabbdabb056a1e603a8bb5831dd516176718227e1
     profiles:
       - full
     restart: "no"
@@ -964,7 +964,7 @@ services:
   #   - nginx-cdn     : reverse proxy demonstrating edge-cache semantics (production uses
   #                     Azure Front Door / Azure CDN). Cache: 1g size, 1h inactive (ADR-0017 literal).
   azurite:
-    image: mcr.microsoft.com/azure-storage/azurite:3.31.0
+    image: mcr.microsoft.com/azure-storage/azurite:3.36.0@sha256:76b8127d608fab8287a14a4bfeb9a5502cdcffb4bf1e86f09f324ebb0e70edba
     container_name: azurite
     restart: unless-stopped
     profiles:
@@ -1019,7 +1019,7 @@ services:
     restart: "no"
 
   nginx-cdn:
-    image: nginx:1.27-alpine
+    image: nginx:1.31-alpine@sha256:4a73073bd557c65b759505da037898b61f1be6cbcc3c2c3aeac22d2a470c1752
     container_name: nginx-cdn
     restart: unless-stopped
     profiles:
@@ -1061,7 +1061,7 @@ services:
 
   # KEYCLOAK IDENTITY PROVIDER
   keycloak:
-    image: quay.io/keycloak/keycloak:26.3.2
+    image: quay.io/keycloak/keycloak:26.7.1@sha256:f1f1f01e472c8a78df40d8f2a49a925274eda4d3d80d5f6edbb5c880ee3c01c6
     container_name: keycloak9011
     profiles:
       - full
