@@ -4,13 +4,14 @@ Standing behavioral rules (loaded every session): @.claude/rules.md
 
 ## Repository layout
 
-Solution: `DotNetAtlas.slnx`. Four source trees plus tests:
+Solution: `DotNetAtlas.slnx`. Source lives under `services/`, `platform/`, `src/` and `saga/`;
+`ls -d services/*/ platform/*/ src/*/ saga/*/ test/*/` lists what each holds today.
 
-- **`services/<BC>/`** — 7 bounded contexts (Basket, Catalog, Inventory, Invoicing, Notifications, Ordering, Payments); each is 4-layer `.Domain` / `.Application` / `.Infrastructure` / `.Api`.
-- **`platform/`** — shared libraries (SharedKernel, ServiceDefaults, CQRS, reliable-messaging Inbox/Outbox, KafkaFlow extensions, `SchemaRegistry.Contracts`, Test.Framework).
-- **`src/`** — `EShop.BFF/` (`.Api` / `.Infrastructure`); also infra config dirs (keycloak, postgres, grafana, prometheus, otel-collector, nginx-cdn).
-- **`saga/`** — `SagaOrchestrators` (centralized checkout saga).
-- **`test/`** — one trio per unit: `{Unit}.UnitTests` / `.IntegrationTests` / `.ArchitectureTests` (saga keeps its `SagaOrchestrators.UnitTests` / `.IntegrationTests` pair).
+- **`services/<BC>/`** — one folder per bounded context, each a 4-layer `.Domain` / `.Application` / `.Infrastructure` / `.Api`.
+- **`platform/`** — shared libraries, with their unit tests beside them; platform architecture tests live in `test/`.
+- **`src/`** — the BFF, alongside one config directory per infra component.
+- **`saga/`** — the centralized checkout saga, with both its test projects beside it.
+- **`test/`** — the remaining test projects, named `{Unit}.UnitTests` / `.IntegrationTests` / `.ArchitectureTests` / `.FunctionalTests`. Not every unit has all four.
 
 ## Build & Restore
 
@@ -26,8 +27,8 @@ Restore requires `--locked-mode` — lock files are committed and CI enforces th
 ## Local Infrastructure
 
 ```bash
-docker compose --profile core up -d    # Postgres + redis-basket + Azurite (storage deps only)
-docker compose --profile full up -d    # All services (Jaeger, Seq, Kafka, etc.)
+docker compose --profile core up -d    # just the backing dependencies the services need
+docker compose --profile full up -d    # everything, including the services themselves
 ```
 
 ## Worktrees
@@ -41,8 +42,8 @@ dotnet test <proj> --no-build --blame-hang-timeout 10m -- xUnit.MaxParallelThrea
 ```
 
 **Singletons — per machine, one worktree at a time:**
-- `docker compose --profile core|full` — **do not parameterize the ports to work around this.** 38 fixed `container_name:` and 35 fixed host ports collide daemon-wide; one stack is sized at 8 CPU / 32 GB.
-- `dotnet run` / `preview_start` — `launchSettings.json` pins 5100–5108; `.claude/launch.json` pins 5104/5105/5106/65410/65420.
+- `docker compose --profile core|full` — services pin fixed `container_name:` values and fixed host ports, so a second stack collides daemon-wide; one stack is sized at 8 CPU / 32 GB. **Serialize the stack rather than reassigning its ports.**
+- `dotnet run` / `preview_start` — the projects' `launchSettings.json` files and `.claude/launch.json` pin fixed host ports, and the two sets overlap; read them for the current values.
 - The `daca-gates` container-health and smoke-check steps, which depend on both of the above.
 
 **Known flake amplifier:** the Rancher Desktop WSL relay wedges with `WSAENOBUFS` under port-forward churn. Testcontainers' random host ports *are* that churn and concurrency multiplies it.
@@ -58,8 +59,11 @@ dotnet format style --no-restore --verify-no-changes
 
 ## Non-obvious Conventions
 
-- **Central Package Management** — package versions are centralized in `Directory.Packages.props` at the `services/`, `saga/`, `platform/`, `src/`, and `test/` levels; add packages to the correct level's file.
-  - **Never put a `Version=` on a `PackageReference`.**
+- **Docs state rules and navigation; the repo answers the values.** When the repo itself answers it — the bounded contexts, the test projects, the pinned ports — name the file or command instead of the answer. A value copied into prose drifts silently: `validate-documentation-links.yml` validates *links* and nothing else, so a stale enumeration or a wrong path in a code span sails through CI.
+  - **A table a currently-accepted ADR designates as the single source of truth stays** — keep it and cite that ADR inline. Search the ADR corpus for the designation rather than assuming one; ADR-0033 is one such (`docs/bc-design/events-catalog.md` §2 and `docs/kafka-topology.md`), not the only one.
+  - **ADR bodies and `docs/research/*` bodies are point-in-time records** — they state what was true and what was decided when written, so leave them standing rather than reconciling them to today.
+- **Central Package Management** — package versions live in `Directory.Packages.props`; add the package to the nearest one above your project.
+  - **A `PackageReference` carries the package name only — the version belongs in `Directory.Packages.props`.**
 - **EF Core migrations** — generate via `dotnet ef migrations add`; never hand-write the `.cs` migration from scratch.
   - Every `.cs` under `Persistence/Database/Migrations/` is **agent-deny-protected** — the migration, its `*.Designer.cs`, and `*ModelSnapshot.cs`.
 - **SQL-script migrations** (`V*.sql` under each BC's `Persistence/Database/Migrations/SqlScripts/`) — emit with **both** `--idempotent` and `--no-transactions`: Flyway and Evolve both wrap each script in their own transaction.
@@ -88,17 +92,15 @@ Issues live on GitHub (`DavidCapcuch/DotNetAtlas`); skills use the `gh` CLI. See
 
 ### Triage labels
 
-Five canonical roles (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) — default vocabulary, no remapping. See `docs/agents/triage-labels.md` for what each role means.
+The skills' canonical triage roles map 1:1 onto this repo's label strings — use them as-is, no remapping. `docs/agents/triage-labels.md` holds the roles and what each one means.
 
 ### Domain docs
 
-Multi-context repo. See `docs/agents/domain.md`.
+Multi-context repo. `docs/agents/domain.md` is the map — which domain docs exist, where ADRs live, and the order to read them in.
 
-- `CONTEXT-MAP.md` at the root points to per-bounded-context `CONTEXT.md` files (one per service).
-- System-wide ADRs live in `docs/adr/`; context-scoped ADRs in `services/<context>/docs/adr/`.
-- **Files are created lazily by `/grill-with-docs` — proceed silently if any are missing.**
+- **`CONTEXT.md` / `CONTEXT-MAP.md` are created lazily by `/grill-with-docs`, so proceed silently when one is missing.**
 
 ## Project status
 
 - **Non-production reference solution — breaking changes are always allowed**, including ADRs, which can be rewritten inline after the fact.
-- **BFF service (`src/EShop.BFF/`) is under active build** — implemented: the read-side pages (home, product, basket), the buyer-scoped RFC 8693 token exchange, and the basket mutation forwarders. Not yet built: checkout and order-summary.
+- **BFF service (`src/EShop.BFF/`) is under active build** — `src/EShop.BFF/EShop.BFF.Api/Endpoints/` shows what is wired today. **Checkout and order-summary are not built yet.**
