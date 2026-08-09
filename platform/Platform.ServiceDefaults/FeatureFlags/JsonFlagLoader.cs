@@ -12,10 +12,27 @@ namespace Platform.ServiceDefaults.FeatureFlags;
 /// <remarks>
 /// v1 supports boolean variants only; string / integer / double variants are deferred — the
 /// loader ignores non-boolean flags with a warning so the missing-file path and a partially-
-/// understood file path stay boring (startup never throws on flag config).
+/// understood file path stay boring. Startup never throws on flag *content*; a blank
+/// <see cref="FeatureFlagsOptions.FilePath"/> is a misconfigured service and still throws.
+/// <para>
+/// A flag whose <c>state</c> is not <c>ENABLED</c> is still loaded, but disabled, so it resolves
+/// to the call site's <c>defaultValue</c> with reason <c>DISABLED</c> rather than to an error —
+/// which keeps a deliberate switch-off distinguishable from a broken config in telemetry. That
+/// default is not necessarily the feature's "off" state: a kill switch whose call site defaults to
+/// <c>true</c> keeps running when its flag is disabled.
+/// </para>
+/// <para>
+/// An unrecognised state <em>value</em> counts as disabled, so a typo fails toward the call site's
+/// default rather than toward serving a flag someone meant to switch off. An absent <c>state</c>
+/// property means enabled, so a misspelled property name is not covered by that fail-safe —
+/// rejecting unknown properties instead would fail the whole document and empty every flag.
+/// </para>
 /// </remarks>
 public static class JsonFlagLoader
 {
+    private const string EnabledState = "ENABLED";
+    private const string DisabledState = "DISABLED";
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     /// <summary>
@@ -59,7 +76,7 @@ public static class JsonFlagLoader
                 continue;
             }
 
-            if (TryBuildBooleanFlag(entry, out var flag))
+            if (TryBuildBooleanFlag(entry, key, logger, out var flag))
             {
                 flags[key] = flag!;
                 continue;
@@ -73,7 +90,23 @@ public static class JsonFlagLoader
         return flags;
     }
 
-    private static bool TryBuildBooleanFlag(FlagFileEntry entry, out Flag? flag)
+    private static bool IsDisabled(string? state, string key, ILogger? logger)
+    {
+        if (state is null || state.Equals(EnabledState, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (state.Equals(DisabledState, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        logger?.LogWarning("Flag '{Key}' has unrecognised state '{State}'; treated as DISABLED.", key, state);
+        return true;
+    }
+
+    private static bool TryBuildBooleanFlag(FlagFileEntry entry, string key, ILogger? logger, out Flag? flag)
     {
         var booleanVariants = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var (variantKey, element) in entry.Variants!)
@@ -93,7 +126,11 @@ public static class JsonFlagLoader
             return false;
         }
 
-        flag = new Flag<bool>(booleanVariants, entry.DefaultVariant!);
+        // State is read last, so a flag that is skipped as malformed never also logs a state warning.
+        flag = new Flag<bool>(
+            booleanVariants,
+            entry.DefaultVariant!,
+            disabled: IsDisabled(entry.State, key, logger));
         return true;
     }
 
