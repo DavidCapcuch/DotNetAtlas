@@ -13,8 +13,17 @@ scrape_configs:
       - targets: ['otel-collector:8889']  # OTLP Prometheus exporter endpoint
 
   - job_name: 'bc-healthchecks'
-    scrape_interval: 10s
-    scrape_timeout: 9s
+    # Every scrape re-runs the whole `ready` set from scratch — health-check results are never
+    # cached, and the Kafka probe produces a real message per run. This job is not the only caller:
+    # docker-compose probes /api/readiness on the same containers every 15s, so at 10s here each
+    # container ran the set ~10x/min and now runs it ~6x/min, with compose the larger share.
+    # health_checks-dashboard.json reads these gauges raw with no rate() windows, so the coarser
+    # resolution costs only flap-detection latency.
+    # scrape_timeout stays explicit: the global default at the top of this file is far tighter than
+    # this set's worst case (Kafka alone is allowed 5s), so inheriting it would time out healthy
+    # scrapes.
+    scrape_interval: 30s
+    scrape_timeout: 10s
     metrics_path: /api/health/prometheus
     static_configs:
       - targets: ['basket.api:8080']
@@ -49,10 +58,19 @@ scrape_configs:
         labels:
           app: bff
           kind: healthchecks
+      # The saga is not a bounded context, but it belongs in THIS job rather than its own:
+      # health_checks-dashboard.json hardcodes job="bc-healthchecks" in every panel query, so a
+      # separate job would scrape fine and still render nothing. Its checks also join that
+      # dashboard's count() aggregates, so those totals now span the saga too.
+      - targets: ['saga:8080']
+        labels:
+          app: saga
+          kind: healthchecks
 
   - job_name: 'outbox-relay-healthchecks'
-    scrape_interval: 10s
-    scrape_timeout: 9s
+    # Interval/timeout reasoning: see bc-healthchecks above.
+    scrape_interval: 30s
+    scrape_timeout: 10s
     metrics_path: /api/health/prometheus
     static_configs:
       - targets: ['outbox-relay-saga:8080']
