@@ -6,11 +6,9 @@ How the engineering skills should consume this repo's domain documentation when 
 
 - **`CONTEXT.md`** at the repo root, or
 - **`CONTEXT-MAP.md`** at the repo root if it exists — it points at one `CONTEXT.md` per context. Read each one relevant to the topic.
-- **`docs/adr/`** — read ADRs that touch the area you're about to work in. In multi-context repos, also check `src/<context>/docs/adr/` for context-scoped decisions.
+- **`docs/adr/`** — read ADRs that touch the area you're about to work in. In multi-context repos, also check `services/<context>/docs/adr/` for context-scoped decisions.
 
 If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The producer skill (`/grill-with-docs`) creates them lazily when terms or decisions actually get resolved.
-
-> _As of writing, neither `CONTEXT-MAP.md` nor any per-service `CONTEXT.md` exists. They get created lazily by `/grill-with-docs` as domain terms are resolved during real work — don't create them upfront. Until they exist, skills should proceed silently._
 
 ## File structure
 
@@ -19,7 +17,7 @@ DotNetAtlas is a multi-context repo. Bounded contexts live under `services/` (on
 ```
 /
 ├── CONTEXT-MAP.md                      ← root: lists all bounded contexts + their CONTEXT.md paths
-├── docs/adr/                           ← system-wide / cross-context decisions (0001-0020)
+├── docs/adr/                           ← system-wide / cross-context decisions
 └── services/
     ├── Ordering/
     │   ├── CONTEXT.md
@@ -34,6 +32,9 @@ DotNetAtlas is a multi-context repo. Bounded contexts live under `services/` (on
     │   ├── CONTEXT.md
     │   └── docs/adr/
     ├── Payments/
+    │   ├── CONTEXT.md
+    │   └── docs/adr/
+    ├── Notifications/
     │   ├── CONTEXT.md
     │   └── docs/adr/
     └── Inventory/
