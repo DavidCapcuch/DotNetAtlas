@@ -30,9 +30,8 @@ internal static class BffTestHostExtensions
 
     /// <summary>
     /// Pins the <c>bff.home-page-eager-cache-warm</c> flag for the <see cref="HomePageCacheWarmer"/> by
-    /// substituting <see cref="IFeatureClient"/>. OpenFeature's <c>Api.Instance</c> provider is process-global,
-    /// so several fixtures sharing it would contaminate each other's flag reads — substituting the client per
-    /// host makes each fixture's warm decision deterministic (the same pattern Catalog's fixture uses).
+    /// substituting <see cref="IFeatureClient"/>, so each fixture's warm decision is deterministic without
+    /// depending on a flag file on disk (the same pattern Catalog's fixture uses).
     /// </summary>
     public static IWebHostBuilder UseWarmFlag(this IWebHostBuilder webBuilder, bool enabled) =>
         webBuilder.ConfigureTestServices(services =>

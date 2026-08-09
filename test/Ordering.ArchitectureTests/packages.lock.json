@@ -1047,19 +1047,19 @@
       },
       "OpenFeature": {
         "type": "Transitive",
-        "resolved": "2.13.0",
-        "contentHash": "/zW7+kByBV1ue7LoG/mnuSz0XJaSEE8/+DtM4cGaSMYi5IozkLlRPkis1mvMMVPbjBCGFMjeWSs11A9evlUw2g==",
+        "resolved": "2.14.0",
+        "contentHash": "q1za5ZaY1j8geLy4/VlCqOtyCc0kMdFp9TXTMGLD6tTSsZWQCQScyrCYgRDX5eGGcQm5F7Mi+plNW5MeIDQ02A==",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "10.0.0"
         }
       },
       "OpenFeature.Hosting": {
         "type": "Transitive",
-        "resolved": "2.13.0",
-        "contentHash": "mB4LZBcV+4ge1ciwREsO1xAx9GDWAvU4B5f3iRP7Gsbz+0hRaB7EQ1Px8nVHxLwjd7Zg7hPqwf0CZonACvAxjg==",
+        "resolved": "2.14.0",
+        "contentHash": "FFIM4nWmUaQGJmTd+0IU5T1RErYCJodqxgwiB+u9hrOfjhqi3QiCDl9MEy4AjknZMcY702+WKspOf8FHQX4edQ==",
         "dependencies": {
           "Microsoft.Extensions.Hosting.Abstractions": "10.0.0",
-          "OpenFeature": "2.13.0"
+          "OpenFeature": "2.14.0"
         }
       },
       "OpenTelemetry": {
@@ -1616,8 +1616,8 @@
           "Microsoft.EntityFrameworkCore": "[10.0.8, )",
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.8, )",
           "Microsoft.Extensions.Http.Resilience": "[10.6.0, )",
-          "OpenFeature": "[2.13.0, )",
-          "OpenFeature.Hosting": "[2.13.0, )",
+          "OpenFeature": "[2.14.0, )",
+          "OpenFeature.Hosting": "[2.14.0, )",
           "OpenTelemetry": "[1.15.3, )",
           "Platform.SharedKernel": "[1.0.0, )",
           "Serilog.AspNetCore": "[10.0.0, )",

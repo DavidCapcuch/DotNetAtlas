@@ -78,7 +78,7 @@
         <PackageVersion Include="TypedSignalR.Client.Attributes" Version="1.1.0"/>
 
         <!-- Feature Flags (ADR-0014) — OpenFeature SDK consumed directly by Application layers that read flags -->
-        <PackageVersion Include="OpenFeature" Version="2.13.0"/>
+        <PackageVersion Include="OpenFeature" Version="2.14.0"/>
 
         <!-- Health Checks -->
         <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.8"/>

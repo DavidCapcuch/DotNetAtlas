@@ -24,6 +24,12 @@ public static class FeatureFlagsServiceCollectionExtensions
     /// their <c>Program.cs</c> after <c>AddServiceDefaults()</c>. Production adopters replace
     /// <c>AddInMemoryProvider</c> with a SaaS provider (LaunchDarkly / Split / ConfigCat) — call
     /// sites using <see cref="IFeatureClient"/> remain unchanged.
+    /// <para>
+    /// Always obtain <see cref="IFeatureClient"/> from the container. The provider is bound to a
+    /// container-scoped OpenFeature <c>Api</c>, so a client taken from the process-global
+    /// <c>Api.Instance</c> has no provider and every flag silently returns the call-site default
+    /// rather than throwing.
+    /// </para>
     /// </remarks>
     public static IServiceCollection AddFeatureFlags(
         this IServiceCollection services,

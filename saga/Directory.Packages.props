@@ -57,7 +57,7 @@
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.8" />
     <PackageVersion Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.8" />
     <!-- Feature flags (ADR-0014) -->
-    <PackageVersion Include="OpenFeature" Version="2.13.0" />
+    <PackageVersion Include="OpenFeature" Version="2.14.0" />
     <!-- Test framework packages -->
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <PackageVersion Include="xunit.analyzers" Version="1.27.0" />
