@@ -3,6 +3,9 @@
     <ItemGroup>
         <FrameworkReference Include="Microsoft.AspNetCore.App"/>
         <PackageReference Include="Microsoft.AspNetCore.TestHost"/>
+        <!-- Not referenced by Platform.ServiceDefaults itself: the 9 units register this check, and
+             ApplicationStatusTimeoutInvariantTests pins the package behaviour they all rely on. -->
+        <PackageReference Include="AspNetCore.HealthChecks.ApplicationStatus"/>
         <PackageReference Include="Microsoft.Extensions.Http.Resilience"/>
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer"/>
         <PackageReference Include="OpenFeature"/>

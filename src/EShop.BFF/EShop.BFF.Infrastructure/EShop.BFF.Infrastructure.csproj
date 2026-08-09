@@ -25,7 +25,7 @@
         <PackageReference Include="ZiggyCreatures.FusionCache.OpenTelemetry"/>
         <PackageReference Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson"/>
 
-        <!-- Health checks: self (liveness) + redis-cache (readiness) -->
+        <!-- Health checks: application-lifecycle + redis-cache probes -->
         <PackageReference Include="AspNetCore.HealthChecks.ApplicationStatus"/>
         <PackageReference Include="AspNetCore.HealthChecks.Redis"/>
 

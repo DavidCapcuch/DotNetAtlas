@@ -72,8 +72,7 @@ internal static class HealthChecksDependencyInjection
         services.AddHealthChecks()
             .AddApplicationStatus(
                 "Self",
-                tags: [ServiceDefaultHealthCheckTags.LivenessTag, ServiceDefaultHealthCheckTags.ReadinessTag],
-                timeout: timeouts.SelfTimeout)
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag])
             .AddDbContextCheck<InvoicingDbContext>(
                 name: "Invoicing DB",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],

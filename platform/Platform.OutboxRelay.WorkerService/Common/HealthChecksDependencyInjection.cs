@@ -46,8 +46,7 @@ internal static class HealthChecksDependencyInjection
         services.AddHealthChecks()
             .AddApplicationStatus(
                 "Self",
-                tags: [ServiceDefaultHealthCheckTags.LivenessTag, ServiceDefaultHealthCheckTags.ReadinessTag],
-                timeout: timeouts.SelfTimeout)
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag])
             .AddDbContextCheck<OutboxDbContext>(
                 name: "Outbox DB",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
@@ -58,6 +57,14 @@ internal static class HealthChecksDependencyInjection
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: timeouts.KafkaTimeout)
+            // The only liveness-tagged check in this solution, and a deliberate exception to the
+            // rule on ServiceDefaultHealthCheckTags.LivenessTag — carried with a known sharp edge.
+            // The probe reports Unhealthy purely on publish-loop staleness, and the loop only
+            // succeeds when both Postgres and Kafka are reachable, so a dependency outage lasting
+            // longer than UnhealthyThreshold fails liveness on every relay replica at once — the
+            // cascading restart the rule exists to prevent. It cannot currently distinguish a
+            // wedged loop (a restart helps) from a dependency outage (a restart hurts). Making it
+            // dependency-aware, or moving it off liveness, is open work rather than settled design.
             .AddCheck<OutboxRelayHealthCheck>(
                 name: "OutboxRelay Execution",
                 tags: [ServiceDefaultHealthCheckTags.LivenessTag, ServiceDefaultHealthCheckTags.ReadinessTag],

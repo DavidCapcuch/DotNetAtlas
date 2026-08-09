@@ -54,6 +54,7 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="SagaOrchestrators.IntegrationTests"/>
+        <InternalsVisibleTo Include="SagaOrchestrators.UnitTests"/>
     </ItemGroup>
 
     <ItemGroup>

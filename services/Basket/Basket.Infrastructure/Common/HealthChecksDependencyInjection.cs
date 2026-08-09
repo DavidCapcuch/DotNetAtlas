@@ -60,8 +60,7 @@ internal static class HealthChecksDependencyInjection
         services.AddHealthChecks()
             .AddApplicationStatus(
                 "Self",
-                tags: [ServiceDefaultHealthCheckTags.LivenessTag, ServiceDefaultHealthCheckTags.ReadinessTag],
-                timeout: timeouts.SelfTimeout)
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag])
             .AddDbContextCheck<BasketDbContext>(
                 name: "Basket DB",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
