@@ -46,9 +46,8 @@ dotnet test <proj> --no-build --blame-hang-timeout 10m -- xUnit.MaxParallelThrea
 - `dotnet run` / `preview_start` — the projects' `launchSettings.json` files and `.claude/launch.json` pin fixed host ports, and the two sets overlap; read them for the current values.
 - The `daca-gates` container-health and smoke-check steps, which depend on both of the above.
 
-**Known flake amplifier:** the Rancher Desktop WSL relay wedges with `WSAENOBUFS` under port-forward churn. Testcontainers' random host ports *are* that churn and concurrency multiplies it.
-- **Recovery:** `wsl --terminate rancher-desktop`, then restart the app.
-- **If flakes worsen, drop the cap before suspecting code.**
+**Known flake amplifier:** the local container engine's relay can wedge under port-forward churn. Testcontainers' random host ports *are* that churn and concurrency multiplies it.
+- **If flakes worsen, drop the cap before suspecting code.** Engine-specific recovery is a per-machine concern, not a repo one.
 
 ## Formatting (CI-enforced)
 
