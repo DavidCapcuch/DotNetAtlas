@@ -51,4 +51,8 @@
     <ItemGroup>
         <ProjectReference Include="..\Platform.SharedKernel\Platform.SharedKernel.csproj" />
     </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Platform.ServiceDefaults.UnitTests" />
+    </ItemGroup>
 </Project>

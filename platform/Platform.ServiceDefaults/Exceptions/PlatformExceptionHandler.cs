@@ -17,9 +17,11 @@ namespace Platform.ServiceDefaults.Exceptions;
 /// </summary>
 /// <remarks>
 /// <para>Behaviour: every unhandled exception becomes a 500 RFC 9457 ProblemDetails
-/// response. The <c>Detail</c> field carries <c>Exception.Message</c> in
-/// Development / Testing for debuggability, and a generic redacted string in
-/// deployed environments to prevent information leak.</para>
+/// response. The <c>Detail</c> field carries <c>Exception.Message</c> in Testing for
+/// debuggability, and a generic redacted string in deployed environments to prevent
+/// information leak. Development never reaches this handler — the developer exception
+/// page added by <see cref="WebApplicationExtensions.UsePlatformExceptionHandling"/>
+/// short-circuits first.</para>
 /// <para>The handler does NOT branch on exception type. Status-mapping of
 /// expected failure modes belongs in <c>Platform.Api.SendErrorResponseAsync</c> via
 /// the typed <c>DomainError</c> hierarchy (<c>Result.Fail</c>); CLR exceptions
@@ -32,7 +34,6 @@ namespace Platform.ServiceDefaults.Exceptions;
 internal sealed class PlatformExceptionHandler : IExceptionHandler
 {
     private const string RedactedDetail = "An error occurred while processing the request.";
-    private const string ProblemTypeUri = "https://tools.ietf.org/html/rfc9110#section-15.6.1";
 
     private readonly IProblemDetailsService _problemDetailsService;
     private readonly ILogger<PlatformExceptionHandler> _logger;
@@ -69,9 +70,14 @@ internal sealed class PlatformExceptionHandler : IExceptionHandler
         {
             HttpContext = httpContext,
             Exception = exception,
+            // Type is left unset: ProblemDetailsDefaults.Apply owns a per-status table covering
+            // 400-505 and fills the RFC 9110 §15.6.1 link for 500, so that table is the single
+            // source and this handler — which only ever emits 500 — would be copying one row of it.
+            // Title IS set, because the framework's default for 500 is the wordier "An error
+            // occurred while processing your request."; the HTTP reason phrase is the terser
+            // contract this platform serves. Both values are pinned by PlatformExceptionHandlerTests.
             ProblemDetails = new ProblemDetails
             {
-                Type = ProblemTypeUri,
                 Title = "Internal Server Error",
                 Detail = detail,
             },

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Hosting;
 using Platform.ServiceDefaults.Config;
 using Prometheus;
 
@@ -16,25 +17,26 @@ namespace Platform.ServiceDefaults;
 public static class WebApplicationExtensions
 {
     /// <summary>
-    /// Wires the environment-appropriate exception surface. Deployed tiers
-    /// (<see cref="HostEnvironmentExtensions.IsDeployedEnvironment"/>) get the platform
-    /// <c>UseExceptionHandler</c> — a redacted ProblemDetails response via the registered
-    /// exception handler / <c>IProblemDetailsService</c>. Developer tiers (Development/Testing) get
-    /// the developer exception page with full diagnostics. Gated on <c>IsDeployedEnvironment()</c>
-    /// so a stack-trace page can never ship to a deployed cluster — the same deployed redaction the
-    /// platform exception handler and health-check response writer already apply.
+    /// Adds the developer exception page on <c>Development</c> only, and deliberately registers
+    /// nothing on any other tier: <c>Testing</c> and deployed clusters are both served by
+    /// <see cref="Exceptions.PlatformExceptionHandler"/> behind the <c>UseExceptionHandler</c> that
+    /// <see cref="Exceptions.ExceptionHandlerStartupFilter"/> already prepends to every host.
     /// </summary>
+    /// <remarks>
+    /// <para>Gating on <c>Development</c> rather than <see cref="HostEnvironmentExtensions.IsDeployedEnvironment"/>
+    /// keeps stack traces off deployed clusters and puts test hosts on the RFC 9457 contract
+    /// clients actually receive, rather than one only test hosts ever see.</para>
+    /// <para>The developer page renders HTML only for <c>Accept: text/html</c>; otherwise it writes
+    /// its own ProblemDetails, exception detail included. Either way it short-circuits before the
+    /// platform handler.</para>
+    /// </remarks>
     /// <param name="app">The web application.</param>
     /// <returns>The web application for chaining.</returns>
     public static WebApplication UsePlatformExceptionHandling(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        if (app.Environment.IsDeployedEnvironment())
-        {
-            app.UseExceptionHandler();
-        }
-        else
+        if (app.Environment.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();
         }

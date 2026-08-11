@@ -32,12 +32,26 @@ public static class WebApplicationBuilderExtensions
         builder.AddPlatformHostConfiguration();
         builder.UsePlatformSerilog(configureOptions);
 
-        // Catch-all exception handler — auto-wired via IStartupFilter so BCs don't
-        // need `app.UseExceptionHandler()` in Program.cs. AddProblemDetails is
-        // idempotent — BCs may also call it; the second call is a no-op.
-        builder.Services.AddProblemDetails();
+        // Catch-all exception handler — auto-wired via IStartupFilter so BCs don't need
+        // `app.UseExceptionHandler()` in Program.cs. A BC's own AddProblemDetails() passes no
+        // delegate, so it contributes no configure action and this customization survives it.
+        //
+        // RFC 9457's "instance" identifies the specific occurrence and is a URI reference, so it
+        // carries the path alone — "GET /path" would not be one. Nothing in the framework sets it
+        // (ProblemDetailsDefaults.Apply fills only status/title/type), which left the platform's
+        // 500s without the instance FastEndpoints already emits on the Result-pattern 4xx path.
+        builder.Services.AddProblemDetails(options =>
+            options.CustomizeProblemDetails = context =>
+                context.ProblemDetails.Instance ??= context.HttpContext.Request.Path.Value);
         builder.Services.AddExceptionHandler<PlatformExceptionHandler>();
         builder.Services.AddTransient<IStartupFilter, ExceptionHandlerStartupFilter>();
+
+        // ExceptionHandlerMiddleware suppresses its own diagnostics whenever an IExceptionHandler
+        // returns true — which also drops the error.type tag from http.server.request.duration,
+        // leaving unhandled-exception 500s with no exception-type dimension in OTel/Prometheus.
+        // Opt back in; the duplicate log line this re-enables is filtered in SerilogSetup.
+        builder.Services.Configure<ExceptionHandlerOptions>(
+            options => options.SuppressDiagnosticsCallback = _ => false);
 
         // ADR-0015: the canonical clock is the BCL TimeProvider. The Generic Host does not register
         // it in DI, so register it here once for every service. TryAdd — a BC test fixture may still
