@@ -5,7 +5,9 @@ Standing behavioral rules (loaded every session): @.claude/rules.md
 ## Repository layout
 
 Solution: `DotNetAtlas.slnx`. Source lives under `services/`, `platform/`, `src/` and `saga/`;
-`ls -d services/*/ platform/*/ src/*/ saga/*/ test/*/` lists what each holds today.
+`dotnet sln DotNetAtlas.slnx list` is what each tree holds today. Read it from the solution rather
+than a directory listing — a deleted project leaves its gitignored `obj/` behind, which `ls` shows
+as though it were still source.
 
 - **`services/<BC>/`** — one folder per bounded context, each a 4-layer `.Domain` / `.Application` / `.Infrastructure` / `.Api`.
 - **`platform/`** — shared libraries, with their unit tests beside them; platform architecture tests live in `test/`.
