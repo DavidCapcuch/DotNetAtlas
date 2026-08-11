@@ -2,7 +2,6 @@ using Catalog.Infrastructure.Common.Config;
 using Catalog.Infrastructure.Messaging.Kafka.Config;
 using Catalog.Infrastructure.Persistence.Database;
 using Confluent.Kafka;
-using HealthChecks.ApplicationStatus.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -12,7 +11,7 @@ using Platform.ServiceDefaults.Idempotency;
 namespace Catalog.Infrastructure.Common;
 
 /// <summary>
-/// Readiness-probe surface — Self, <see cref="CatalogDbContext"/> (Postgres write
+/// Readiness-probe surface — ApplicationLifecycle, <see cref="CatalogDbContext"/> (Postgres write
 /// store + atomic projection per ADR-0001 + ADR-0016), <c>redis-cache</c> (the
 /// idempotency-key OutputCache per ADR-0013 + ADR-0016, hit on every idempotent write
 /// and fail-closed when down), and the Kafka cluster (outbox relay publishes + the
@@ -60,9 +59,7 @@ internal static class HealthChecksDependencyInjection
                 $"(redis-cache backs the idempotency-key output cache per ADR-0013 + ADR-0016).");
 
         services.AddHealthChecks()
-            .AddApplicationStatus(
-                "Self",
-                tags: [ServiceDefaultHealthCheckTags.ReadinessTag])
+            .AddApplicationLifecycleHealthCheck([ServiceDefaultHealthCheckTags.ReadinessTag])
             .AddDbContextCheck<CatalogDbContext>(
                 name: "Catalog DB",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],

@@ -1,5 +1,4 @@
 using Confluent.Kafka;
-using HealthChecks.ApplicationStatus.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,7 +11,7 @@ using Platform.ServiceDefaults.Config;
 namespace Payments.Infrastructure.Common;
 
 /// <summary>
-/// Health-check surface for the Payments service — Self, <see cref="PaymentsDbContext"/>,
+/// Health-check surface for the Payments service — ApplicationLifecycle, <see cref="PaymentsDbContext"/>,
 /// and Kafka (the in-process payment-commands consumer). Per-probe timeouts come from
 /// <see cref="HealthChecksOptions"/>; <c>AddDbContextCheck</c> does not expose a direct
 /// timeout parameter, so the DB readiness probe runs under EF's command-timeout default
@@ -54,9 +53,7 @@ internal static class HealthChecksDependencyInjection
         };
 
         services.AddHealthChecks()
-            .AddApplicationStatus(
-                "Self",
-                tags: [ServiceDefaultHealthCheckTags.ReadinessTag])
+            .AddApplicationLifecycleHealthCheck([ServiceDefaultHealthCheckTags.ReadinessTag])
             .AddDbContextCheck<PaymentsDbContext>(
                 name: "Payments DB",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],

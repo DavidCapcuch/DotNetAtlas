@@ -33,7 +33,7 @@ public class HealthChecksDependencyInjectionTests
             .Where(registration => registration.Tags.Contains(ServiceDefaultHealthCheckTags.ReadinessTag))
             .Select(registration => registration.Name)
             .Should().BeEquivalentTo(
-                ["Self", "Payments DB", "Kafka"],
+                ["ApplicationLifecycle", "Payments DB", "Kafka"],
                 "readiness is the declared dependency set; Payments uses no Redis, and the " +
                 "external payment gateway is not a readiness gate");
     }

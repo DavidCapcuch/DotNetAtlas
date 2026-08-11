@@ -82,8 +82,8 @@
 
         <!-- Health Checks -->
         <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.8"/>
+        <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.Common" Version="10.6.0"/>
         <PackageVersion Include="AspNetCore.HealthChecks.Kafka" Version="9.0.0"/>
-        <PackageVersion Include="AspNetCore.HealthChecks.ApplicationStatus" Version="9.0.0"/>
         <PackageVersion Include="AspNetCore.HealthChecks.Redis" Version="9.0.0"/>
         <PackageVersion Include="AspNetCore.HealthChecks.Uris" Version="9.0.0"/>
 

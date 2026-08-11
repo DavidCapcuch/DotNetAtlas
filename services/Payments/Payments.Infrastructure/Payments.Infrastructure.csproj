@@ -6,7 +6,7 @@
 
     <ItemGroup>
         <!-- Health checks -->
-        <PackageReference Include="AspNetCore.HealthChecks.ApplicationStatus"/>
+        <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.Common"/>
         <PackageReference Include="AspNetCore.HealthChecks.Kafka"/>
         <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>
 

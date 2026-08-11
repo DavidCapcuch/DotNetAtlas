@@ -34,7 +34,7 @@ public class HealthChecksDependencyInjectionTests
             .Where(registration => registration.Tags.Contains(ServiceDefaultHealthCheckTags.ReadinessTag))
             .Select(registration => registration.Name)
             .Should().BeEquivalentTo(
-                ["Self", "Basket DB", "redis-basket", "redis-cache"],
+                ["ApplicationLifecycle", "Basket DB", "redis-basket", "redis-cache"],
                 "readiness is the declared dependency set; Kafka is deliberately absent because " +
                 "Basket publishes through the outbox and runs no in-process consumer");
     }

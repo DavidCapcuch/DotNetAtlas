@@ -28,7 +28,7 @@ namespace Catalog.Infrastructure.Common;
 /// </description></item>
 /// <item><description>
 /// <see cref="HealthChecksDependencyInjection.AddCatalogHealthChecks"/> — readiness
-/// probes (Self + Postgres + Kafka + redis-cache + Schema Registry) tagged so
+/// probes (ApplicationLifecycle + Postgres + Kafka + redis-cache) tagged so
 /// <c>MapPlatformHealthCheckEndpoints</c> publishes them under <c>/api/readiness</c>.
 /// </description></item>
 /// </list>

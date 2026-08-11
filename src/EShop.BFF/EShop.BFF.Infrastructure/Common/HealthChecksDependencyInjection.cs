@@ -1,5 +1,4 @@
 using EShop.BFF.Infrastructure.Caching;
-using HealthChecks.ApplicationStatus.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.ServiceDefaults.Config;
 using StackExchange.Redis;
@@ -7,8 +6,8 @@ using StackExchange.Redis;
 namespace EShop.BFF.Infrastructure.Common;
 
 /// <summary>
-/// Readiness-probe surface — <c>self</c> and <c>redis-cache</c>. The BFF holds no state of its own,
-/// so nothing here is restart-fixable and its liveness set is empty
+/// Readiness-probe surface — <c>ApplicationLifecycle</c> and <c>redis-cache</c>. The BFF holds no
+/// state of its own, so nothing here is restart-fixable and its liveness set is empty
 /// (see <see cref="ServiceDefaultHealthCheckTags.LivenessTag"/>). Request-time graceful degradation
 /// when redis-cache is down lives in FusionCache (it falls back to the upstreams); the readiness
 /// gate simply reflects the declared dependency.
@@ -19,9 +18,7 @@ internal static class HealthChecksDependencyInjection
     {
         services
             .AddHealthChecks()
-            .AddApplicationStatus(
-                "self",
-                tags: [ServiceDefaultHealthCheckTags.ReadinessTag])
+            .AddApplicationLifecycleHealthCheck([ServiceDefaultHealthCheckTags.ReadinessTag])
             .AddRedis(
                 connectionMultiplexerFactory: serviceProvider =>
                     serviceProvider.GetRequiredKeyedService<IConnectionMultiplexer>(BffCacheConstants.CacheName),

@@ -32,7 +32,7 @@ try
         .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 
-    // Readiness probes (Self + Postgres + Kafka + redis-cache + Schema Registry) are
+    // Readiness probes (ApplicationLifecycle + Postgres + Kafka + redis-cache) are
     // wired by AddInfrastructure → AddCatalogHealthChecks (Catalog.Infrastructure.Common).
     // MapPlatformHealthCheckEndpoints publishes /api/healthz (live) + /api/readiness (ready).
 

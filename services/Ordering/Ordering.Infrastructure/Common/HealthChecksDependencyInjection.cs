@@ -1,5 +1,4 @@
 using Confluent.Kafka;
-using HealthChecks.ApplicationStatus.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,7 +12,7 @@ using Platform.ServiceDefaults.Idempotency;
 namespace Ordering.Infrastructure.Common;
 
 /// <summary>
-/// Health-check surface for the Ordering service — Self, <see cref="OrderingDbContext"/>,
+/// Health-check surface for the Ordering service — ApplicationLifecycle, <see cref="OrderingDbContext"/>,
 /// <c>redis-cache</c> (the idempotency-key OutputCache per ADR-0013 + ADR-0016, hit on every
 /// idempotent write and fail-closed when down), and Kafka (the in-process saga-command
 /// consumer). Per-probe timeouts come from <see cref="HealthChecksOptions"/>;
@@ -63,9 +62,7 @@ internal static class HealthChecksDependencyInjection
                 $"(redis-cache backs the idempotency-key output cache per ADR-0013 + ADR-0016).");
 
         services.AddHealthChecks()
-            .AddApplicationStatus(
-                "Self",
-                tags: [ServiceDefaultHealthCheckTags.ReadinessTag])
+            .AddApplicationLifecycleHealthCheck([ServiceDefaultHealthCheckTags.ReadinessTag])
             .AddDbContextCheck<OrderingDbContext>(
                 name: "Ordering DB",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],

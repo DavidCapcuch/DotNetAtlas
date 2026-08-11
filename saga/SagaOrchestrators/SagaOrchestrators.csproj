@@ -30,7 +30,7 @@
 
         <!-- Health checks -->
         <PackageReference Include="AspNetCore.HealthChecks.Kafka"/>
-        <PackageReference Include="AspNetCore.HealthChecks.ApplicationStatus"/>
+        <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.Common"/>
         <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>
 
         <!-- Feature flags (ADR-0014) -->

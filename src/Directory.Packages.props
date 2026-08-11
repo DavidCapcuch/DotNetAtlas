@@ -38,7 +38,7 @@
         <PackageVersion Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" Version="2.6.0"/>
 
         <!-- Health Checks -->
-        <PackageVersion Include="AspNetCore.HealthChecks.ApplicationStatus" Version="9.0.0"/>
+        <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.Common" Version="10.6.0"/>
         <PackageVersion Include="AspNetCore.HealthChecks.Redis" Version="9.0.0"/>
 
         <!-- OpenTelemetry -->

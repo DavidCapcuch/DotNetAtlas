@@ -13,7 +13,7 @@
         <!-- Health Checks -->
         <PackageReference Include="AspNetCore.HealthChecks.Kafka"/>
         <PackageReference Include="AspNetCore.HealthChecks.Prometheus.Metrics"/>
-        <PackageReference Include="AspNetCore.HealthChecks.ApplicationStatus"/>
+        <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.Common"/>
         <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>
 
         <!-- OpenTelemetry -->

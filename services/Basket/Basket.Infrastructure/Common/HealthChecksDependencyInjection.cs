@@ -1,6 +1,5 @@
 using Basket.Infrastructure.Common.Config;
 using Basket.Infrastructure.Persistence.Database;
-using HealthChecks.ApplicationStatus.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,7 +10,7 @@ using Platform.ServiceDefaults.Idempotency;
 namespace Basket.Infrastructure.Common;
 
 /// <summary>
-/// Health-check surface — Self, <see cref="BasketDbContext"/> (the SQL outbox/inbox
+/// Health-check surface — ApplicationLifecycle, <see cref="BasketDbContext"/> (the SQL outbox/inbox
 /// side-car), <c>redis-basket</c> (the aggregate primary store, per ADR-0016), and
 /// <c>redis-cache</c> (the idempotency-key OutputCache per ADR-0013 + ADR-0016, hit on
 /// every idempotent write and fail-closed when down). Both Redis instances are isolated
@@ -58,9 +57,7 @@ internal static class HealthChecksDependencyInjection
                 $"(redis-cache backs the idempotency-key output cache per ADR-0013 + ADR-0016).");
 
         services.AddHealthChecks()
-            .AddApplicationStatus(
-                "Self",
-                tags: [ServiceDefaultHealthCheckTags.ReadinessTag])
+            .AddApplicationLifecycleHealthCheck([ServiceDefaultHealthCheckTags.ReadinessTag])
             .AddDbContextCheck<BasketDbContext>(
                 name: "Basket DB",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],

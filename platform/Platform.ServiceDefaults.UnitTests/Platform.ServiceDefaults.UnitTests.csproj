@@ -3,9 +3,9 @@
     <ItemGroup>
         <FrameworkReference Include="Microsoft.AspNetCore.App"/>
         <PackageReference Include="Microsoft.AspNetCore.TestHost"/>
-        <!-- Not referenced by Platform.ServiceDefaults itself: the 9 units register this check, and
-             ApplicationStatusTimeoutInvariantTests pins the package behaviour they all rely on. -->
-        <PackageReference Include="AspNetCore.HealthChecks.ApplicationStatus"/>
+        <!-- Not referenced by Platform.ServiceDefaults itself: every unit registers this check, and
+             ApplicationLifecycleHealthCheckTests pins the package behaviour they all rely on. -->
+        <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.Common"/>
         <PackageReference Include="Microsoft.Extensions.Http.Resilience"/>
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer"/>
         <PackageReference Include="OpenFeature"/>

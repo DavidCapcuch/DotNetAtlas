@@ -1,5 +1,4 @@
 using Confluent.Kafka;
-using HealthChecks.ApplicationStatus.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Platform.OutboxRelay.WorkerService.Common.Config;
 using Platform.OutboxRelay.WorkerService.Observability.HealthChecks;
@@ -10,7 +9,7 @@ using Platform.ServiceDefaults.Config;
 namespace Platform.OutboxRelay.WorkerService.Common;
 
 /// <summary>
-/// Health-check surface for the OutboxRelay worker — Self,
+/// Health-check surface for the OutboxRelay worker — ApplicationLifecycle,
 /// <see cref="OutboxDbContext"/>, Kafka, and the worker-specific
 /// <see cref="OutboxRelayHealthCheck"/> execution liveness probe. Per-probe
 /// timeouts come from <see cref="HealthChecksOptions"/>; the
@@ -44,9 +43,7 @@ internal static class HealthChecksDependencyInjection
         var producerConfig = new ProducerConfig { BootstrapServers = kafkaProducerOptions.BootstrapServers };
 
         services.AddHealthChecks()
-            .AddApplicationStatus(
-                "Self",
-                tags: [ServiceDefaultHealthCheckTags.ReadinessTag])
+            .AddApplicationLifecycleHealthCheck([ServiceDefaultHealthCheckTags.ReadinessTag])
             .AddDbContextCheck<OutboxDbContext>(
                 name: "Outbox DB",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],

@@ -1339,6 +1339,19 @@
         "resolved": "10.0.8",
         "contentHash": "0j06qq5I1YGSIi4M86UaVITBprvn3bTWKmQiLDNEqnZ2d+UxaFb+tVqemxVzr5lkr6GTR83ExUfSIpCnBaTZFA=="
       },
+      "Microsoft.Extensions.Diagnostics.HealthChecks.Common": {
+        "type": "Transitive",
+        "resolved": "10.6.0",
+        "contentHash": "3yfAMPvOU7QKnCwNZRV24m5SxQnsHmfbpaZ0gH12NUHSUuvpFH2MK0ngo09HVt6L4GmNTP7ApbDcMrUxTeAG+Q==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration.Binder": "10.0.8",
+          "Microsoft.Extensions.Diagnostics": "10.0.8",
+          "Microsoft.Extensions.Diagnostics.HealthChecks": "10.0.8",
+          "Microsoft.Extensions.ObjectPool": "10.0.8",
+          "Microsoft.Extensions.Options.ConfigurationExtensions": "10.0.8",
+          "Microsoft.Extensions.Telemetry.Abstractions": "10.6.0"
+        }
+      },
       "Microsoft.Extensions.FileProviders.Abstractions": {
         "type": "Transitive",
         "resolved": "10.0.8",
@@ -2431,7 +2444,6 @@
       "basket.infrastructure": {
         "type": "Project",
         "dependencies": {
-          "AspNetCore.HealthChecks.ApplicationStatus": "[9.0.0, )",
           "AspNetCore.HealthChecks.Redis": "[9.0.0, )",
           "Basket.Application": "[1.0.0, )",
           "EFCore.NamingConventions": "[10.0.1, )",
@@ -2444,6 +2456,7 @@
           "KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro": "[4.2.0, )",
           "Microsoft.AspNetCore.Authentication.JwtBearer": "[10.0.8, )",
           "Microsoft.Extensions.Caching.StackExchangeRedis": "[10.0.8, )",
+          "Microsoft.Extensions.Diagnostics.HealthChecks.Common": "[10.6.0, )",
           "Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore": "[10.0.8, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.1, )",
           "OpenTelemetry.Exporter.OpenTelemetryProtocol": "[1.15.3, )",
@@ -2662,15 +2675,6 @@
         "requested": "[8.2.0, )",
         "resolved": "8.2.0",
         "contentHash": "P1CLI2okpzHjOJnZMYLnzcyu1/fUJEYK1X4JSnal2TPmovrUTtXK6Sn78D2JgKUdwjSeWddnRveMj+BEZoksvg=="
-      },
-      "AspNetCore.HealthChecks.ApplicationStatus": {
-        "type": "CentralTransitive",
-        "requested": "[9.0.0, )",
-        "resolved": "9.0.0",
-        "contentHash": "wKHuIu066q1Aa3hHLFFP/ZHaTutTaGn4zHY5v1TVTRu/WfRR/QUPDajipsC655Y1uwPE9wZ8Fu7n4lOBG/nOpw==",
-        "dependencies": {
-          "Microsoft.Extensions.Diagnostics.HealthChecks": "8.0.11"
-        }
       },
       "AspNetCore.HealthChecks.Prometheus.Metrics": {
         "type": "CentralTransitive",

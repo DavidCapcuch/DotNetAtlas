@@ -6,7 +6,7 @@
 
     <ItemGroup>
         <PackageReference Include="Ardalis.SmartEnum.EFCore"/>
-        <PackageReference Include="AspNetCore.HealthChecks.ApplicationStatus"/>
+        <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.Common"/>
         <PackageReference Include="AspNetCore.HealthChecks.Kafka"/>
         <PackageReference Include="AspNetCore.HealthChecks.Redis"/>
         <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>

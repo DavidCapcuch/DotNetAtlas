@@ -33,7 +33,7 @@ public class HealthChecksDependencyInjectionTests
             .Where(registration => registration.Tags.Contains(ServiceDefaultHealthCheckTags.ReadinessTag))
             .Select(registration => registration.Name)
             .Should().BeEquivalentTo(
-                ["Self", "Notifications DB", "Kafka"],
+                ["ApplicationLifecycle", "Notifications DB", "Kafka"],
                 "readiness is the declared dependency set; Notifications uses no Redis, and the " +
                 "SMTP relay is not a readiness gate");
     }

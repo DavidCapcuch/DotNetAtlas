@@ -32,7 +32,7 @@ public class HealthChecksDependencyInjectionTests
             .Where(registration => registration.Tags.Contains(ServiceDefaultHealthCheckTags.ReadinessTag))
             .Select(registration => registration.Name)
             .Should().BeEquivalentTo(
-                ["self", "redis-cache"],
+                ["ApplicationLifecycle", "redis-cache"],
                 "readiness is the declared dependency set; the upstream BCs are deliberately " +
                 "absent because probing them would couple the BFF's availability to theirs");
     }

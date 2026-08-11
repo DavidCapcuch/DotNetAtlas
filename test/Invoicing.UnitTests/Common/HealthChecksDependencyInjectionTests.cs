@@ -34,7 +34,7 @@ public class HealthChecksDependencyInjectionTests
             .Where(registration => registration.Tags.Contains(ServiceDefaultHealthCheckTags.ReadinessTag))
             .Select(registration => registration.Name)
             .Should().BeEquivalentTo(
-                ["Self", "Invoicing DB", "redis-cache", "Kafka"],
+                ["ApplicationLifecycle", "Invoicing DB", "redis-cache", "Kafka"],
                 "readiness is the declared dependency set; the Schema Registry and Azure Blob " +
                 "storage are deliberately absent");
     }

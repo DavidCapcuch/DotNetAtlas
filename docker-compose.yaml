@@ -1,8 +1,8 @@
 # Shared healthcheck for BC API services. Probes the /api/readiness endpoint via
 # busybox wget (built into the Alpine -extra base each *.api service pins via
-# build.args.BASE_IMAGE; see x-bc-base-image below). Readiness exercises the
-# downstream dependencies (DB / Redis / Kafka / Schema Registry) registered with
-# the `ready` tag in Platform.ServiceDefaults, giving (healthy) a real signal.
+# build.args.BASE_IMAGE; see x-bc-base-image below). Readiness covers host startup
+# plus the downstream dependencies (DB / Redis / Kafka) registered with the `ready`
+# tag in Platform.ServiceDefaults, giving (healthy) a real signal.
 x-readiness-healthcheck: &readiness-healthcheck
   # Use 127.0.0.1 (IP literal) not localhost: catalog/ordering/invoicing.api each
   # have `extra_hosts: "localhost:host-gateway"` (for the Keycloak issuer bridge),

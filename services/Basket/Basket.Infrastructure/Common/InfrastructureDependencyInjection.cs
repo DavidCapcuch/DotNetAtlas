@@ -49,9 +49,9 @@ namespace Basket.Infrastructure.Common;
 /// called upstream by ServiceDefaults.
 /// </description></item>
 /// <item><description>
-/// <c>AddBasketHealthChecks</c> — readiness/liveness probes for self,
+/// <c>AddBasketHealthChecks</c> — readiness probes for ApplicationLifecycle,
 /// <see cref="Persistence.Database.BasketDbContext"/>, <c>redis-basket</c>
-/// (per ADR-0016), and Kafka.
+/// (per ADR-0016), and <c>redis-cache</c>.
 /// </description></item>
 /// </list>
 /// </remarks>

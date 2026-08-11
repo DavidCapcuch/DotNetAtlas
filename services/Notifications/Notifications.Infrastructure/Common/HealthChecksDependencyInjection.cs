@@ -1,5 +1,4 @@
 using Confluent.Kafka;
-using HealthChecks.ApplicationStatus.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -10,7 +9,7 @@ using Platform.ServiceDefaults.Config;
 namespace Notifications.Infrastructure.Common;
 
 /// <summary>
-/// Health-check surface for the Notifications worker — Self,
+/// Health-check surface for the Notifications worker — ApplicationLifecycle,
 /// <see cref="NotificationsDbContext"/>, and Kafka. Per-probe timeouts come from
 /// <see cref="HealthChecksOptions"/>; the <c>AddDbContextCheck</c> EF Core extension
 /// does not expose a direct timeout parameter, so the DB readiness probe runs under
@@ -53,9 +52,7 @@ internal static class HealthChecksDependencyInjection
         };
 
         services.AddHealthChecks()
-            .AddApplicationStatus(
-                "Self",
-                tags: [ServiceDefaultHealthCheckTags.ReadinessTag])
+            .AddApplicationLifecycleHealthCheck([ServiceDefaultHealthCheckTags.ReadinessTag])
             .AddDbContextCheck<NotificationsDbContext>(
                 name: "Notifications DB",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],

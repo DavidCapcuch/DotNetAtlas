@@ -1,5 +1,4 @@
 using Confluent.Kafka;
-using HealthChecks.ApplicationStatus.DependencyInjection;
 using Inventory.Infrastructure.Common.Config;
 using Inventory.Infrastructure.Messaging.Kafka.Config;
 using Inventory.Infrastructure.Persistence.Database;
@@ -13,7 +12,7 @@ using Platform.ServiceDefaults.Idempotency;
 namespace Inventory.Infrastructure.Common;
 
 /// <summary>
-/// Health-check surface for the Inventory service — Self, <see cref="InventoryDbContext"/>,
+/// Health-check surface for the Inventory service — ApplicationLifecycle, <see cref="InventoryDbContext"/>,
 /// <c>redis-cache</c> (the idempotency-key OutputCache per ADR-0013 + ADR-0016, hit on every
 /// idempotent write and fail-closed when down), and Kafka (the in-process reservation /
 /// stock-init consumers). Per-probe timeouts come from <see cref="HealthChecksOptions"/>;
@@ -63,9 +62,7 @@ internal static class HealthChecksDependencyInjection
                 $"(redis-cache backs the idempotency-key output cache per ADR-0013 + ADR-0016).");
 
         services.AddHealthChecks()
-            .AddApplicationStatus(
-                "Self",
-                tags: [ServiceDefaultHealthCheckTags.ReadinessTag])
+            .AddApplicationLifecycleHealthCheck([ServiceDefaultHealthCheckTags.ReadinessTag])
             .AddDbContextCheck<InventoryDbContext>(
                 name: "Inventory DB",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],

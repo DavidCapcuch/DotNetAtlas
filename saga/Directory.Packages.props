@@ -29,11 +29,11 @@
     <!-- Health Checks -->
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.8" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.Common" Version="10.6.0" />
     <PackageVersion Include="AspNetCore.HealthChecks.Publisher.Prometheus" Version="9.0.0" />
     <PackageVersion Include="AspNetCore.HealthChecks.Prometheus.Metrics" Version="9.0.0" />
     <PackageVersion Include="AspNetCore.HealthChecks.Hangfire" Version="9.0.0" />
     <PackageVersion Include="AspNetCore.HealthChecks.Kafka" Version="9.0.0" />
-    <PackageVersion Include="AspNetCore.HealthChecks.ApplicationStatus" Version="9.0.0" />
     <PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
     <!-- Logging -->
     <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />

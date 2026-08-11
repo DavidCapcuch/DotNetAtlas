@@ -1,5 +1,4 @@
 using Confluent.Kafka;
-using HealthChecks.ApplicationStatus.DependencyInjection;
 using Invoicing.Infrastructure.Common.Config;
 using Invoicing.Infrastructure.Messaging.Kafka.Config;
 using Invoicing.Infrastructure.Persistence.Database;
@@ -13,7 +12,7 @@ using Platform.ServiceDefaults.Idempotency;
 namespace Invoicing.Infrastructure.Common;
 
 /// <summary>
-/// Health-check surface for the Invoicing service — Self, <see cref="InvoicingDbContext"/>,
+/// Health-check surface for the Invoicing service — ApplicationLifecycle, <see cref="InvoicingDbContext"/>,
 /// <c>redis-cache</c> (the idempotency-key OutputCache per ADR-0013 + ADR-0016, hit on every
 /// idempotent write and fail-closed when down), and Kafka (the in-process enrichment-projection
 /// consumers). Per-probe timeouts come from <see cref="HealthChecksOptions"/>;
@@ -70,9 +69,7 @@ internal static class HealthChecksDependencyInjection
                 $"(redis-cache backs the idempotency-key output cache per ADR-0013 + ADR-0016).");
 
         services.AddHealthChecks()
-            .AddApplicationStatus(
-                "Self",
-                tags: [ServiceDefaultHealthCheckTags.ReadinessTag])
+            .AddApplicationLifecycleHealthCheck([ServiceDefaultHealthCheckTags.ReadinessTag])
             .AddDbContextCheck<InvoicingDbContext>(
                 name: "Invoicing DB",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],

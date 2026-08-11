@@ -1,5 +1,4 @@
 using Confluent.Kafka;
-using HealthChecks.ApplicationStatus.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Platform.ServiceDefaults.Config;
 using SagaOrchestrators.Common.Config;
@@ -10,7 +9,7 @@ using SagaOrchestrators.Common.Persistence.Database;
 namespace SagaOrchestrators.Common;
 
 /// <summary>
-/// Health-check surface for the Saga orchestrator — Self,
+/// Health-check surface for the Saga orchestrator — ApplicationLifecycle,
 /// <see cref="SagaDbContext"/>, Kafka, and the saga-specific
 /// <see cref="SagaStateMachineHealthCheck"/> stuck-state probe (intentionally
 /// reports <see cref="HealthStatus.Degraded"/> rather than Unhealthy so
@@ -59,9 +58,7 @@ internal static class HealthChecksDependencyInjection
         };
 
         services.AddHealthChecks()
-            .AddApplicationStatus(
-                name: "Self",
-                tags: [ServiceDefaultHealthCheckTags.ReadinessTag])
+            .AddApplicationLifecycleHealthCheck([ServiceDefaultHealthCheckTags.ReadinessTag])
             .AddDbContextCheck<SagaDbContext>(
                 name: "Saga DB",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],

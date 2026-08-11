@@ -1005,7 +1005,6 @@
         "type": "Project",
         "dependencies": {
           "Ardalis.SmartEnum.EFCore": "[8.2.0, )",
-          "AspNetCore.HealthChecks.ApplicationStatus": "[9.0.0, )",
           "AspNetCore.HealthChecks.Kafka": "[9.0.0, )",
           "AspNetCore.HealthChecks.Redis": "[9.0.0, )",
           "EFCore.NamingConventions": "[10.0.1, )",
@@ -1018,6 +1017,7 @@
           "KafkaFlow.Serializer.ApacheAvro": "[1.5.8, )",
           "KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro": "[4.2.0, )",
           "Microsoft.Extensions.Caching.StackExchangeRedis": "[10.0.8, )",
+          "Microsoft.Extensions.Diagnostics.HealthChecks.Common": "[10.6.0, )",
           "Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore": "[10.0.8, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.1, )",
           "OpenTelemetry.Exporter.OpenTelemetryProtocol": "[1.15.3, )",
@@ -1197,12 +1197,6 @@
           "Microsoft.EntityFrameworkCore": "9.0.8",
           "Microsoft.EntityFrameworkCore.Relational": "9.0.8"
         }
-      },
-      "AspNetCore.HealthChecks.ApplicationStatus": {
-        "type": "CentralTransitive",
-        "requested": "[9.0.0, )",
-        "resolved": "9.0.0",
-        "contentHash": "wKHuIu066q1Aa3hHLFFP/ZHaTutTaGn4zHY5v1TVTRu/WfRR/QUPDajipsC655Y1uwPE9wZ8Fu7n4lOBG/nOpw=="
       },
       "AspNetCore.HealthChecks.Kafka": {
         "type": "CentralTransitive",
@@ -1393,6 +1387,15 @@
         "contentHash": "fle9ns3q2kk63vt/wHFtLw1U9kiEbM42vTk2Sar8VBjiGJFkXAgm0QEKFx15YMHkJIPRVdknWaovpvgGEgn10g==",
         "dependencies": {
           "StackExchange.Redis": "2.7.27"
+        }
+      },
+      "Microsoft.Extensions.Diagnostics.HealthChecks.Common": {
+        "type": "CentralTransitive",
+        "requested": "[10.6.0, )",
+        "resolved": "10.6.0",
+        "contentHash": "3yfAMPvOU7QKnCwNZRV24m5SxQnsHmfbpaZ0gH12NUHSUuvpFH2MK0ngo09HVt6L4GmNTP7ApbDcMrUxTeAG+Q==",
+        "dependencies": {
+          "Microsoft.Extensions.Telemetry.Abstractions": "10.6.0"
         }
       },
       "Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore": {
