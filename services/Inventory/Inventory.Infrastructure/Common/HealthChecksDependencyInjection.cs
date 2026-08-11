@@ -26,6 +26,14 @@ namespace Inventory.Infrastructure.Common;
 /// </summary>
 internal static class HealthChecksDependencyInjection
 {
+    /// <summary>
+    /// Fraction of the Kafka check window the probe producer gets as its delivery cap; the remaining
+    /// 20% is the margin in which an undeliverable probe is purged before the check window closes.
+    /// Share the factor, never the resulting millisecond value — windows differ across services, so a
+    /// literal is only correct for the one window it was computed against.
+    /// </summary>
+    private const double ProbeHeadroomFactor = 0.8;
+
     internal static IServiceCollection AddInventoryHealthChecks(
         this IServiceCollection services,
         ConfigurationManager configuration)
@@ -42,15 +50,22 @@ internal static class HealthChecksDependencyInjection
             .GetRequiredSection(KafkaOptions.Section)
             .Get<KafkaOptions>()!;
 
+        // Fail fast and self-heal: retries off, and librdkafka's 5-min default message.timeout.ms would
+        // leave an undeliverable probe (broker blip) queued long after the check that sent it gave up,
+        // starving later probes on this process-lifetime producer and wedging readiness Unhealthy until
+        // a restart. The AddKafka timeout below cannot prevent that — it abandons the awaiting task but
+        // cannot retract a message already handed to librdkafka.
+        // INVARIANT: message.timeout.ms and socket.timeout.ms stay strictly below that timeout, so an
+        // abandoned probe is purged before the next one runs. Validation has not run at this point, so
+        // what holds that floor is [Range] on HealthChecksOptions.KafkaTimeout failing startup before a
+        // probe ever executes — a derived 0 would mean *infinite* to librdkafka.
+        var producerTimeoutMs = (int)(timeouts.KafkaTimeout.TotalMilliseconds * ProbeHeadroomFactor);
+
         var producerConfig = new ProducerConfig
         {
             BootstrapServers = kafkaOptions.BrokersFlat,
-            // Health-probe producer must fail fast and self-heal: cap message + socket timeouts so an
-            // undeliverable probe (transient broker outage) is purged within the check window instead of
-            // queuing in librdkafka for the 5-min default message.timeout.ms — which otherwise starves
-            // later probes and wedges this readiness check Unhealthy until a process restart.
-            MessageTimeoutMs = 4000,
-            SocketTimeoutMs = 4000,
+            MessageTimeoutMs = producerTimeoutMs,
+            SocketTimeoutMs = producerTimeoutMs,
             MessageSendMaxRetries = 0,
         };
 
