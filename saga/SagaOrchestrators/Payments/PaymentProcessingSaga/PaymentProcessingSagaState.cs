@@ -143,7 +143,6 @@ public sealed class PaymentProcessingSagaState : ISagaStateInstance, IAuditableE
     public static readonly string[] TerminalStates =
     [
         nameof(PaymentProcessingSagaOrchestrator.AuthorizationFailed),
-        nameof(PaymentProcessingSagaOrchestrator.PaymentFailed),
         nameof(PaymentProcessingSagaOrchestrator.PaymentCompleted),
         nameof(PaymentProcessingSagaOrchestrator.VoidCompleted),
         nameof(PaymentProcessingSagaOrchestrator.VoidFailed)

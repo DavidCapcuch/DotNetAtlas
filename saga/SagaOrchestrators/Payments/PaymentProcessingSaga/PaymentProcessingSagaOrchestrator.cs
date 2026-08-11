@@ -31,7 +31,6 @@ public sealed class PaymentProcessingSagaOrchestrator : MassTransitStateMachine<
     public State AwaitingCaptureApproval { get; private set; }
     public State AwaitingCapture { get; private set; }
     public State PaymentCompleted { get; private set; }
-    public State PaymentFailed { get; private set; }
     public State VoidInProgress { get; private set; }
     public State VoidCompleted { get; private set; }
     public State VoidFailed { get; private set; }
