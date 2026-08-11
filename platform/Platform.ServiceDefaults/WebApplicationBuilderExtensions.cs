@@ -46,13 +46,6 @@ public static class WebApplicationBuilderExtensions
         builder.Services.AddExceptionHandler<PlatformExceptionHandler>();
         builder.Services.AddTransient<IStartupFilter, ExceptionHandlerStartupFilter>();
 
-        // ExceptionHandlerMiddleware suppresses its own diagnostics whenever an IExceptionHandler
-        // returns true — which also drops the error.type tag from http.server.request.duration,
-        // leaving unhandled-exception 500s with no exception-type dimension in OTel/Prometheus.
-        // Opt back in; the duplicate log line this re-enables is filtered in SerilogSetup.
-        builder.Services.Configure<ExceptionHandlerOptions>(
-            options => options.SuppressDiagnosticsCallback = _ => false);
-
         // ADR-0015: the canonical clock is the BCL TimeProvider. The Generic Host does not register
         // it in DI, so register it here once for every service. TryAdd — a BC test fixture may still
         // replace it with a FakeTimeProvider.

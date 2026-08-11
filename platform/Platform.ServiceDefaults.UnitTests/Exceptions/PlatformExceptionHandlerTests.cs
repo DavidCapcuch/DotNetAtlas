@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
@@ -20,18 +19,17 @@ namespace Platform.ServiceDefaults.UnitTests.Exceptions;
 /// satisfied by the framework's default writer and would stay green with the handler deleted.
 /// </summary>
 /// <remarks>
-/// Metrics and the request <see cref="Activity"/> are completed by hosting <b>after</b> the client
-/// has read the response — and after <c>StopAsync</c> — so those two cases await a signal from
-/// their listener instead of asserting straight after the request. Each such case also uses its own
-/// route, because a <see cref="MeterListener"/>/<see cref="ActivityListener"/> is process-global and
-/// would otherwise be satisfied by a concurrently running test class.
+/// The request <see cref="Activity"/> is completed by hosting <b>after</b> the client has read the
+/// response — and after <c>StopAsync</c> — so that case awaits a signal from its listener instead
+/// of asserting straight after the request. It also uses its own route and exception message,
+/// because an <see cref="ActivityListener"/> is process-global and would otherwise be satisfied by
+/// a concurrently running test class.
 /// </remarks>
 public class PlatformExceptionHandlerTests
 {
     private const string ThrownMessage = "kaboom";
     private const string RedactedDetail = "An error occurred while processing the request.";
     private const string DefaultRoute = "/boom";
-    private const string MetricsRoute = "/boom-metrics";
     private const string ActivityRoute = "/boom-activity";
     private const string InstanceRoute = "/boom-instance";
     private const string ActivityMessage = "kaboom-activity";
@@ -163,55 +161,6 @@ public class PlatformExceptionHandlerTests
     }
 
     /// <summary>
-    /// .NET 10 suppresses <c>ExceptionHandlerMiddleware</c> diagnostics whenever an
-    /// <c>IExceptionHandler</c> returns <c>true</c>, which silently drops the <c>error.type</c>
-    /// dimension from <c>http.server.request.duration</c>. This pins the opt-back-in that
-    /// <c>AddServiceDefaults</c> configures — without it the tag is absent and this reads null.
-    /// </summary>
-    [Fact]
-    public async Task AddServiceDefaults_WhenExceptionUnhandled_TagsRequestDurationWithErrorType()
-    {
-        // Arrange
-        var observedErrorType = new TaskCompletionSource<string?>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-        using var meterListener = new MeterListener();
-        meterListener.InstrumentPublished = (instrument, listener) =>
-        {
-            if (instrument.Meter.Name == "Microsoft.AspNetCore.Hosting"
-                && instrument.Name == "http.server.request.duration")
-            {
-                listener.EnableMeasurementEvents(instrument);
-            }
-        };
-        meterListener.SetMeasurementEventCallback<double>((_, _, tags, _) =>
-        {
-            string? route = null;
-            string? errorType = null;
-            foreach (var tag in tags)
-            {
-                route = tag.Key == "http.route" ? tag.Value as string : route;
-                errorType = tag.Key == "error.type" ? tag.Value as string : errorType;
-            }
-
-            if (route == MetricsRoute)
-            {
-                observedErrorType.TrySetResult(errorType);
-            }
-        });
-        meterListener.Start();
-
-        await using var app = await BuildServiceDefaultsHostAsync("Testing", route: MetricsRoute);
-
-        // Act
-        await GetBoomBodyAsync(app, MetricsRoute);
-        var errorType = await observedErrorType.Task.WaitAsync(
-            SignalTimeout, TestContext.Current.CancellationToken);
-
-        // Assert
-        errorType.Should().Be(typeof(InvalidOperationException).FullName);
-    }
-
-    /// <summary>
     /// RFC 9457's <c>instance</c> identifies the specific occurrence, and nothing in the framework
     /// sets it — <c>ProblemDetailsDefaults.Apply</c> fills only status, title, and type. This pins
     /// the <c>CustomizeProblemDetails</c> hook <c>AddServiceDefaults</c> installs, which brings the
@@ -232,9 +181,10 @@ public class PlatformExceptionHandlerTests
     }
 
     /// <summary>
-    /// Recording middleware diagnostics (above) re-enables the middleware's own
-    /// <c>UnhandledException</c> log line, which duplicates the handler's. The Serilog override in
-    /// <c>SerilogSetup</c> drops just that line — this pins that exactly one record survives.
+    /// <c>ExceptionHandlerMiddleware</c> writes its own <c>UnhandledException</c> record unless it
+    /// suppresses diagnostics, which on .NET 10 it does by default once an <c>IExceptionHandler</c>
+    /// returns <c>true</c>. That default is what keeps the handler's record the only one, so this
+    /// fails if anything opts back into those diagnostics without deduplicating the log.
     /// </summary>
     [Fact]
     public async Task AddServiceDefaults_WhenExceptionUnhandled_LogsTheExceptionOnce()

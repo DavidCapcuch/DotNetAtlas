@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Platform.ServiceDefaults.Config;
 using Platform.ServiceDefaults.Pii;
 using Serilog;
-using Serilog.Events;
 using Serilog.Exceptions;
 using Serilog.Exceptions.Core;
 using Serilog.Exceptions.EntityFrameworkCore.Destructurers;
@@ -43,18 +42,6 @@ internal static class SerilogSetup
 
             configuration
                 .ReadFrom.Configuration(builder.Configuration)
-
-                // PlatformExceptionHandler already logs every unhandled exception. AddServiceDefaults
-                // opts back into ExceptionHandlerMiddleware's diagnostics to keep the error.type
-                // metric tag, which also re-enables the middleware's own UnhandledException line —
-                // this drops that duplicate while leaving the metric tag and EventSource event
-                // untouched. Serilog has no None level; the middleware never logs above Error.
-                // Trade-off: this silences the whole category, so the middleware's rarer
-                // "exception thrown attempting to execute the error handler" line goes too. That
-                // path still surfaces — the middleware rethrows and Kestrel logs the failure.
-                .MinimumLevel.Override(
-                    "Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware",
-                    LogEventLevel.Fatal)
                 .Destructure.With<PiiDestructuringPolicy>()
                 .Enrich.WithEcsHttpContext(httpAccessor)
                 .Enrich.FromLogContext()
