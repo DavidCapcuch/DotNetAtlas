@@ -27,7 +27,6 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
         var topicsOptions = Options.Create(new TopicsOptions
         {
             BasketSessions = "basket.sessions",
-            DltTopicSuffix = ".DLT",
         });
         var sut = new BasketCheckoutInitiatedOutboxPublisherDomainEventHandler(
             outbox,
@@ -92,7 +91,6 @@ public class BasketCheckoutInitiatedOutboxPublisherDomainEventHandlerTests
         var topicsOptions = Options.Create(new TopicsOptions
         {
             BasketSessions = "basket.sessions",
-            DltTopicSuffix = ".DLT",
         });
         var sut = new BasketCheckoutInitiatedOutboxPublisherDomainEventHandler(
             outbox,

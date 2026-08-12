@@ -10,6 +10,7 @@ using KafkaFlow.Retry;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using Notifications;
 using Platform.KafkaFlow.DeadLetter;
 using Platform.KafkaFlow.DeadLetter.Common;
@@ -61,13 +62,17 @@ internal static class MessagingDependencyInjection
             .BindConfiguration(TopicsOptions.Section)
             .ValidateDataAnnotations();
 
+        // No ValidateDataAnnotations on the two Confluent-derived options below: their settings live
+        // on the vendor base, and an attribute could only reach them by redeclaring each with `new` —
+        // the trap those types document. The validators enforce them instead. The consumer options
+        // keep theirs for the one range check KafkaFlow doesn't make first.
         services.AddOptionsWithValidateOnStart<SchemaRegistryOptions>()
-            .BindConfiguration(SchemaRegistryOptions.Section)
-            .ValidateDataAnnotations();
+            .BindConfiguration(SchemaRegistryOptions.Section);
+        services.AddSingleton<IValidateOptions<SchemaRegistryOptions>, SchemaRegistryOptionsValidator>();
 
         services.AddOptionsWithValidateOnStart<AvroSerializerOptions>()
-            .BindConfiguration(AvroSerializerOptions.Section)
-            .ValidateDataAnnotations();
+            .BindConfiguration(AvroSerializerOptions.Section);
+        services.AddSingleton<IValidateOptions<AvroSerializerOptions>, AvroSerializerOptionsValidator>();
 
         services.AddOptionsWithValidateOnStart<OrderingOrdersConsumerOptions>()
             .BindConfiguration(OrderingOrdersConsumerOptions.Section)

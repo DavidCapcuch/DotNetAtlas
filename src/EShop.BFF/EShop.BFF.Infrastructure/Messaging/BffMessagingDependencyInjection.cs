@@ -32,6 +32,8 @@ internal static class BffMessagingDependencyInjection
             .BindConfiguration(BffTopicsOptions.Section)
             .ValidateDataAnnotations();
 
+        // ValidateDataAnnotations earns its place for WorkersCount alone — the one consumer setting
+        // KafkaFlow does not reject itself while AddKafka builds the cluster below.
         services.AddOptionsWithValidateOnStart<BffCacheInvalidationConsumerOptions>()
             .BindConfiguration(BffCacheInvalidationConsumerOptions.Section)
             .ValidateDataAnnotations();

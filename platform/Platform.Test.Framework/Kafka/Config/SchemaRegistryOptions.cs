@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using Confluent.SchemaRegistry;
 
 namespace Platform.Test.Framework.Kafka.Config;
 
@@ -7,11 +6,19 @@ namespace Platform.Test.Framework.Kafka.Config;
 /// Test-framework copy of Schema Registry connection configuration. See KafkaOptions
 /// for why this lives here rather than in a BC tier.
 /// </summary>
-public sealed class SchemaRegistryOptions : SchemaRegistryConfig
+/// <remarks>
+/// A plain POCO, unlike each BC's counterpart, which derives from
+/// <c>Confluent.SchemaRegistry.SchemaRegistryConfig</c>. Nothing here is ever handed to a Confluent
+/// client — <c>KafkaTestProducer</c> and <c>KafkaTestConsumer</c> build their own configs — so this
+/// only ever carries the container's URL to <c>WebHostBuilderExtensions.UseKafkaSettings</c>, which
+/// pushes it into the host under this section. Deriving from the vendor type would move that value
+/// into a string dictionary nothing reads, and invite the property-shadowing trap for no gain.
+/// </remarks>
+public sealed class SchemaRegistryOptions
 {
     public const string Section = $"{KafkaOptions.Section}:SchemaRegistry";
 
     [Required]
     [Url]
-    public new required string Url { get; set; }
+    public required string Url { get; set; }
 }

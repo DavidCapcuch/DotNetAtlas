@@ -2,6 +2,7 @@ using Confluent.SchemaRegistry;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.Options;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
 using SagaOrchestrators.Checkout.CheckoutSaga;
 using SagaOrchestrators.Checkout.CheckoutSaga.Consumers;
@@ -54,17 +55,22 @@ public static class SagaDependencyInjection
                 .BindConfiguration(SagaTopicsOptions.Section)
                 .ValidateDataAnnotations();
 
+            // No ValidateDataAnnotations on the three Confluent-derived options below: their settings
+            // live on the vendor base, and an attribute could only reach them by redeclaring each
+            // with `new` — the trap those types document. The validators enforce them instead.
             services.AddOptionsWithValidateOnStart<SagaSchemaRegistryOptions>()
-                .BindConfiguration(SagaSchemaRegistryOptions.Section)
-                .ValidateDataAnnotations();
+                .BindConfiguration(SagaSchemaRegistryOptions.Section);
+            services.AddSingleton<IValidateOptions<SagaSchemaRegistryOptions>,
+                SagaSchemaRegistryOptionsValidator>();
 
             services.AddOptionsWithValidateOnStart<AvroDeserializerOptions>()
-                .BindConfiguration(AvroDeserializerOptions.Section)
-                .ValidateDataAnnotations();
+                .BindConfiguration(AvroDeserializerOptions.Section);
+            services.AddSingleton<IValidateOptions<AvroDeserializerOptions>,
+                AvroDeserializerOptionsValidator>();
 
             services.AddOptionsWithValidateOnStart<AvroSerializerOptions>()
-                .BindConfiguration(AvroSerializerOptions.Section)
-                .ValidateDataAnnotations();
+                .BindConfiguration(AvroSerializerOptions.Section);
+            services.AddSingleton<IValidateOptions<AvroSerializerOptions>, AvroSerializerOptionsValidator>();
 
             services.AddOptionsWithValidateOnStart<SagaConsumerGroupsOptions>()
                 .BindConfiguration(SagaConsumerGroupsOptions.Section)

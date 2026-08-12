@@ -15,4 +15,12 @@
         <ProjectReference Include="..\..\services\Payments\Payments.Application\Payments.Application.csproj" />
         <ProjectReference Include="..\..\services\Payments\Payments.Infrastructure\Payments.Infrastructure.csproj" />
     </ItemGroup>
+
+    <!-- The deployed configuration itself, so KafkaOptionsTests binds what ships rather than a
+         hand-written copy that can drift from it. Linked rather than reached through a reference
+         to Payments.Api: only the file is needed, not the host assembly. -->
+    <ItemGroup>
+        <Content Include="..\..\services\Payments\Payments.Api\appsettings.json" Link="appsettings.json"
+                 CopyToOutputDirectory="PreserveNewest"/>
+    </ItemGroup>
 </Project>

@@ -107,11 +107,14 @@ public sealed class KafkaTestContainer : ITestContainer
             {
                 Url = schemaRegistryUrl
             },
+            // NormalizeSchemas is not carried here: UseKafkaSettings pushes only the three settings
+            // above into the host, and every service's own appsettings.json already sets it. On the
+            // former AvroSerializerConfig-derived shape it landed in a string dictionary no test
+            // reads. KafkaTestProducer sets its own.
             AvroSerializer = new AvroSerializerOptions
             {
                 AutoRegisterSchemas = true,
-                SubjectNameStrategy = SubjectNameStrategy.Record,
-                NormalizeSchemas = true
+                SubjectNameStrategy = SubjectNameStrategy.Record
             }
         };
     }

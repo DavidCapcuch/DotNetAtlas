@@ -11,4 +11,11 @@
         <ProjectReference Include="..\..\services\Ordering\Ordering.Infrastructure\Ordering.Infrastructure.csproj" />
     </ItemGroup>
 
+    <!-- The deployed configuration itself, so KafkaOptionsTests binds what ships rather than a
+         hand-written copy that can drift from it. Linked rather than reached through a reference
+         to Ordering.Api: only the file is needed, not the host assembly. -->
+    <ItemGroup>
+        <Content Include="..\..\services\Ordering\Ordering.Api\appsettings.json" Link="appsettings.json"
+                 CopyToOutputDirectory="PreserveNewest"/>
+    </ItemGroup>
 </Project>

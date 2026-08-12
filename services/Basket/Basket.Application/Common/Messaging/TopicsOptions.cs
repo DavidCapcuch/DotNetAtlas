@@ -24,11 +24,4 @@ public sealed class TopicsOptions
     [Required]
     [Length(1, MaximumKafkaTopicLength)]
     public required string BasketSessions { get; set; }
-
-    /// <summary>
-    /// Suffix appended to topic names to produce Dead Letter Topic names (e.g., <c>.DLT</c>).
-    /// </summary>
-    [Required]
-    [Length(1, 64)]
-    public required string DltTopicSuffix { get; set; }
 }

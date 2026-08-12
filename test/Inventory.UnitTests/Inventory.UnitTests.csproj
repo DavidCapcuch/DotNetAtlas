@@ -11,4 +11,12 @@
         <ProjectReference Include="..\..\services\Inventory\Inventory.Application\Inventory.Application.csproj" />
         <ProjectReference Include="..\..\services\Inventory\Inventory.Infrastructure\Inventory.Infrastructure.csproj" />
     </ItemGroup>
+
+    <!-- The deployed configuration itself, so KafkaOptionsTests binds what ships rather than a
+         hand-written copy that can drift from it. Linked rather than reached through a reference
+         to Inventory.Api: only the file is needed, not the host assembly. -->
+    <ItemGroup>
+        <Content Include="..\..\services\Inventory\Inventory.Api\appsettings.json" Link="appsettings.json"
+                 CopyToOutputDirectory="PreserveNewest"/>
+    </ItemGroup>
 </Project>
