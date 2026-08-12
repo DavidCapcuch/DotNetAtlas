@@ -18,9 +18,12 @@ public static class OutboxRelayDependencyInjection
             .BindConfiguration(OutboxRelayOptions.Section)
             .ValidateDataAnnotations();
 
+        // No ValidateDataAnnotations here, unlike the options above: these settings live on the
+        // ProducerConfig base, and an attribute could only reach them by redeclaring each with
+        // `new` — the trap KafkaProducerOptions documents. The validator enforces them instead.
         builder.Services.AddOptionsWithValidateOnStart<KafkaProducerOptions>()
-            .BindConfiguration(KafkaProducerOptions.Section)
-            .ValidateDataAnnotations();
+            .BindConfiguration(KafkaProducerOptions.Section);
+        builder.Services.AddSingleton<IValidateOptions<KafkaProducerOptions>, KafkaProducerOptionsValidator>();
 
         var outboxRelayConfig = builder.Configuration
             .GetRequiredSection(OutboxRelayOptions.Section)

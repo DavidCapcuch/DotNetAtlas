@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- Project-specific packages only (common test packages in ../../test/Directory.Build.props,
+         imported via this project's Directory.Build.props). -->
+    <ItemGroup>
+        <!-- Confluent.Kafka (CPM-pinned 2.14.0) aligns the transitive version surfaced by the
+             WorkerService project reference, avoiding MSB3277 (test projects disable transitive
+             pinning). The tests also name ProducerConfig/Acks directly. -->
+        <PackageReference Include="Confluent.Kafka"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Platform.OutboxRelay.WorkerService\Platform.OutboxRelay.WorkerService.csproj"/>
+    </ItemGroup>
+</Project>

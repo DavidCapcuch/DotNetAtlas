@@ -1,91 +1,97 @@
-using System.ComponentModel.DataAnnotations;
 using Confluent.Kafka;
+using Microsoft.Extensions.Options;
 
 namespace Platform.OutboxRelay.WorkerService.OutboxRelay.Config;
 
 /// <summary>
 /// Kafka producer configuration for outbox relay.
-/// Inherits from ProducerConfig to expose all Confluent.Kafka producer settings.
 /// </summary>
 /// <remarks>
+/// Every librdkafka producer setting is bindable by its <see cref="ProducerConfig"/> property name
+/// (<c>MessageTimeoutMs</c>, not <c>message.timeout.ms</c>) without being redeclared here — and both
+/// ways of getting that wrong fail silently, so <c>Platform.OutboxRelay.WorkerService.UnitTests</c>
+/// pins them. A key naming no real setting binds to nothing and is discarded without an error,
+/// leaving librdkafka on its own default. Redeclaring a setting with <c>new</c> writes a CLR backing
+/// field, whereas <see cref="ProducerBuilder{TKey,TValue}"/> enumerates the base string dictionary;
+/// the reflection binder populates the shadow and the hidden base property alike, so the values do
+/// still arrive — until a binder that reads only declared members (the configuration-binding source
+/// generator, trimming, AOT) leaves that dictionary empty.
+/// <para>
 /// Recommended read: https://github.com/confluentinc/confluent-kafka-dotnet/wiki/Producer.
+/// </para>
 /// </remarks>
 public sealed class KafkaProducerOptions : ProducerConfig
 {
     public const string Section = "KafkaProducer";
 
-    /// <summary>
-    /// Client ID for identifying the producer.
-    /// </summary>
-    [Required(AllowEmptyStrings = false)]
-    public new required string ClientId { get; set; }
+    public KafkaProducerOptions()
+    {
+    }
+
+    private KafkaProducerOptions(IDictionary<string, string> settings)
+        : base(settings)
+    {
+    }
 
     /// <summary>
-    /// Kafka Bootstrap Servers.
+    /// Copies the settings into an independent instance, so a caller that overrides one setting does
+    /// not mutate the options singleton every other producer resolves.
     /// </summary>
-    [Required(AllowEmptyStrings = false)]
-    public new required string BootstrapServers { get; set; }
+    internal KafkaProducerOptions Clone() =>
+        new(this.ToDictionary(setting => setting.Key, setting => setting.Value));
+}
 
-    /// <summary>
-    /// Compression algorithm for messages.
-    /// Options: None, Gzip, Snappy, Lz4, Zstd.
-    /// </summary>
-    [Required]
-    public new required CompressionType? CompressionType { get; set; }
+/// <summary>
+/// Startup validation for <see cref="KafkaProducerOptions"/> (run via
+/// <c>AddOptionsWithValidateOnStart</c>). These five settings must be supplied explicitly: the relay
+/// refuses to start rather than connect or publish under a setting nobody stated. Idempotence must
+/// additionally be <c>true</c>, because it is the one setting librdkafka will not catch — it rejects
+/// every other contradictory combination when it builds the producer (<c>Acks</c> below <c>All</c>,
+/// more than five in-flight, retries disabled), but accepts idempotence simply switched off, which
+/// costs that partition its de-duplication and ordering with nothing said.
+/// </summary>
+internal sealed class KafkaProducerOptionsValidator : IValidateOptions<KafkaProducerOptions>
+{
+    public ValidateOptionsResult Validate(string? name, KafkaProducerOptions options)
+    {
+        List<string> failures = [];
 
-    /// <summary>
-    /// Number of acknowledgments the producer requires before considering a request complete.
-    /// Options: None (0), Leader (1), All (-1).
-    /// </summary>
-    [Required]
-    public new required Acks? Acks { get; set; }
+        if (string.IsNullOrWhiteSpace(options.BootstrapServers))
+        {
+            failures.Add(Missing(nameof(options.BootstrapServers)));
+        }
 
-    /// <summary>
-    /// Enable idempotent producer (exactly-once semantics).
-    /// </summary>
-    [Required]
-    public new required bool? EnableIdempotence { get; set; }
+        if (string.IsNullOrWhiteSpace(options.ClientId))
+        {
+            failures.Add(Missing(nameof(options.ClientId)));
+        }
 
-    /// <summary>
-    /// Maximum number of in-flight requests per connection.
-    /// Default: 5.
-    /// </summary>
-    public new int? MaxInFlight { get; set; }
+        if (options.Acks is null)
+        {
+            failures.Add(Missing(nameof(options.Acks)));
+        }
 
-    /// <summary>
-    /// Time to wait before sending messages to batch them together (milliseconds).
-    /// Default: 5.
-    /// </summary>
-    public new int? LingerMs { get; set; }
+        if (options.EnableIdempotence is null)
+        {
+            failures.Add(Missing(nameof(options.EnableIdempotence)));
+        }
+        else if (options.EnableIdempotence is false)
+        {
+            failures.Add(Error(
+                $"{nameof(options.EnableIdempotence)} must be true. The relay redelivers on retry, so " +
+                "without it a broker-side retry duplicates and reorders that partition's events."));
+        }
 
-    /// <summary>
-    /// Maximum size of a single batch (bytes).
-    /// </summary>
-    public new int? BatchSize { get; set; }
+        if (options.CompressionType is null)
+        {
+            failures.Add(Missing(nameof(options.CompressionType)));
+        }
 
-    /// <summary>
-    /// Local message timeout (milliseconds).
-    /// Default: 300000 (5 minutes).
-    /// </summary>
-    public new int? MessageTimeoutMs { get; set; }
+        return failures.Count > 0 ? ValidateOptionsResult.Fail(failures) : ValidateOptionsResult.Success;
+    }
 
-    /// <summary>
-    /// Request timeout for broker communication (milliseconds).
-    /// Default: 30000 (30 seconds).
-    /// </summary>
-    public new int? RequestTimeoutMs { get; set; }
+    private static string Missing(string setting) => Error($"{setting} is required.");
 
-    /// <summary>
-    /// Maximum number of times to retry sending a message.
-    /// Default: 10.
-    /// </summary>
-    public new int? MessageSendMaxRetries { get; set; }
-
-    /// <summary>
-    /// Backoff time between retries (milliseconds).
-    /// Default: 100.
-    /// </summary>
-    public new int? RetryBackoffMs { get; set; }
-
-    public KafkaProducerOptions ShallowClone() => (KafkaProducerOptions)MemberwiseClone();
+    private static string Error(string problem) =>
+        $"Kafka producer configuration error in section '{KafkaProducerOptions.Section}': {problem}";
 }

@@ -35,6 +35,7 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="Platform.OutboxRelay.Benchmark"/>
+        <InternalsVisibleTo Include="Platform.OutboxRelay.WorkerService.UnitTests"/>
     </ItemGroup>
 
     <ItemGroup>

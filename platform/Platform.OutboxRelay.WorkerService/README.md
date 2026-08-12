@@ -62,7 +62,7 @@ outbox-relay-catalog:
     - ConnectionStrings__Outbox=Host=postgresdb;Port=5432;Database=Catalog;Username=postgres;Password=${POSTGRES_PASSWORD}
     - KafkaProducer__BootstrapServers=broker:9092
     - KafkaProducer__ClientId=outbox-relay-catalog-worker
-    # SchemaName/TableName are required and bind this relay to one schema (fail-closed if absent).
+    # Set these per relay - see Configuration below.
     - OutboxRelay__SchemaName=catalog
     - OutboxRelay__TableName=outbox_messages
     - OutboxRelay__PollingIntervalMs=2000
@@ -74,49 +74,30 @@ outbox-relay-catalog:
 
 ## Configuration
 
-### OutboxRelay Options
+Both options sections are validated before the host starts, so a misconfigured relay is refused
+rather than left publishing under a setting nobody chose. Shipped values live in
+[`appsettings.json`](./appsettings.json), overlaid for local runs by
+[`appsettings.Development.json`](./appsettings.Development.json); deployments override what varies
+per relay through `Section__Setting` environment variables, as the compose sample above does.
 
-| Setting              | Description                          | Default        |
-| -------------------- | ------------------------------------ | -------------- |
-| `PollingIntervalMs`  | How often to poll for new messages   | 1000           |
-| `BatchSize`          | Max messages per batch               | 1000           |
-| `SchemaName`         | Database schema for the outbox table (bound per deployment via `OutboxRelay__SchemaName`) | _required_ |
-| `TableName`          | Outbox table name (bound per deployment via `OutboxRelay__TableName`)                      | _required_ |
-| `FlushTimeoutMs`     | Kafka flush timeout                  | 30000          |
-| `ShutdownTimeoutMs`  | Graceful shutdown timeout            | 60000          |
+What those files cannot tell you:
 
-### KafkaProducer Options
-
-| Setting             | Description                          | Default  |
-|---------------------| ------------------------------------ | -------- |
-| `BootstrapServers`  | Kafka broker addresses               | Required |
-| `ClientId`          | Producer client identifier           | Required |
-| `Acks`              | Acknowledgment level (None/Leader/All) | All      |
-| EnableIdempotence   | Prevents duplicate messages during retries by ensuring exactly-once delivery semantics. When enabled, Kafka automatically assigns producer IDs and sequence numbers to detect and filter duplicates. Requires Acks=All. | true |
-| `CompressionType`   | Message compression                  | None     |
-| `LingerMs`          | Batching delay                       | 5        |
-
-### Example appsettings.json
-
-```json
-{
-  "ConnectionStrings": {
-    "Outbox": "Host=localhost;Port=5433;Database=Catalog;Username=postgres;Password=..."
-  },
-  "OutboxRelay": {
-    "PollingIntervalMs": 1000,
-    "BatchSize": 1000,
-    "SchemaName": "catalog",
-    "TableName": "outbox_messages"
-  },
-  "KafkaProducer": {
-    "BootstrapServers": "localhost:9094",
-    "ClientId": "outbox-relay-worker",
-    "Acks": "All",
-    "EnableIdempotence": true
-  }
-}
-```
+- **`OutboxRelay:SchemaName` and `:TableName` carry no base-layer default on purpose** — each relay
+  drains exactly one schema, so a deployment is expected to name its own rather than inherit one.
+  Do not lean on that refusal, though: the Development layer does supply `catalog`, and every relay
+  in `docker-compose.yaml` runs under it, so one that lost its env var binds that schema instead of
+  failing. [`OutboxRelayOptions`](./OutboxRelay/Config/OutboxRelayOptions.cs) carries every relay
+  setting, its bounds, and the flush-before-shutdown invariant.
+- **Each producer setting the validator lists must be stated explicitly, and `EnableIdempotence`
+  must be `true`** —
+  [`KafkaProducerOptionsValidator`](./OutboxRelay/Config/KafkaProducerOptions.cs) names them and
+  says why idempotence is the one librdkafka will not catch for you. librdkafka rejects the other
+  contradictions — `Acks`, in-flight limit, retry count — when it builds the producer, so this repo
+  does not re-check them.
+- **Settings bind by `ProducerConfig` property name** — `MessageTimeoutMs`, not
+  `message.timeout.ms`. The remarks on
+  [`KafkaProducerOptions`](./OutboxRelay/Config/KafkaProducerOptions.cs) explain what a key matching
+  no real setting costs.
 
 ## Health Checks
 

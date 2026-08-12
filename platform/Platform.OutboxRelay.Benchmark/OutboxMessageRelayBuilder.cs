@@ -65,7 +65,7 @@ public sealed class OutboxMessageRelayBuilder
 
         // Clone options for customization
         var kafkaProducerOptions =
-            _serviceProvider.GetRequiredService<IOptions<KafkaProducerOptions>>().Value.ShallowClone();
+            _serviceProvider.GetRequiredService<IOptions<KafkaProducerOptions>>().Value.Clone();
         var outboxRelayOptionsValue =
             _serviceProvider.GetRequiredService<IOptions<OutboxRelayOptions>>().Value;
         var outboxRelayOptions = new OutboxRelayOptions
