@@ -16,7 +16,7 @@ You implement **one bounded context (or one cross-cutting wave)** of the DotNetA
 
 On top of this file, every BC reads (in order):
 
-1. `CLAUDE.md` + `.claude/rules.md` — repo rules and standing constraints; `.claude/verification-gates.md` for the gate deltas
+1. `CLAUDE.md` — repo rules and standing constraints; `.claude/verification-gates.md` for the gate deltas
 2. `docs/eshop-master-design.md` — **especially § 3 event discipline, § 5 BC overview (find your BC), § 6 Kafka topics, § 10 diagrams, § 11 cross-cutting**
 3. `docs/eshop-general-plan.md` — solution tree
 4. `docs/adr/` — **read every ADR your `<applicable_adrs>` block names; skim the rest from the directory** (don't trust a hardcoded count — the set currently spans `0001`–`0033`, with `0030` a tombstone). 0001–0007 domain decisions, 0008 a deprecated stub, 0009+ cross-cutting (service-auth, PII, versioning, idempotency, feature flags, time, Redis, blob, invoice numbering, PDF, **0024 dispatch-in-interceptor**, **0029 order-keyed saga**, **0033 topic-contract SSOT**, …). The directory is the source of truth.

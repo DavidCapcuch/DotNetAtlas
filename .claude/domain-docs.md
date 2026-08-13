@@ -12,8 +12,9 @@ bounded contexts live one folder per context under `services/`.
 - **`docs/bc-design/`** — per-BC design docs and glossaries, plus `conventions.md`, the
   cross-cutting conventions index whose § 8 maps each topic to its canonical doc.
 
-`CONTEXT.md` / `CONTEXT-MAP.md` are created lazily by `/grill-with-docs`, so **proceed silently
-when one is missing.** Don't flag their absence or suggest creating them upfront.
+`CONTEXT.md` / `CONTEXT-MAP.md` are created lazily by the `domain-modeling` skill (which
+`/grill-with-docs` delegates to), so **proceed silently when one is missing.** Don't flag their
+absence or suggest creating them upfront.
 
 ## Use the glossary's vocabulary
 

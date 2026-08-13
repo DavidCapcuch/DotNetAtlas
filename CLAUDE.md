@@ -1,69 +1,67 @@
 # CLAUDE.md
 
-Standing behavioral rules: @.claude/rules.md
-
 DotNetAtlas is a .NET reference eShop — bounded contexts, a BFF and a centralized checkout saga,
 event-driven over Kafka with a transactional outbox.
 
-## Build & Restore
+## Standing rules
 
-```bash
-dotnet build -m
-dotnet restore --locked-mode
-```
+- **Ask, don't guess** — when uncertain about a cross-BC contract, an ADR, or an architectural seam.
+  A 60-second pause beats a silent wrong assumption.
+- **The gates are the only review a change gets** — solo repo, no PRs. Repo gate deltas — compose
+  profile per gate, the thread cap's why, the flake response: `.claude/verification-gates.md`.
+- **Breaking changes are always allowed** — non-production reference solution; ADRs included.
+  - **Rewrite an ADR inline when the decision changes** — never to reconcile a body to today's state.
+  - Target profile: `docs/adr/0009-reference-solution-target-profile.md`.
+- **Restore with `dotnet restore --locked-mode`, and build `--no-restore`** — this repo generates
+  `packages.lock.json`, so a bare restore silently rewrites it and the `settings.json` deny rule
+  does not cover Bash.
 
 ## Local Infrastructure
 
-```bash
-docker compose --profile core up -d    # datastores + the mail and blob stubs, nothing else
-docker compose --profile full up -d    # everything, including the services themselves
-```
+- **Narrow to `--profile core` only when the datastores and stubs are all you need** — `.env` sets
+  `COMPOSE_PROFILES=full`, so a bare `up` starts everything:
 
-- **Reach for `full` unless you only need a datastore.** Kafka, Schema Registry, Keycloak, the
-  outbox relays, the services and the observability stack are all `full`-only. Which profile each
-  gate needs, and why: `.claude/verification-gates.md`.
+```bash
+docker compose --profile core up -d
+```
 
 ## Integration tests
 
-- **Cap integration tests at 4 xUnit threads** — `test/xunit.runner.json` says `unlimited`, so the
-  cap is an override you must pass:
+- **Cap integration tests at 4 xUnit threads** — `test/xunit.runner.json` says `unlimited`, so pass
+  it on every run.
+  - **VSTest-adapter form** — the repo pins `xunit.runner.visualstudio`, and these flags are
+    silently ignored under Microsoft.Testing.Platform.
+  - **`10m`, not the `daca-gates` default `5m`** — parallel sessions are the norm here.
 
 ```bash
 dotnet test <proj> --no-build --blame-hang-timeout 10m -- xUnit.MaxParallelThreads=4
 ```
 
-**Known flake amplifier:** the local container engine's relay can wedge under port-forward churn. Testcontainers' random host ports *are* that churn and concurrency multiplies it.
-
-- **If flakes worsen, drop the cap before suspecting code.** Engine-specific recovery is a per-machine concern, not a repo one.
-
 ## Agent skills
 
-- **Issues** live on GitHub (`DavidCapcuch/DotNetAtlas`); skills use the `gh` CLI. Recipes, the
-  triage label strings (**used as-is, never remapped**), and the edit-the-body-not-a-comment rule:
-  `.claude/issue-tracker.md`.
-- **Domain docs** — multi-context repo; `.claude/domain-docs.md` maps which docs exist, where ADRs
-  live, and the reading order.
-- **Proceed silently when `CONTEXT.md` / `CONTEXT-MAP.md` is missing** — `/grill-with-docs` creates
-  them lazily.
+- **Tickets live as GitHub issues**; skills use `gh`. Recipes, the triage label strings, and the
+  edit-the-body-not-a-comment rule: `.claude/issue-tracker.md`.
+  - **Use the triage label strings as-is, never remapped.**
+- **Domain docs** — multi-context repo; `.claude/domain-docs.md` maps the per-context docs, ADR
+  locations and reading order.
+- **Proceed silently when `CONTEXT.md` / `CONTEXT-MAP.md` is missing** — `domain-modeling` creates
+  them lazily. Never flag the absence or offer to create one.
 
 ## Conventions
 
-- **A new `services/<BC>/` is 4-layer** — `.Domain` / `.Application` / `.Infrastructure` / `.Api`.
+- **Look a cross-cutting convention up in `docs/bc-design/conventions.md` § 8; never infer one from
+  a nearby file** — § 8 maps each topic to its canonical doc.
 - **Never add a missing test-project kind unasked** — the absence is a choice, not a gap.
-- **Migrations are generated, never hand-written** — the EF migration and the `V*.sql` script are
-  agent-deny-protected in `.claude/settings.json`. Commands and the dev/test/deployed split:
+- **Migrations are generated, never hand-written** — commands and the dev/test/deployed split:
   `.claude/migrations.md`.
 - **Never hand-edit the generated `.cs` beside an `.avsc`.** Messaging contracts are Avro schemas in
   `platform/Platform.SchemaRegistry.Contracts`; regeneration and the commit rule: `.claude/avro.md`.
-- **Functional core, imperative shell** — this is DDD, preferring domain model **purity +
-  performance** over completeness.
-  - **A rule decidable from aggregate state alone stays in the domain.**
-  - **Application handlers do the out-of-process reading** — fetch what a decision needs, then pass
-    it into the domain.
-- **Look a cross-cutting convention up; never infer it from a nearby file.**
-  `docs/bc-design/conventions.md` § 8 maps each topic to its canonical doc.
+- **Functional core, imperative shell** — a rule that needs I/O to decide never lives in the domain;
+  the handler fetches, then passes values in. **The core is the existing domain types, not a new
+  pure layer** — a mutable aggregate counts; statefulness isn't impurity, hidden inputs are. The
+  trade-off this settles, and the placement rules: `docs/bc-design/conventions.md` § 7.
 
 ## Project status
 
-- **Non-production reference solution — breaking changes are always allowed**, including ADRs, which can be rewritten inline after the fact. Target profile: `docs/adr/0009-reference-solution-target-profile.md`.
-- **BFF service (`src/EShop.BFF/`) is under active build** — `src/EShop.BFF/EShop.BFF.Api/Endpoints/` shows what is wired today. **Checkout and order-summary are not built yet.**
+- **Checkout and order-summary are not built yet** — the BFF service (`src/EShop.BFF/`) is under
+  active build; `src/EShop.BFF/EShop.BFF.Api/Endpoints/` shows what is wired today.

@@ -533,11 +533,7 @@ Per-BC taxonomy is exactly three projects — no `FunctionalTests`. The handler-
 
 ### 11.5 Package Version Policy
 
-Versions are centrally managed — a version belongs in the **nearest `Directory.Packages.props` above the project**, so a new BC's service-specific packages (FastEndpoints.\*, KafkaFlow.\*, Npgsql, …) land in the one covering `services/`.
-
-```bash
-git ls-files '*Directory.Packages.props'
-```
+Versions are centrally managed per source tier — the invariant, and why the tiers never merge: [conventions.md § 11](bc-design/conventions.md). A new BC's service-specific packages (FastEndpoints.\*, KafkaFlow.\*, Npgsql, …) land in the tier covering `services/`.
 
 Lock files are committed; CI enforces `dotnet restore --locked-mode`. The procedure for adding a package — including the unlocked restore that regenerates `packages.lock.json` — is [implementation-prompts/_shared.md § 3](implementation-prompts/_shared.md).
 
@@ -666,8 +662,8 @@ Each references `Platform.Test.Framework` for shared fixtures (Testcontainers se
 
 ### B.5 Lock files + package versions
 
-- Add package references to correct `Directory.Packages.props` (`platform/` for `Platform.*`, `services/` for service-specific, `test/` for test-only).
-- Run `dotnet restore --locked-mode` locally; commit `packages.lock.json`.
+- Pin the package per [conventions.md § 11](bc-design/conventions.md).
+- Regenerate and commit `packages.lock.json` per [_shared.md § 3](implementation-prompts/_shared.md) — that restore runs *without* `--locked-mode`.
 
 ### B.6 Docker-compose
 
