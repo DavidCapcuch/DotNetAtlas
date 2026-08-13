@@ -104,7 +104,7 @@ The kit is built to defeat the common agent-dispatch failure modes. Each maps to
 | **Context drift** (long session contradicts itself) | Context-window discipline + handoff at ~80% (`_shared.md § 9–10`); one unit per dispatch |
 | **Over-editing** (touches unmentioned things) | `<boundaries>` file ownership + the migration `permissions.deny` (`.claude/settings.json`) |
 | **Vague scoping** | Locked `<contract>` + `<mission>`/`<dod>`; phase-1 `to-tickets` tracer-bullet slices |
-| **Missing test coverage** | "Every new behaviour ships a new test" (`_shared.md § 12`); `tdd` build loop |
+| **Missing test coverage** | `daca-dod-reviewer`'s Testing bar (at DoD, Role 3); `tdd` build loop |
 | **Architecture drift** | `conventions.md` + CI-blocking `architecture-tests.md` (NetArchTest); `daca-bc-consistency-reviewer` (via `daca-dod-reviewer`) at DoD |
 | **Stale docs** | Doc self-correction *in the same session* (`_shared.md § 8`) |
 | **False certainty** (confident-but-wrong) | The gate's *prove-don't-claim* rule (actual pasted output) + a separate **judge** (`daca-dod-reviewer`, a fresh subagent) auditing the diff vs its DoD bar, never self-attestation |

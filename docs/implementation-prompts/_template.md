@@ -105,7 +105,6 @@ Concrete deliverables. Extends `_shared.md § 12`.
 
 - [ ] {Specific deliverable for this BC, observable as a test or compose state}
 - [ ] {Repeat per BC-specific outcome}
-- [ ] Every new behaviour has a new test (`_shared.md § 12`)
 - [ ] All `<applicable_adrs>` enforced (architecture tests + verification commands)
 - [ ] Review stack (`_shared.md § 11`) run end-to-end: Opus pre-commit → gates pasted → `daca-dod-reviewer` blockers fixed (Role 3; delegates to `daca-bc-consistency-reviewer` + `daca-documentation-reviewer`); its Self-attested bucket attested
 </dod>

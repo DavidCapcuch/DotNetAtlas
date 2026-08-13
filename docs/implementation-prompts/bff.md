@@ -132,7 +132,6 @@ Concrete deliverables. Extends `_shared.md § 12` adapted (2 layers not 4):
 - [ ] Architecture tests: no `DbSet<>` in BFF; no Kafka producer; only consumer + HTTP client + cache; FusionCache backplane ≠ `Redis:Basket`
 - [ ] Integration tests: (a) happy-path composition; (b) upstream timeout → fail-safe returns stale cache; (c) upstream 5xx → fallback; (d) invalidator consumer fires on fake `ProductPriceChanged` → tag removed; (e) checkout idempotency
 - [ ] Docker-compose: BFF container + healthcheck (no new topics, no outbox-relay)
-- [ ] Every new behaviour has a new test (`_shared.md § 12`)
 - [ ] All `<applicable_adrs>` enforced (architecture tests + verification commands)
 - [ ] Review stack (`_shared.md § 11`) run end-to-end: Opus pre-commit → gates pasted → `daca-dod-reviewer` blockers fixed (Role 3; delegates to `daca-bc-consistency-reviewer` + `daca-documentation-reviewer`); its Self-attested bucket attested
 </dod>
