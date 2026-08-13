@@ -97,5 +97,12 @@
         <!-- Transitive pins for NU1903 vulnerabilities (closes #139). -->
         <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.10"/>
         <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.8"/>
+        <!-- SSH.NET arrives through Testcontainers. Needed because Platform.Test.Framework and
+             Platform.OutboxRelay.Benchmark have no Directory.Build.props importing test/, so they
+             keep NU1903 blocking — the Platform.*.UnitTests siblings do import it and are exempt.
+             A Testcontainers bump does NOT clear this: 4.13.0 still requires 2025.1.0, and
+             GHSA-q939-rpr3-3284 is first patched in 2026.0.0. Before dropping the pin on a bump,
+             confirm the new nuspec's SSH.NET dependency is >= 2026.0.0. -->
+        <PackageVersion Include="SSH.NET" Version="2026.0.0"/>
     </ItemGroup>
 </Project>
