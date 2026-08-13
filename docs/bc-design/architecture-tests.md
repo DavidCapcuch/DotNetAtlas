@@ -22,17 +22,22 @@ Types.InAssembly(DomainAssembly)
         "Ordering.Infrastructure",
         "Ordering.Api",
         "Microsoft.EntityFrameworkCore",
+        "Ardalis.Specification.EntityFrameworkCore",  // its own namespace — the prefix above misses it
         "KafkaFlow",
         "FastEndpoints",
         "StackExchange.Redis")
     .GetResult();
 
+// EF Core is deliberately absent from this list: every `I{Bc}DbContext` inherits
+// `Platform.ReliableMessaging.Outbox.EFCore.IOutboxDbContext`, which exposes `DbSet<OutboxMessage>`
+// and `DatabaseFacade`. Application therefore references Microsoft.EntityFrameworkCore by design —
+// including in a BC like Basket, whose port adds no aggregate DbSet of its own. Only the
+// *concrete* DbContext lives in Infrastructure.
 Types.InAssembly(ApplicationAssembly)
     .Should()
     .NotHaveDependencyOnAny(
         "Ordering.Infrastructure",
         "Ordering.Api",
-        "Microsoft.EntityFrameworkCore",   // EF Core lives in Infrastructure
         "KafkaFlow",                        // KafkaFlow lives in Infrastructure
         "StackExchange.Redis",              // Redis client lives in Infrastructure
         "FastEndpoints")                    // FastEndpoints lives in Api
@@ -48,10 +53,12 @@ Allowed references summary (copied from [master design § Appendix B.2](../eshop
 
 | Layer | May reference | Must NOT reference |
 |-------|---------------|--------------------|
-| `{Bc}.Domain` | `Platform.SharedKernel` only | Any `.Application` / `.Infrastructure` / `.Api`; EF Core; KafkaFlow; FastEndpoints; Redis |
-| `{Bc}.Application` | `{Bc}.Domain`, `Platform.CQRS`, `Platform.CQS`, `Platform.ReliableMessaging.Outbox.*`, `Platform.SchemaRegistry.Contracts`, `FluentValidation`, `FluentResults` | Infrastructure / Api; EF Core; KafkaFlow; Redis |
+| `{Bc}.Domain` | `Platform.SharedKernel` only | Any `.Application` / `.Infrastructure` / `.Api`; EF Core (both `Microsoft.EntityFrameworkCore` **and** `Ardalis.Specification.EntityFrameworkCore`, which sits in its own namespace); KafkaFlow; FastEndpoints; Redis |
+| `{Bc}.Application` | `{Bc}.Domain`, `Platform.CQRS`, `Platform.CQS`, `Platform.ReliableMessaging.Outbox.*`, `Platform.SchemaRegistry.Contracts`, `FluentValidation`, `FluentResults`, `Microsoft.EntityFrameworkCore` (every `I{Bc}DbContext` inherits `IOutboxDbContext`, which exposes `DbSet<OutboxMessage>` + `DatabaseFacade`) | Infrastructure / Api; KafkaFlow; FastEndpoints; Redis |
 | `{Bc}.Infrastructure` | `{Bc}.Application`, all `Platform.*`, `Microsoft.EntityFrameworkCore*`, `KafkaFlow.*`, `Npgsql`, `StackExchange.Redis` (Basket only) | `{Bc}.Api` |
 | `{Bc}.Api` | `{Bc}.Application`, `{Bc}.Infrastructure`, `Platform.ServiceDefaults`, `FastEndpoints` | — |
+
+**Both columns are about *type* references, not `PackageReference` entries** — that is what NetArchTest walks, and what the tests above assert. A project may carry an unused `PackageReference` to a forbidden package and still pass — several Application projects reference `FastEndpoints.Attributes` without touching a FastEndpoints type. The corollary is that each forbidden namespace must be listed explicitly: matching is on the namespace prefix, so `Microsoft.EntityFrameworkCore` does not cover `Ardalis.Specification.EntityFrameworkCore`, whose evaluators reach the same EF query pipeline.
 
 ### 1.2 Aggregate Discipline Rules
 
@@ -304,14 +311,14 @@ Types.InAssembly(InventoryAppAssembly)
 
 ### 2.5 Invoicing
 
-The shipped Invoicing test project (`test/Invoicing.ArchitectureTests/`) enforces **30 facts**. The per-BC rules below complement § 1 with invariants that are specific to the Invoicing chapter — PDF determinism, blob containment, PII allowlisting, and the strict `TimeProvider` posture inherited from ADR-0015.
+The shipped Invoicing test project is `test/Invoicing.ArchitectureTests/` — run it for the current fact count. The per-BC rules below complement § 1 with invariants that are specific to the Invoicing chapter — PDF determinism, blob containment, PII allowlisting, and the strict `TimeProvider` posture inherited from ADR-0015.
 
 - **`Invoicing.Infrastructure.Pdf.*` is the only QuestPDF caller** — `PdfGenerationContainmentTests.PdfGenerator_ShouldOnlyBeIn_PdfNamespace` asserts no type outside the `Invoicing.Infrastructure.Pdf.*` regex references `QuestPDF.*`. Prevents PDF rendering from leaking into Domain / Application / API.
 - **`Invoicing.Infrastructure.Blobs.*` is the only `Azure.Storage.Blobs` caller** — `BlobStorageContainmentTests.AzureStorage_ShouldOnlyBeIn_BlobsNamespace` asserts the SDK is contained. The blob path is also the only namespace allowed to mint SAS URLs.
 - **PII allowlist** — `OtelTagAllowlistTests` asserts that the only span-attribute keys Invoicing emits are on the ADR-0011 allowlist (or `DataIntegrityException`-tagged `error.*` keys). Buyer email / name / address must never appear in a span tag.
 - **`NoStaticUtcNowInDomain`** — `NoStaticUtcNowInDomainTests` asserts `Invoicing.Domain.**` does not call `DateTime[Offset].UtcNow`. Inherits the universal § 1 contract; restated here as a per-BC pin.
 - **Blobs-namespace UtcNow ban** — `BlobStorageContainmentTests.BlobsNamespace_ShouldNotCall_StaticUtcNow` extends the no-static-UtcNow rule to `Invoicing.Infrastructure.Blobs.*` (plugs the AzureBlobStore SAS-expiry hole — see H4 in the Invoicing closeout).
-- **Clean-Architecture layer rules** — 6 facts in `CleanArchitectureLayerTests` mirror the universal § 1.1 contract at the Invoicing-assembly level (Domain ⟂ Application/Infrastructure/API; Application ⟂ Infrastructure/API; Infrastructure ⟂ API).
+- **Clean-Architecture layer rules** — 8 facts in `CleanArchitectureLayerTests` mirror the universal § 1.1 contract at the Invoicing-assembly level: 6 assembly-pair facts (Domain ⟂ Application/Infrastructure/API; Application ⟂ Infrastructure/API; Infrastructure ⟂ API) plus `Domain_ShouldNotHaveDependencyOnAny_InfrastructurePackages` and `Application_ShouldNotHaveDependencyOnAny_InfrastructurePackages` for the package half.
 - **Aggregate discipline** — 4 facts in `AggregateRootTests` cover the universal § 1.2 contract for `Invoice` and `CreditNote` (private parameterless ctor, public static factory, no public setters, encapsulated domain-event collection).
 - **Domain-event discipline** — 3 facts in `DomainEventTests` cover the universal § 1.3 internal-event contract (sealed, naming suffix, namespace).
 - **Command/Query discipline** — 4 facts in `CommandHandlerTests` / `QueryHandlerTests` enforce the § 1.4 naming + return-type contract per BC.
@@ -395,7 +402,7 @@ public sealed class ArchitectureRules
 
 Implementation agents tick these off as they author the architecture-tests project for their BC:
 
-- [ ] **§ 1.1 Layer rules** — one test per layer pair (Domain→Infra forbidden, Domain→Api forbidden, Application→Infra forbidden, Application→Api forbidden) — 4 tests
+- [ ] **§ 1.1 Layer rules** — one test per layer pair (Domain→Application, Domain→Infra, Domain→Api, Application→Infra, Application→Api, Infra→Api — all forbidden) — 6 tests — plus 2 package-level tests (Domain, Application) — **8 tests**
 - [ ] **§ 1.2 Aggregate discipline** — one test per aggregate (Catalog 2, Basket 1, Ordering 1, Inventory 1); each test checks ctor + factory + no-public-setters
 - [ ] **§ 1.3 Event naming** — one test for internal-event convention, one for external-event convention, one for "aggregates don't raise external events" — 3 tests
 - [ ] **§ 1.4 Handler naming** — 3 tests (`*CommandHandler`, `*QueryHandler`, handlers return `Result`/`Result<T>`)
@@ -406,7 +413,7 @@ Implementation agents tick these off as they author the architecture-tests proje
 - [ ] **§ 2.3 Ordering specific** — 4 tests
 - [ ] **§ 2.4 Inventory specific** — 3 tests
 
-**Target test count per BC:** approximately 18-22 tests across common + BC-specific rules.
+**Target coverage per BC:** every rule in § 1 plus that BC's § 2 rules — the checklist above, not a test count.
 
 ---
 
