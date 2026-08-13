@@ -1332,7 +1332,7 @@ Plus a separate consumer for the Catalog event inbox:
 
 #### 4.4.2 `GetStockLevelsBulkQuery`
 
-> ✅ **BUILT (ahead of its consumer)** per ADR-0034 § Decision (1). `POST /api/v1/inventory/stock-items/bulk` is implemented in `Inventory.Api` (`GetStockLevelsBulkEndpoint` → `GetStockLevelsBulkQueryHandler` over the Inventory-owned read-through cache) with integration coverage. The **BFF consumer** that will call it is still not built (the BFF service is not yet started, per `CLAUDE.md`); the endpoint stands on its own — anonymous, partial-tolerant — until then.
+> ✅ **BUILT (ahead of its consumer)** per ADR-0034 § Decision (1). `POST /api/v1/inventory/stock-items/bulk` is implemented in `Inventory.Api` (`GetStockLevelsBulkEndpoint` → `GetStockLevelsBulkQueryHandler` over the Inventory-owned read-through cache) with integration coverage. The **BFF consumer** that will call it may not be built yet — `src/EShop.BFF/EShop.BFF.Api/Endpoints/` is what is wired today; the endpoint stands on its own — anonymous, partial-tolerant — until then.
 
 - **HTTP:** `POST /api/v1/inventory/stock-items/bulk` (POST because the list of ids may exceed URL length for basket-sized collections; body is read-only despite the verb).
 - **Authorization:** `AllowAnonymous` per ADR-0034 § Implementation Notes — consistent with its single-read sibling § 4.4.1 (`GET /stock-items/{productId}`), which is also `AllowAnonymous`. Both display reads share one public posture.

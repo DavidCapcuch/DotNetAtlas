@@ -169,7 +169,7 @@ Per `_shared.md § 10`. Suggested commit milestones:
 </session_management>
 
 <verification>
-Run the **non-negotiable gates** via `daca-gates` (build / restore / format / the three `EShop.BFF.*Tests` projects / compose health; repo deltas in [`docs/verification-gates.md`](../verification-gates.md)), then the BFF smoke below. **Paste the actual output** into the session summary.
+Run the **non-negotiable gates** via `daca-gates` (build / restore / format / the three `EShop.BFF.*Tests` projects / compose health; repo deltas in [`.claude/verification-gates.md`](../../.claude/verification-gates.md)), then the BFF smoke below. **Paste the actual output** into the session summary.
 
 ```bash
 # BFF smoke, after the standard gates:

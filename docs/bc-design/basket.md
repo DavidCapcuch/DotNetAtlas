@@ -701,7 +701,7 @@ Basket:
 
 ### 14.3 Database & schemas
 
-- `basket` schema in PostgreSQL — contains only `outbox_messages` and `inbox_messages`. Per CLAUDE.md, migrations are generated deterministically by the user; this document only specifies the schema contract.
+- `basket` schema in PostgreSQL — contains only `outbox_messages` and `inbox_messages`. This document specifies the schema contract only; the migration and its `V*.sql` are generated per [_shared.md § 3](../implementation-prompts/_shared.md).
 - No need for a reseed — there is no aggregate data in SQL.
 
 ### 14.4 Docker Compose additions

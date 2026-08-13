@@ -16,7 +16,7 @@ You implement **one bounded context (or one cross-cutting wave)** of the DotNetA
 
 On top of this file, every BC reads (in order):
 
-1. `CLAUDE.md` — repo rules (non-negotiable: locked-mode restore, format gates, no EF migration generation)
+1. `CLAUDE.md` + `.claude/rules.md` — repo rules and standing constraints; `.claude/verification-gates.md` for the gate deltas
 2. `docs/eshop-master-design.md` — **especially § 3 event discipline, § 5 BC overview (find your BC), § 6 Kafka topics, § 10 diagrams, § 11 cross-cutting**
 3. `docs/eshop-general-plan.md` — solution tree
 4. `docs/adr/` — **read every ADR your `<applicable_adrs>` block names; skim the rest from the directory** (don't trust a hardcoded count — the set currently spans `0001`–`0033`, with `0030` a tombstone). 0001–0007 domain decisions, 0008 a deprecated stub, 0009+ cross-cutting (service-auth, PII, versioning, idempotency, feature flags, time, Redis, blob, invoice numbering, PDF, **0024 dispatch-in-interceptor**, **0029 order-keyed saga**, **0033 topic-contract SSOT**, …). The directory is the source of truth.
@@ -45,7 +45,7 @@ On top of this file, every BC reads (in order):
     - xunit.v3 enforces `xUnit1051` — pass `TestContext.Current.CancellationToken` to every async call in a test body, otherwise the build fails.
     - ASP.NET middleware tests built on `DefaultHttpContext` do **not** fire `Response.OnStarting` callbacks (the callbacks are registered but never invoked without a real pipeline). Either set response headers eagerly, or stand up `Microsoft.AspNetCore.TestHost` for the assertion.
 
-**Schema application — three strategies by environment.** Dev (laptop `dotnet run` + compose) applies the EF model via `MigrateAsync`, Development-gated (`Platform.ServiceDefaults/MigrationStartupExtensions`); Testing replays the committed `V*.sql` scripts through **Evolve** via `Platform.Test.Framework/Database/PostgreSqlTestContainer`; Deployed replays the same `V*.sql` through **Flyway** (the compose `flyway` service). So **test fixtures never call `MigrateAsync` / `EnsureCreatedAsync`** — they exercise the exact SQL prod runs.
+**Schema application, and how to generate a migration** — the three-strategies-by-environment split (dev `MigrateAsync` / test Evolve / deployed Flyway), the `dotnet ef` invocations, and why the SQL script needs both `--idempotent` and `--no-transactions`: [`.claude/migrations.md`](../../.claude/migrations.md). The consequence that matters here: **test fixtures never call `MigrateAsync` / `EnsureCreatedAsync`** — they exercise the exact SQL prod runs.
 
 Do not introduce new libraries without documenting rationale + asking. When an added package **is** approved: add it to the correct-level `Directory.Packages.props`, run `dotnet restore` once **without** `--locked-mode` to regenerate `packages.lock.json`, then commit the lock delta — otherwise the locked-mode gate fails on the next restore.
 
@@ -164,7 +164,7 @@ Three review touchpoints ([Anthropic's harness-design guidance](https://www.anth
 Before `git commit` on any milestone touching ≥ 5 files, invoke `Agent(subagent_type="feature-dev:code-reviewer", model="opus")`. It's a generic reviewer with **no repo context**, so brief it: the exact file list + test list + design decisions + what's intentionally deferred, **plus a two-line repo preamble** — "Golden reference: `_shared.md § 4`. Outbox-only event seams, result-pattern-not-exceptions, and layer boundaries are arch-tested (`architecture-tests.md`) — flag any violation as a real failure." Fix all CRITICAL/HIGH before staging; document accepted MEDIUM/LOW in the commit body. Use `model="opus"` — precedent surfaced one CRITICAL + three IMPORTANT on a single review; the default is weaker. (The `Agent` tool honours the `model` override; if a harness ever ignores it, have the reviewer state the model it actually ran in its output so the opus assumption isn't silently lost.)
 
 **Role 2 — the gate (before any "done" claim).**
-Run the gates via the `daca-gates` skill (this repo's deltas: [`docs/verification-gates.md`](../verification-gates.md)) and paste the **actual pass/fail output — not a summary** — into your session summary, then invoke `superpowers:verification-before-completion` (its checklist catches the "I claimed done but never ran X" gap). The gates are **non-negotiable exit conditions** — no "done" without all of them green and pasted.
+Run the gates via the `daca-gates` skill (this repo's deltas: [`.claude/verification-gates.md`](../../.claude/verification-gates.md)) and paste the **actual pass/fail output — not a summary** — into your session summary, then invoke `superpowers:verification-before-completion` (its checklist catches the "I claimed done but never ran X" gap). The gates are **non-negotiable exit conditions** — no "done" without all of them green and pasted.
 
 **Role 3 — the DoD gate, final step.**
 First, **self-attest the `## Self-attested` bucket of `daca-dod-reviewer`'s bar** in your session summary (clarified assumptions, divergent pass run, existing patterns evaluated first, gates green) — a reviewer subagent can't see the conversation, so only you can confirm these.
@@ -182,7 +182,7 @@ The **structural deliverables** unique to a dispatch. The general quality bar is
 - [ ] All internal `*DomainEvent` types declared in Domain layer
 - [ ] All external `*Event` Avro schemas created under `platform/Platform.SchemaRegistry.Contracts/Avro/{Domain}/{Aggregate}/`
 - [ ] Outbox publishers map internal → external per BC chapter
-- [ ] DbContext + naming conventions scaffolded (migration user-generated per CLAUDE.md)
+- [ ] DbContext + naming conventions scaffolded (migration generated per § 3 above, never hand-written)
 - [ ] Messaging DI: outbox, inbox, Kafka consumers per BC
 - [ ] docker-compose delta: topics + outbox-relay-{bc} container
 - [ ] The unit's test projects exist + pass; architecture tests enforce the rules in `architecture-tests.md § {your BC}`

@@ -39,7 +39,7 @@ Implementation-ready architecture specification for the eShop reference solution
 
 - `.cs` implementation files (produced by downstream agents)
 - Actual `.avsc` files (fully specified in [bc-design/events-catalog.md](bc-design/events-catalog.md); materialized by implementation agents)
-- EF Core migrations (per CLAUDE.md: always user-generated deterministically)
+- EF Core migrations and their `V*.sql` scripts (generated from the resulting model per [implementation-prompts/_shared.md § 3](implementation-prompts/_shared.md))
 - CI/CD pipeline changes
 - Deployment manifests (Kubernetes, Aspire)
 - Performance/load-testing strategy
@@ -533,7 +533,13 @@ Per-BC taxonomy is exactly three projects — no `FunctionalTests`. The handler-
 
 ### 11.5 Package Version Policy
 
-Per CLAUDE.md: centralized in `Directory.Packages.props` at root, `services/`, `saga/`, `platform/`, and `test/` levels. New BCs must **add package references to the correct level** — `services/Directory.Packages.props` for service-specific packages (FastEndpoints.*, KafkaFlow.*, Npgsql, etc.). Lock files committed; CI enforces `dotnet restore --locked-mode`.
+Versions are centrally managed — a version belongs in the **nearest `Directory.Packages.props` above the project**, so a new BC's service-specific packages (FastEndpoints.\*, KafkaFlow.\*, Npgsql, …) land in the one covering `services/`.
+
+```bash
+git ls-files '*Directory.Packages.props'
+```
+
+Lock files are committed; CI enforces `dotnet restore --locked-mode`. The procedure for adding a package — including the unlocked restore that regenerates `packages.lock.json` — is [implementation-prompts/_shared.md § 3](implementation-prompts/_shared.md).
 
 ### 11.6 Formatting
 

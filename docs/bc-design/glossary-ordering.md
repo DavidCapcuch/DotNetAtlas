@@ -82,7 +82,7 @@ The SmartEnum that encodes the Order's lifecycle position. Eight values: `Create
 `Guid` reference to a product in the Catalog BC. Ordering stores this on every `OrderItem` so that downstream consumers (e.g., Inventory's stock reservation, sales analytics) can look up product-level data. Ordering never joins to a `Product` entity itself.
 
 ### ProductSnapshot
-A value object inside `OrderItem` holding an order-time frozen copy of product fields needed by Ordering: `Sku`, `Name`. **Duplicated per BC** — Basket has its own `ProductSnapshot` with different fields (e.g., image url for basket display). There is deliberately no shared kernel for cross-service DTOs (per CLAUDE.md).
+A value object inside `OrderItem` holding an order-time frozen copy of product fields needed by Ordering: `Sku`, `Name`. **Duplicated per BC** — Basket's own `ProductSnapshot` additionally carries `Price` and `CapturedAtUtc` for its frozen-pricing contract; Ordering needs neither — `OrderItem` holds `UnitPrice` itself, and items freeze at order creation, so `Order.CreatedAtUtc` is the capture instant. That BC-specific shape is what fails [ADR-0036](../adr/0036-shared-kernel-value-objects.md)'s shared-kernel promotion criterion.
 
 ---
 
@@ -133,7 +133,7 @@ The guard method on `OrderStatus` that returns `true` iff moving from the curren
 |------|-------------|-------------|
 | **Item** | `OrderItem` — immutable value object, quantity + frozen price + product snapshot | Basket: `BasketItem` — mutable, quantity editable until checkout |
 | **Order** | The generic commercial order aggregate (§3.1) | No other BC uses "Order" — Basket uses `Basket`; Invoicing uses `Invoice` |
-| **Snapshot** | `ProductSnapshot` — sku + name only | Basket's snapshot may also carry image url; Inventory has its own event-sourced "state at point in time" concept which is also called a snapshot |
+| **Snapshot** | `ProductSnapshot` — sku + name only | Basket's snapshot also carries `Price` and `CapturedAtUtc`; Inventory has its own event-sourced "state at point in time" concept which is also called a snapshot |
 | **Status** | `OrderStatus` (8-value FSM, §5.1) | Basket has no status (it's ephemeral); Inventory tracks reservation *state* as a sequence of events |
 | **Buyer** | The authenticated user who placed the Order; a `Guid` only | Catalog / Basket may use "User" or "Customer" colloquially — in v1 they all collapse to the JWT `sub` claim |
 | **Reservation** | `StockReservationId` — a reference only | Inventory: owns the full StockReservation lifecycle as an event-sourced concept |

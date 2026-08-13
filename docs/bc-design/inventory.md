@@ -749,7 +749,7 @@ Beyond these events, Inventory consumes the saga-issued reservation commands on 
 
 - PostgreSQL schema `inventory` in the shared DB.
 - Tables: `inventory.stock_events` (write model), `inventory.current_stock_levels` (projection), `inventory.reservation_audit` (projection), `inventory.command_inbox` (idempotency), plus the standard outbox/inbox tables.
-- Migrations generated deterministically by the user (per CLAUDE.md — NEVER by agents).
+- The migration and its `V*.sql` are generated per [_shared.md § 3](../implementation-prompts/_shared.md); this document specifies the intended table shape only.
 
 ### 13.2 Kafka topics
 

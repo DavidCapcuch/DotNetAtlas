@@ -150,7 +150,7 @@ Adjust to your BC's shape.
 </session_management>
 
 <verification>
-Run the **non-negotiable gates** via `daca-gates` (build / restore / format / the four `{BC}.*Tests` projects / compose health; repo deltas in [`docs/verification-gates.md`](../verification-gates.md)), then the `{BC}`-specific smoke checks below. **Paste the actual output** — pass/fail per command — into the session summary, not a description. No "done" claim until all are green.
+Run the **non-negotiable gates** via `daca-gates` (build / restore / format / the four `{BC}.*Tests` projects / compose health; repo deltas in [`.claude/verification-gates.md`](../../.claude/verification-gates.md)), then the `{BC}`-specific smoke checks below. **Paste the actual output** — pass/fail per command — into the session summary, not a description. No "done" claim until all are green.
 
 ```bash
 # {BC}-specific smoke checks, after the standard gates:

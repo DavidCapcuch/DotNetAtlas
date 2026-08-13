@@ -124,11 +124,11 @@ Shared-kernel value object — `Platform.SharedKernel.ValueObjects.Money`, pinne
 - Factory: `static Result<OrderItem> Create(Guid productId, ProductSnapshot snapshot, int quantity, Money unitPrice)` — validates quantity, computes `LineTotal`.
 
 ### 4.4 `ProductSnapshot`
-Frozen, order-time capture of a product. *Duplicated per BC* — no shared kernel for cross-service DTOs (per CLAUDE.md "no shared kernel across services for DTOs").
+Frozen, order-time capture of a product. *Duplicated per BC* — each BC snapshots the fields its own use cases need, and that BC-specific shape is what fails [ADR-0036](../adr/0036-shared-kernel-value-objects.md)'s shared-kernel promotion criterion.
 - `Sku : string` — max 64 chars.
 - `Name : string` — max 200 chars.
 - Factory: `static Result<ProductSnapshot> Create(string? sku, string? name)`.
-- **Design note:** this BC does not snapshot the Catalog's full description, images, or category — we only keep what appears on the order record itself. Basket's snapshot has a different shape (includes image url for basket display); each BC owns its own read-facing projection of the product concept.
+- **Design note:** this BC does not snapshot the Catalog's full description, images, or category — we only keep what appears on the order record itself. Basket's snapshot has a different shape (it adds `Price` and `CapturedAtUtc`); each BC owns its own read-facing projection of the product concept.
 
 ### 4.5 `CancellationInfo`
 - `Reason : string` — required, max 500 chars.
@@ -536,7 +536,7 @@ This BC does **not** produce to any other topic in v1.
 | **Authentication** | All HTTP endpoints except the webhook-delivery variant (future) require a valid JWT. `BuyerId` is taken from the `sub` claim; admin endpoints additionally require an `admin` role claim (specifics: solution-architect). |
 | **Idempotency** | `CreateOrderCommand` is idempotent on the pre-assigned `OrderId` (the aggregate primary key per [ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)) — a replayed create resolves the existing order by primary-key lookup and returns its id. Saga retries are the driver. |
 | **Observability** | `OrderingActivitySource` (KEEP existing name) for tracing; structured logging via `ILogger<T>`; traces tagged with `Order.Id` per existing `TraceTags` pattern. |
-| **Migrations** | Per CLAUDE.md, "never touch or generate EF Core migrations — always let the user deterministically generate." This BC design only specifies the domain shape; the user generates migrations from the resulting model. |
+| **Migrations** | This BC design specifies the domain shape only; the migration and its `V*.sql` are generated from the resulting model per [_shared.md § 3](../implementation-prompts/_shared.md). |
 
 ---
 
