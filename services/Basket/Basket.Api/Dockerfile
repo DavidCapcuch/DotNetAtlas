@@ -23,7 +23,7 @@ WORKDIR /workspace
 # source-only change is then a cache hit that restores the packages instead of re-fetching them.
 ENV NUGET_PACKAGES=/nuget-packages
 
-# Copy NuGet config + tier-isolated CPM files (per CLAUDE.md: platform/ + services/).
+# Copy NuGet config + tier-isolated CPM files (per docs/bc-design/conventions.md § 11).
 # Both tier props files MUST be in place before restore so the Basket API project graph
 # (Basket.{Domain,Application,Infrastructure,Api} + transitive Platform.* libs) can resolve
 # every PackageReference — services-tier packages live in services/Directory.Packages.props,

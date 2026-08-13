@@ -28,8 +28,8 @@ public class DomainEventTests
     // Defensive sentinel for #138: enumerate every concrete DomainEvent subtype reachable from
     // the platform-test reference graph and assert each inherits a `[RequiredMember]`-decorated
     // OccurredOnUtc. Catches accidental removal of the `required` modifier on the base — the
-    // cross-BC compile-time guarantee remains `dotnet build -m` (CS9035 at every callsite),
-    // tightened to a solution-wide rule by CLAUDE.md "Platform.SharedKernel contract changes".
+    // cross-BC compile-time guarantee remains a solution-wide `dotnet build -m`: a slice build
+    // (Domain-only / one-BC-only) does not surface CS9035 in downstream BC trees.
     [Fact]
     public void OccurredOnUtc_RemainsRequiredOnEverySubtype()
     {

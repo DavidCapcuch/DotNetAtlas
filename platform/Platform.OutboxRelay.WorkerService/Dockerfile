@@ -23,7 +23,7 @@ WORKDIR /workspace
 # source-only change is then a cache hit that restores the packages instead of re-fetching them.
 ENV NUGET_PACKAGES=/nuget-packages
 
-# Copy NuGet config + tier-isolated CPM files (per CLAUDE.md: platform/).
+# Copy NuGet config + tier-isolated CPM files (per docs/bc-design/conventions.md § 11).
 # OutboxRelay is platform-only — no services-tier dependencies, so services/Directory.Packages.props
 # is intentionally NOT copied. The platform-tier Directory.Packages.props supplies every
 # PackageReference pinned at that tier (OpenTelemetry.*, Confluent.Kafka, Apache.Avro, etc.).

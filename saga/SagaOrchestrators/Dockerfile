@@ -23,7 +23,7 @@ WORKDIR /workspace
 # source-only change is then a cache hit that restores the packages instead of re-fetching them.
 ENV NUGET_PACKAGES=/nuget-packages
 
-# Copy NuGet config + tier-isolated CPM files (per CLAUDE.md: platform/ + saga/).
+# Copy NuGet config + tier-isolated CPM files (per docs/bc-design/conventions.md § 11).
 # Saga lives in the `saga/` tier (alongside services/, platform/, test/), so its CPM file is
 # saga/Directory.Packages.props — NOT services/Directory.Packages.props. Both tier props files
 # MUST be in place before restore so the SagaOrchestrators project graph + transitive Platform.*

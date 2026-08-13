@@ -9,7 +9,7 @@ namespace Invoicing.Application.Invoices.ResendInvoice;
 /// layer by FastEndpoints' <c>.Idempotency()</c> filter (ADR-0013); the
 /// <c>invoice_delivery_log</c> table + outbox publisher described in
 /// <c>invoicing.md § 12</c> are not part of v1 (the table requires a
-/// user-generated EF migration per CLAUDE.md).
+/// EF migration per <c>.claude/migrations.md</c>).
 /// </summary>
 public sealed record ResendInvoiceCommand : ICommand
 {
