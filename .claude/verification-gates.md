@@ -15,7 +15,7 @@ dotnet format whitespace --no-restore --verify-no-changes
 dotnet format style --no-restore --verify-no-changes
 ```
 
-- **Compose profile** — the services sit behind compose profiles, so the container-health gate needs `--profile full`; a bare `up` starts nothing relevant and exits 0.
+- **Compose profile** — `.env` sets `COMPOSE_PROFILES=full`, so a bare `up` already starts the whole stack the container-health gate needs. `--profile core` on the command line overrides that down to the datastores and stubs.
 - **A locked-mode restore failure** means a package was added without regenerating the lock file — add it to the nearest `Directory.Packages.props` above the project, run `dotnet restore` once **without** `--locked-mode`, then commit the lock delta.
 - **Smoke checks are per-dispatch, not central** — each dispatch prompt appends its own (e.g. a `curl` of a new endpoint) after the standard gates; `docs/implementation-prompts/bff.md`'s `<verification>` block is the worked example.
 - This is **Role 2** of the review stack, run via `superpowers:verification-before-completion`.
