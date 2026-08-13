@@ -3,8 +3,7 @@
 The gate set itself — locked restore, build, format, the changed unit's test projects, container
 health, smoke check — plus its flags, its fail-fast order, and the rule that **only pasted actual
 output counts as evidence** are the `daca-gates` skill's. This file carries only what is specific
-to this repo — the why and the exceptions. `CLAUDE.md` carries the build, restore and test-cap
-commands an agent runs by hand.
+to this repo — the why and the exceptions.
 
 **The format gate needs no manual run** — a `Stop` hook (`.claude/hooks/format-changed.ps1`) formats
 every changed `.cs` at the end of each turn. That hook is the only enforcement on this workflow:
