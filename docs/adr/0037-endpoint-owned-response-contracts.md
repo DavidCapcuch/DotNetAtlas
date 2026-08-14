@@ -138,11 +138,11 @@ Endpoint-to-**wire-contract** map over every response-returning endpoint — bot
 | Invoicing | **non-compliant** | [#358](https://github.com/DavidCapcuch/DotNetAtlas/issues/358) |
 | Payments | **non-compliant** | [#360](https://github.com/DavidCapcuch/DotNetAtlas/issues/360) |
 
-**The enforcing arch test lands per unit**, on the issue named in that unit's row above — the repo copies arch-test rule logic per BC rather than extracting a shared arch-test project. So a rule stated in *Implementation Notes* is a running check in a unit whose issue has landed, and a specification for the work in every unit whose issue has not.
+**The enforcing arch test lands per unit**, on the ticket named in that unit's row above — the repo copies arch-test rule logic per BC rather than extracting a shared arch-test project. So a rule stated in *Implementation Notes* is a running check in a unit whose ticket has landed, and a specification for the work in every unit whose ticket has not.
 
-Each issue owns its own detail — which type is over-shared, from which slice, and what the fix is. Restating that here would be a second copy that drifts as the slices land. A dash means nothing outstanding; the BFF's ticket is *enablement*, not a contract fix, so its compliance is not in question.
+Each ticket owns its own detail — which type is over-shared, from which slice, and what the fix is. Restating that here would be a second copy that drifts as the slices land. A dash means nothing outstanding; the BFF's ticket is *enablement*, not a contract fix, so its compliance is not in question.
 
-Per-unit notes, for what no issue covers:
+Per-unit notes, for what no ticket covers:
 
 - **Ordering** — `GetOrdersByBuyerResponse` is a slice-owned paging envelope: the shape *Why a paging envelope is not a media type* prescribes.
 - **Notifications** — its browser surface is the SignalR bell hub ([ADR-0035](0035-edge-owned-cors-yarp.md)), so compliance holds vacuously: it exposes no response-returning endpoint at all.

@@ -132,7 +132,7 @@ Adopt **`CooperativeStickyAssignor` (`PartitionAssignmentStrategy.CooperativeSti
 for the 10 KafkaFlow BC consumers**, set **in code, one shared place per stack**
 (placement option (b)).
 
-> **Scope correction ([issue #306](https://github.com/DavidCapcuch/DotNetAtlas/issues/306)):** the 2 MassTransit saga groups use the eager **`Range`** assignor, **not** CooperativeSticky — MassTransit's Kafka rider wires eager `Assign`/`Unassign` rebalance callbacks (no `IncrementalAssign`) and cannot run the cooperative protocol; the full rationale lives inline in `SagaKafkaConsumerDefaults.ConfigureCommon`.
+> **Scope correction ([ticket #306](https://github.com/DavidCapcuch/DotNetAtlas/issues/306)):** the 2 MassTransit saga groups use the eager **`Range`** assignor, **not** CooperativeSticky — MassTransit's Kafka rider wires eager `Assign`/`Unassign` rebalance callbacks (no `IncrementalAssign`) and cannot run the cooperative protocol; the full rationale lives inline in `SagaKafkaConsumerDefaults.ConfigureCommon`.
 
 - **BCs:** `PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky`
   set inline after binding each consumer's options (all 10 KafkaFlow consumers),

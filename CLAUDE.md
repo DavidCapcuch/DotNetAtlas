@@ -40,7 +40,7 @@ dotnet test <proj> --no-build --blame-hang-timeout 10m -- xUnit.MaxParallelThrea
 ## Agent skills
 
 - **Tickets live as GitHub issues**; skills use `gh`. Recipes, the triage label strings, and the
-  edit-the-body-not-a-comment rule: `.claude/issue-tracker.md`.
+  edit-the-body-not-a-comment rule: `.claude/ticket-tracker.md`.
   - **Use the triage label strings as-is, never remapped.**
 - **Domain docs** — multi-context repo; `.claude/domain-docs.md` maps the per-context docs, ADR
   locations and reading order.

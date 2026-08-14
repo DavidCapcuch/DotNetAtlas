@@ -26,18 +26,18 @@ Nine Avro records across four bounded contexts carry an `ErrorCode` field typed 
 
 This ADR evaluates that proposal against the actual code and rejects it.
 
-### Ground truth (from code, not from the issue)
+### Ground truth (from code, not from the ticket)
 
 Three observations decide this, and all three came from reading the wired code rather than the schemas alone:
 
 1. **Nothing branches on a wire `ErrorCode`.** Every cross-BC consumption is *forward-or-label*, never *control-flow*:
-   - [`PaymentFailedCheckoutConsumer`](../../saga/SagaOrchestrators/Checkout/CheckoutSaga/Consumers/PaymentFailedCheckoutConsumer.cs) — the issue's own cited example of "intimate knowledge of an upstream BC's literal vocabulary" — copies `message.ErrorCode` verbatim into `PaymentFailedSagaEvent.ErrorCode` and logs it. No `switch`, no `==`, no comparison against any literal.
+   - [`PaymentFailedCheckoutConsumer`](../../saga/SagaOrchestrators/Checkout/CheckoutSaga/Consumers/PaymentFailedCheckoutConsumer.cs) — the ticket's own cited example of "intimate knowledge of an upstream BC's literal vocabulary" — copies `message.ErrorCode` verbatim into `PaymentFailedSagaEvent.ErrorCode` and logs it. No `switch`, no `==`, no comparison against any literal.
    - [`PaymentFailedCheckoutActivity`](../../saga/SagaOrchestrators/Checkout/CheckoutSaga/Observability/Activities/PaymentFailedCheckoutActivity.cs), `OrderFailedConsumer`, and the Payments-saga `*FailedActivity` set use `ErrorCode` only as an **OpenTelemetry trace tag** (`SetTag(SagaActivityTags.ErrorCode, …)`) and a **metric label** (`RecordPaymentFailed(message.ErrorCode)`).
    - The one `Contains`-style check that exists — Inventory's `BusinessExpectedErrorCodes.Contains(domainError.ErrorCode)` in [`SagaCommandHandlerBase`](../../services/Inventory/Inventory.Infrastructure/Messaging/Kafka/SagaCommands/SagaCommandHandlerBase.cs) — is on an **in-process domain `Error`**, not on any Avro wire field.
 
    Avro `enum` buys compile-time exhaustiveness *only where code branches on the value*. Nothing branches. The benefit the migration is sold on does not exist at any consumer.
 
-2. **The "string is a stopgap" premise is contradicted by the code's own documented intent.** The constant classes the issue calls a stopgap explicitly declare strings deliberate:
+2. **The "string is a stopgap" premise is contradicted by the code's own documented intent.** The constant classes the ticket calls a stopgap explicitly declare strings deliberate:
    > *(from [`CheckoutSagaErrorCodes`](../../saga/SagaOrchestrators/Checkout/CheckoutSaga/CheckoutSagaErrorCodes.cs))* "Codes propagated from upstream bounded contexts … are deliberately not listed here — the saga is a consumer of those vocabularies, not the owner, and reaching across BC boundaries to share a constant would be heavier than warranted. The Avro schemas type those fields as `string` on purpose (extensible vocabulary)."
    >
    > *(from [`PaymentProcessingSagaErrorCodes`](../../saga/SagaOrchestrators/Payments/PaymentProcessingSaga/PaymentProcessingSagaErrorCodes.cs))* "Codes propagated from upstream events (e.g. `CARD_DECLINED`, `CAPTURE_FAILED`, `GATEWAY_TIMEOUT` originating in the Payments BC's gateway adapter) are deliberately not listed here — the saga forwards them unchanged."
@@ -46,15 +46,15 @@ Three observations decide this, and all three came from reading the wired code r
 
 3. **`ErrorCode` is persisted as `varchar`.** [`CheckoutSagaStateMap`](../../saga/SagaOrchestrators/Common/Persistence/Database/CheckoutSagaStateMap.cs) maps `error_code` as `HasMaxLength(64)`; [`PaymentProcessingSagaStateMap`](../../saga/SagaOrchestrators/Common/Persistence/Database/PaymentProcessingSagaStateMap.cs) the same; Ordering's [`OrderConfiguration`](../../services/Ordering/Ordering.Infrastructure/Persistence/Database/EntityConfigurations/Orders/OrderConfiguration.cs) maps the owned `failure.ErrorCode` as `MaxLength(100)`. A migration touches three persisted columns plus an EF value-conversion for zero functional gain.
 
-### One correction to the issue
+### One correction to the ticket
 
-The issue states Schema Registry compatibility is "currently `BACKWARD` by default." Per [ADR-0007](0007-avro-compatibility-modes.md) it is **not**: the `schema-registry-init` bootstrap sets a global `FORWARD_TRANSITIVE` default and per-subject `FORWARD_TRANSITIVE` (events) / `FULL_TRANSITIVE` (commands) by filename suffix. This *strengthens* the rejection — see Driver 3.
+The ticket states Schema Registry compatibility is "currently `BACKWARD` by default." Per [ADR-0007](0007-avro-compatibility-modes.md) it is **not**: the `schema-registry-init` bootstrap sets a global `FORWARD_TRANSITIVE` default and per-subject `FORWARD_TRANSITIVE` (events) / `FULL_TRANSITIVE` (commands) by filename suffix. This *strengthens* the rejection — see Driver 3.
 
 ## Decision Drivers (ranked)
 
 1. **Real benefit at the point of use.** A type change is only worth a contract migration if some code is made safer or clearer by it. The benefit must land at a consumer that branches, not at one that forwards or labels.
 2. **Producer-intent and ownership fidelity.** The wire type should reflect who owns the vocabulary. A field whose values originate in an external payment gateway is not a closed set this system controls.
-3. **Avro evolution cost under the *real* compatibility modes.** Whatever we choose must survive `FORWARD_TRANSITIVE`/`FULL_TRANSITIVE` and the suffix-driven registry bootstrap, not the `BACKWARD` mode the issue assumed.
+3. **Avro evolution cost under the *real* compatibility modes.** Whatever we choose must survive `FORWARD_TRANSITIVE`/`FULL_TRANSITIVE` and the suffix-driven registry bootstrap, not the `BACKWARD` mode the ticket assumed.
 4. **Cross-BC coupling direction.** The change must not reintroduce the producer↔consumer lockstep the string design was explicitly chosen to avoid.
 5. **Reference-value.** As a teaching repo ([ADR-0009](0009-reference-solution-target-profile.md)), the codebase should model the *correct* pattern for open cross-service failure vocabularies — not demonstrate enums where they are the wrong tool just because breaking changes are cheap here.
 

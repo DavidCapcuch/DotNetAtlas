@@ -58,7 +58,7 @@ The producer assigns an opaque `NotificationId` (GUID) — the identity of the n
 
 Adopt **Option 4**. Concretely:
 
-1. **Supersede `SendEmailNotificationCommand`** with channel-agnostic **`NotifyUserCommand`** on **`notifications.notify-commands`** (partition key `RecipientUserId`). Notifications + Invoicing migrate off the v1 command; the v1 `.avsc` + `notifications.email-*` topics stayed **orphaned** (at the time still referenced only by `src/Weather`) and were physically removed with the Weather reference service in the final cleanup issue (#318) — **not** deleted by the v2 build itself:
+1. **Supersede `SendEmailNotificationCommand`** with channel-agnostic **`NotifyUserCommand`** on **`notifications.notify-commands`** (partition key `RecipientUserId`). Notifications + Invoicing migrate off the v1 command; the v1 `.avsc` + `notifications.email-*` topics stayed **orphaned** (at the time still referenced only by `src/Weather`) and were physically removed with the Weather reference service in the final cleanup ticket (#318) — **not** deleted by the v2 build itself:
 
    ```
    NotifyUserCommand

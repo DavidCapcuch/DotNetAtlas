@@ -15,7 +15,7 @@ The eShop's Kafka topic / event-contract / DLT / schema-compatibility facts were
 - [eshop-master-design.md](../eshop-master-design.md) — §6 system-wide producer/consumer summary.
 - The per-BC `bc-design/*.md` files — each restating its own topics/events (incl. `notifications.md`'s self-contained topology table, whose pointer-ification is deferred to the v2 code switch, #312/#318).
 
-These overlapped and drifted apart. A single Notifications contract rename (`SendEmailNotificationCommand` → `NotifyUserCommand`, topics `notifications.email-*` → `notifications.notify-*`) touched ~14 files and still left contradictory leftovers; the intra-`events-catalog` drift alone (§2 vs §3.1) needed three audit passes (issue #299). The same fact lived in too many editable places, so any change had to be applied N times and inevitably wasn't.
+These overlapped and drifted apart. A single Notifications contract rename (`SendEmailNotificationCommand` → `NotifyUserCommand`, topics `notifications.email-*` → `notifications.notify-*`) touched ~14 files and still left contradictory leftovers; the intra-`events-catalog` drift alone (§2 vs §3.1) needed three audit passes (ticket #299). The same fact lived in too many editable places, so any change had to be applied N times and inevitably wasn't.
 
 Two structural facts shape the fix:
 
@@ -71,7 +71,7 @@ Two non-overlapping canonical tables, one per grain; derived facts stated as *ru
 
 The grain split is the whole insight: per-event facts and per-topic facts are different tables, so one mega-table can only be built by duplicating the smaller grain. Two anchors keep each fact in exactly one place while matching how the facts are actually shaped. Derived facts (compat, DLT names) are stated once as a *rule* — tabulating them per topic was pure duplication of a deterministic function.
 
-Keeping the two anchors at **different versions during the transition is correct, not a contradiction**: the topic name is the join key between them, and a rename necessarily breaks that join for the renamed topic until both the contract (v2, design-led) and the physical reality (v1 → v2, code-led in #312/#318) converge. Consolidation shrinks a rename from ~14 doc touches to two anchor rows plus the code/compose, and folds those two rows into the contract-switch issue's acceptance criteria.
+Keeping the two anchors at **different versions during the transition is correct, not a contradiction**: the topic name is the join key between them, and a rename necessarily breaks that join for the renamed topic until both the contract (v2, design-led) and the physical reality (v1 → v2, code-led in #312/#318) converge. Consolidation shrinks a rename from ~14 doc touches to two anchor rows plus the code/compose, and folds those two rows into the contract-switch ticket's acceptance criteria.
 
 ## Consequences
 
@@ -109,4 +109,4 @@ The intended end-state is a **generated catalog — Backstage software catalog a
 - [ADR-0007: Avro Schema Compatibility Modes](0007-avro-compatibility-modes.md) — the policy + suffix-driven bootstrap that makes per-subject compat *derived*; the now-retired `avro-compatibility.md` was its companion.
 - [ADR-0025: Kafka consumer retry & dead-letter policy](0025-kafka-consumer-retry-dlt-policy.md) — the DLT behaviour documented (not duplicated) in `kafka-dlt-strategy.md`.
 - [ADR-0031: NotifyUserCommand & NotificationId](0031-notify-user-command-and-notification-id.md) / [ADR-0032: Notifications dispatch & channels](0032-notifications-dispatch-and-channels.md) — the v2 contract the per-event anchor leads to.
-- Issue #299 (intra-`events-catalog` consumer-column drift, closed), #312 / #318 (the Notifications v2 code switch + cleanup that carry the built-state rename).
+- Ticket #299 (intra-`events-catalog` consumer-column drift, closed), #312 / #318 (the Notifications v2 code switch + cleanup that carry the built-state rename).

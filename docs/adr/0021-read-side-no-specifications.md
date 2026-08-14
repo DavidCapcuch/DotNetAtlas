@@ -19,7 +19,7 @@ Accepted (2026-05-25)
 The codebase uses `Ardalis.Specification` to factor reusable `Where / Include / OrderBy` predicates into single-purpose specification classes (e.g. `OrderByIdSpec` — since deleted; see the status note).
 The original intent was DRY: command handlers that load an aggregate by id and read handlers that fetch the same aggregate for projection could share one spec.
 
-Issue [#238](https://github.com/DavidCapcuch/DotNetAtlas/pull/238) measured what that sharing actually costs on the read side. The before-shape of
+Ticket [#238](https://github.com/DavidCapcuch/DotNetAtlas/pull/238) measured what that sharing actually costs on the read side. The before-shape of
 [GetOrdersByBuyerQueryHandler](../../services/Ordering/Ordering.Application/Orders/GetOrdersByBuyer/GetOrdersByBuyerQueryHandler.cs)
 loaded `Order` aggregates via `WithSpecification(OrdersByBuyerSpec)` + `ToListAsync`, then ran an in-memory `OrderProjection.ToResponse` to flatten the result. Every non-projected column travelled to the client (`RowVersion`, all six audit timestamps, `StockReservationId`, `PaymentTransactionId`, the entire `OrderItem` collection with its `ProductSnapshot` owned type, etc.), and the EF Core change tracker materialised six owned tables per row. #238 replaced this with an inline `.Where(...).Select(...) → GetOrderByIdResponse` that projects SQL-side; only the columns the response uses traverse the wire, and the optional VOs (`Cancellation`, `Failure`, `Shipment`) translate cleanly under conditional projection (`o.Foo == null ? null : new FooDto(...)`) on EF Core 10.
 
@@ -90,7 +90,7 @@ The rule was originally pinned per-BC with a NetArchTest fact asserting `Types.T
 
 **Specs are not the wrong primitive — they're a write-side primitive.** Command handlers fetching an aggregate to mutate it need the full `Include` graph; reusing the spec for that across handlers is real DRY. The seven write-side handlers that consume `OrderByIdSpec` (CancelOrder, ConfirmOrder, MarkOrder*) all need the same load shape; centralising it in the spec is the right call. Promoting specs to the read side blurs that line.
 
-**The line-count cost is small and one-sided.** The five converted handlers in this issue grew by ≈ 30–50 lines each (the projection now lives in the handler instead of in a `Projection.ToResponse` mapper that was already there). The deleted specs return roughly the same number of lines to the codebase, plus three orphaned `*Projection` static classes are also deleted. Net change is approximately flat.
+**The line-count cost is small and one-sided.** The five converted handlers in this ticket grew by ≈ 30–50 lines each (the projection now lives in the handler instead of in a `Projection.ToResponse` mapper that was already there). The deleted specs return roughly the same number of lines to the codebase, plus three orphaned `*Projection` static classes are also deleted. Net change is approximately flat.
 
 ## Consequences
 

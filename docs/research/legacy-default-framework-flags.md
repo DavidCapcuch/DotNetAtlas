@@ -133,7 +133,7 @@ The same page names the concrete failure modes, all of which stem from owned typ
 
 **Unverified:** Npgsql provider support for complex-type JSON mapping in EF10 was not checked. The EF10 page's JSON examples are SQL Server 2025-specific; it says only "For support with other databases, consult the documentation for your EF provider." This must be settled before any `OwnsMany` site is touched — it may bound the migration to `OwnsOne` sites only.
 
-**Recommendation: adopt-with-caveats, and slice it.** Too large for one issue and it has a genuine design fork (which VOs move, whether `OwnsMany` moves at all, whether column names are preserved to avoid migrations). Run `daca-grill-to-tickets` rather than filing a single vague ticket.
+**Recommendation: adopt-with-caveats, and slice it.** Too large for one ticket and it has a genuine design fork (which VOs move, whether `OwnsMany` moves at all, whether column names are preserved to avoid migrations). Run `daca-grill-to-tickets` rather than filing a single vague ticket.
 
 ---
 

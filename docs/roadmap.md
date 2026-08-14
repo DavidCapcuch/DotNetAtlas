@@ -26,7 +26,7 @@ Plus the **CheckoutSaga** + **PaymentProcessingSaga** in `saga/SagaOrchestrators
 
 ### 2.1 Items tracked via GitHub issues (already)
 
-| # | Issue | Scope |
+| # | Ticket | Scope |
 |---|---|---|
 | 1 | [#289](https://github.com/DavidCapcuch/DotNetAtlas/issues/289) | BFF inbox-dedup + topic-set reconciliation across events-catalog § 7.7 ↔ bff.md § 2.2 ↔ master-design § 9.2 |
 | 2 | [#290](https://github.com/DavidCapcuch/DotNetAtlas/issues/290) | Cross-saga refund path: master-design § 5.5 vs Checkout-saga reality (resolves ADR-0001 deferred decision) |
@@ -152,6 +152,6 @@ A "production variant" of this reference would layer these in without rewriting 
 ## 5. How to use this document
 
 - **When working on a BC design doc**, if you need to mention a deferral, link here (`see [roadmap.md](../roadmap.md) § 2.3 Inventory`) rather than narrating the deferral inline.
-- **When a real implementation push starts** for a planned item, promote that item to a GitHub issue and update the row here with the issue link.
+- **When a real implementation push starts** for a planned item, promote that item to a GitHub issue and update the row here with the ticket link.
 - **When a planned item ships**, delete the row.
 - **When you discover a new candidate**, add it to the right § 2.x table with a one-line description and the architectural seam / signal that would trigger it.
