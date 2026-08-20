@@ -20,7 +20,7 @@ A dispatch is a phased pipeline, not just a build session. The authoritative pha
 2. dispatch         _template.md / bff.md          ← the locked-contract spec the build session runs
 3. build loop       tdd                            ← red → green → refactor, per behaviour
 4. gate             verification-before-completion ← the four hard gates, actual output pasted
-5. DoD gate         daca-dod-reviewer (+ delegates)     ← diff vs its DoD bar; arch/DDD → daca-bc-consistency-reviewer, docs → daca-documentation-reviewer
+5. DoD gate         daca-comprehensive-code-review ← diff vs its DoD bar; + daca-bc-consistency-reviewer for repo convention drift
 ```
 
 Phases 0–1 happen with the owner before a fresh session is spawned; phases 2–5 run inside the dispatch. This mirrors [Anthropic's harness-design guidance](https://www.anthropic.com/engineering/harness-design-long-running-apps): agree the scope + verification contract *before* implementation, and keep the agent that **builds** separate from the agent that **judges**.
@@ -49,11 +49,11 @@ Waves 0–2 are **built** (platform + the six Wave-1 BCs + the checkout saga). T
 
 ## Evaluating a completed prompt
 
-When an agent reports completion, the agent MUST have already run the three-role review stack (`_shared.md § 11`): Opus pre-commit review, the gates with pasted output, and `daca-dod-reviewer` (which delegates drift → `daca-bc-consistency-reviewer` and docs → `daca-documentation-reviewer`). Re-verify:
+When an agent reports completion, the agent MUST have already run the three-role review stack (`_shared.md § 11`): Opus pre-commit review, the gates with pasted output, and `daca-comprehensive-code-review` + `daca-bc-consistency-reviewer` run as siblings. Re-verify:
 
 1. All `daca-gates` gates green (build / restore `--locked-mode` / format / the three test projects / compose health) — actual output, not a summary.
 2. Docs self-corrected if needed (`docs/bc-design/{bc}.md`, glossary, example-mapping).
-3. `daca-dod-reviewer` blockers fixed; its Self-attested bucket attested.
+3. `daca-comprehensive-code-review` + `daca-bc-consistency-reviewer` blockers fixed; the Self-attested bucket attested.
 4. Session-summary posted with the full template from `_template.md § session_summary` — ADR notes, pasted verification output, and review-stack findings.
 
 ## Contract-locked vs Design-open — the core idea
@@ -104,10 +104,10 @@ The kit is built to defeat the common agent-dispatch failure modes. Each maps to
 | **Context drift** (long session contradicts itself) | Context-window discipline + handoff at ~80% (`_shared.md § 9–10`); one unit per dispatch |
 | **Over-editing** (touches unmentioned things) | `<boundaries>` file ownership + the migration `permissions.deny` (`.claude/settings.json`) |
 | **Vague scoping** | Locked `<contract>` + `<mission>`/`<dod>`; phase-1 `to-tickets` tracer-bullet slices |
-| **Missing test coverage** | `daca-dod-reviewer`'s Testing bar (at DoD, Role 3); `tdd` build loop |
-| **Architecture drift** | `conventions.md` + CI-blocking `architecture-tests.md` (NetArchTest); `daca-bc-consistency-reviewer` (via `daca-dod-reviewer`) at DoD |
+| **Missing test coverage** | `daca-comprehensive-code-review`'s Testing bar (at DoD, Role 3); `tdd` build loop |
+| **Architecture drift** | `conventions.md` + CI-blocking `architecture-tests.md` (NetArchTest); `daca-bc-consistency-reviewer` as a Role-3 sibling at DoD |
 | **Stale docs** | Doc self-correction *in the same session* (`_shared.md § 8`) |
-| **False certainty** (confident-but-wrong) | The gate's *prove-don't-claim* rule (actual pasted output) + a separate **judge** (`daca-dod-reviewer`, a fresh subagent) auditing the diff vs its DoD bar, never self-attestation |
+| **False certainty** (confident-but-wrong) | The gate's *prove-don't-claim* rule (actual pasted output) + a separate **judge** (`daca-comprehensive-code-review`, a fresh subagent) auditing the diff vs its DoD bar, never self-attestation |
 
 ## Basis (cited)
 

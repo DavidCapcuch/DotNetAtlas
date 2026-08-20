@@ -151,7 +151,7 @@ Layering and dependency rules are enforced by [architecture-tests.md](architectu
 | Domain modelling (aggregate root / value object / SmartEnum shapes) | This file § 7 + [ADR-0036](../adr/0036-shared-kernel-value-objects.md) (shared-kernel VOs) |
 | Domain-logic placement (functional core, imperative shell) | This file § 7 |
 | Project status (non-production; breaking changes free) | [ADR-0009](../adr/0009-reference-solution-target-profile.md) + root [`CLAUDE.md`](../../CLAUDE.md) § Standing rules |
-| Definition of Done | dispatch-structural = [_shared.md § 12](../implementation-prompts/_shared.md); general quality bar = the `daca-dod-reviewer` skill's bar; executable gates = the `daca-gates` skill + [`.claude/verification-gates.md`](../../.claude/verification-gates.md) (repo deltas) |
+| Definition of Done | dispatch-structural = [_shared.md § 12](../implementation-prompts/_shared.md); general quality bar = the `daca-comprehensive-code-review` skill's bar; executable gates = the `daca-gates` skill + [`.claude/verification-gates.md`](../../.claude/verification-gates.md) (repo deltas) |
 
 When a convention is referenced from multiple places, the reference should link to the canonical doc above — not paraphrase. If you find yourself wanting to write "canonical name per …" and don't know where to point, the answer is **this file**, which then points at the actual canonical doc. **Cite the doc the map above names — root `CLAUDE.md` only from the rows that name it.** Nothing checks a citation, so one pointed elsewhere goes stale silently. Point-in-time records (ADRs, research notes) are exempt.
 

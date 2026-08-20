@@ -113,7 +113,7 @@ A dispatch runs the same lifecycle whether the unit is a BC or a cross-cutting w
 | When stuck | `superpowers:systematic-debugging` | unexpected behaviour, flaky test, inconsistent reproduction |
 | **Pre-commit, every milestone (≥ 5 files)** | `Agent(subagent_type="feature-dev:code-reviewer", model="opus")` | **mandatory** correctness/quality review before staging — brief with the exact file list + test list + what's intentionally deferred. Validated precedent: caught one CRITICAL + three IMPORTANT findings that would otherwise have shipped. Use `opus` explicitly; the default model is weaker. |
 | **4 — gate** | `superpowers:verification-before-completion` | evidence-first: run every `<verification>` command and paste the **actual output** (not a summary) before any "done" claim |
-| **5 — DoD gate (final step)** | `daca-dod-reviewer` (+ `daca-bc-consistency-reviewer` / `daca-documentation-reviewer`) | self-attest the **Self-attested** bucket of `daca-dod-reviewer`'s bar in your summary, then run `daca-dod-reviewer` on your diff: an applicability-gated audit of the **Reviewer-audited** bucket that **delegates Architecture/DDD to `daca-bc-consistency-reviewer`** (golden-BC drift vs §4 + `conventions.md` + `architecture-tests.md`, judgment dimensions: DI/decorator order, error-factory placement, outbox-dispatch path, topic topology, options shape, persistence layout, test-split) **and Documentation to `daca-documentation-reviewer`** (which carries the doc-style bar). Objective violations block; judgment concerns warn. |
+| **5 — DoD gate (final step)** | `daca-comprehensive-code-review` + `daca-bc-consistency-reviewer` | self-attest the **Self-attested** bucket of `daca-comprehensive-code-review`'s bar in your summary, then spawn both as siblings — the DoD-bar audit, and the repo-specific convention check. Orchestration + roster: § 11. |
 | .NET idioms | `dotnet-contribution:dotnet-backend-patterns` | continuous — C#/.NET pattern reference |
 
 > **Optional quality check:** a feature-scoped mutation-testing pass (target ≥ 80% kill) is a good sanity-check on test strength after green — recommended, not a gate.
@@ -167,15 +167,13 @@ Before `git commit` on any milestone touching ≥ 5 files, invoke `Agent(subagen
 Run the gates via the `daca-gates` skill (this repo's deltas: [`.claude/verification-gates.md`](../../.claude/verification-gates.md)) and paste the **actual pass/fail output — not a summary** — into your session summary, then invoke `superpowers:verification-before-completion` (its checklist catches the "I claimed done but never ran X" gap). The gates are **non-negotiable exit conditions** — no "done" without all of them green and pasted.
 
 **Role 3 — the DoD gate, final step.**
-First, **self-attest the `## Self-attested` bucket of `daca-dod-reviewer`'s bar** in your session summary (clarified assumptions, divergent pass run, existing patterns evaluated first, gates green) — a reviewer subagent can't see the conversation, so only you can confirm these.
+First, **self-attest the `## Self-attested` bucket of `daca-comprehensive-code-review`'s bar** in your session summary (clarified assumptions, divergent pass run, existing patterns evaluated first, gates green) — a reviewer subagent can't see the conversation, so only you can confirm these.
 
-Then run the DoD audit. **You — the main session — orchestrate it.** In standard Claude Code a subagent can't spawn its own subagents, so the reliable path is to invoke the reviewers as **siblings** from here and aggregate their findings: **`daca-dod-reviewer`** (audits the `## Reviewer-audited` bucket, applicability-gated), **`daca-bc-consistency-reviewer`** (Architecture/DDD golden-BC drift vs § 4 + `conventions.md` + `architecture-tests.md`, ADR-adherence folded in), and **`daca-documentation-reviewer`** (docs vs the doc-style bar it carries). Each reviewer walks its own rubric **inline**. Objective DoD violations block; judgment concerns warn. Fix every blocker before declaring DoD met.
-
-> **Opt-in accelerator (same findings, faster — not required):** if your harness lets a subagent spawn its own, `daca-dod-reviewer` self-delegates to the other two and `daca-bc-consistency-reviewer` fans its seven dimensions out in true parallel. Absent that, sibling-inline is the default.
+Then run the DoD audit. **You — the main session — orchestrate it**: a subagent can't spawn its own subagents, so the depth has to come from you. Spawn **`daca-comprehensive-code-review`** — it audits the `## Reviewer-audited` bucket, **including the nine categories it delegates to no one** — and spawn the delegate roster **it names**, read off the skill each time. Spawn **`daca-bc-consistency-reviewer`** alongside them for golden-BC convention drift (vs § 4 + `conventions.md` + `architecture-tests.md`, ADR-adherence folded in); it is a DotNetAtlas-specific sibling, **not** one of that skill's delegates. Tell each reviewer its siblings are running, so none re-derives another's work. Aggregate their findings. Objective DoD violations block; judgment concerns warn. Fix every blocker before declaring DoD met.
 
 ## 12. Shared Definition of Done — dispatch-structural
 
-The **structural deliverables** unique to a dispatch. The general quality bar is `daca-dod-reviewer`'s (audited at Role 3); the executable gates are `daca-gates`' (Role 2). **Don't restate their items here** — timestamps, route versioning, new-behaviour-tests, and the gate commands live there, not in this list.
+The **structural deliverables** unique to a dispatch. The general quality bar is `daca-comprehensive-code-review`'s (audited at Role 3); the executable gates are `daca-gates`' (Role 2). **Don't restate their items here** — timestamps, route versioning, new-behaviour-tests, and the gate commands live there, not in this list.
 
 - [ ] 4-layer project (`Api`, `Application`, `Domain`, `Infrastructure`) compiles; BFF has 2 layers only (`Api`, `Infrastructure`); sagas have none (orchestrators only, under `saga/SagaOrchestrators/{Checkout,Payments}/`).
 - [ ] All commands + queries from `use-cases.md § {your BC}` implemented
@@ -187,7 +185,7 @@ The **structural deliverables** unique to a dispatch. The general quality bar is
 - [ ] docker-compose delta: topics + outbox-relay-{bc} container
 - [ ] The unit's test projects exist + pass; architecture tests enforce the rules in `architecture-tests.md § {your BC}`
 - [ ] Docs self-corrected if needed
-- [ ] **Quality bar cleared** — `daca-dod-reviewer`'s Reviewer-audited bucket has no open blockers (Role 3), Self-attested bucket attested, all `daca-gates` gates green with pasted output (Role 2)
+- [ ] **Quality bar cleared** — `daca-comprehensive-code-review`'s Reviewer-audited bucket has no open blockers (Role 3), Self-attested bucket attested, all `daca-gates` gates green with pasted output (Role 2)
 - [ ] Review stack (§ 11) run end-to-end (Role 1 → Role 2 → Role 3)
 - [ ] Session summary posted
 

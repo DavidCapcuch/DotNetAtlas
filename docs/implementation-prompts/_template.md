@@ -54,7 +54,7 @@ You own these. Justify each in your session summary.
 - {Architecture-test tooling}
 - {Additional `example-mapping` sessions when integration tests surface gaps}
 
-> Open, but not *unconstrained* — each must still match the golden reference (`_shared.md § 4`) + `conventions.md`. These open choices are exactly the dimensions `daca-bc-consistency-reviewer` checks at DoD (DI / behaviour-decorator order, error-factory placement, outbox-dispatch path, topic topology, options shape, persistence layout, test-split). Justify each in the summary; **drift from the golden BC is a finding, not a preference.**
+> Open, but not *unconstrained* — each must still match the golden reference (`_shared.md § 4`) + `conventions.md`. These open choices are what `daca-bc-consistency-reviewer` checks at DoD — load it and list the dimensions in play for your BC above. Justify each in the summary; **drift from the golden BC is a finding, not a preference.**
 </design_open>
 
 <reading_order>
@@ -106,7 +106,7 @@ Concrete deliverables. Extends `_shared.md § 12`.
 - [ ] {Specific deliverable for this BC, observable as a test or compose state}
 - [ ] {Repeat per BC-specific outcome}
 - [ ] All `<applicable_adrs>` enforced (architecture tests + verification commands)
-- [ ] Review stack (`_shared.md § 11`) run end-to-end: Opus pre-commit → gates pasted → `daca-dod-reviewer` blockers fixed (Role 3; delegates to `daca-bc-consistency-reviewer` + `daca-documentation-reviewer`); its Self-attested bucket attested
+- [ ] Review stack (`_shared.md § 11`) run end-to-end: Opus pre-commit → gates pasted → `daca-comprehensive-code-review` + `daca-bc-consistency-reviewer` blockers fixed (Role 3); the Self-attested bucket attested
 </dod>
 
 <boundaries>
@@ -170,7 +170,7 @@ That's the depth expected for **every** `<design_open>` resolution.
 </example_design_decision>
 
 <peer_review>
-Run the three-role review stack in `_shared.md § 11` end-to-end before declaring DoD met: Role 1 (Opus `feature-dev:code-reviewer` pre-commit) → Role 2 (gates, with pasted output) → Role 3 (`daca-dod-reviewer`, which delegates to `daca-bc-consistency-reviewer` + `daca-documentation-reviewer`; self-attest the Self-attested bucket of its bar first). Do NOT mark `<dod>` complete until all three are done.
+Run the three-role review stack in `_shared.md § 11` end-to-end before declaring DoD met: Role 1 (Opus `feature-dev:code-reviewer` pre-commit) → Role 2 (gates, with pasted output) → Role 3 (`daca-comprehensive-code-review` + `daca-bc-consistency-reviewer` as siblings; self-attest the Self-attested bucket of `daca-comprehensive-code-review`'s bar first). Do NOT mark `<dod>` complete until all three are done.
 </peer_review>
 
 <session_summary>
@@ -210,7 +210,7 @@ Post at the end of the session:
 
 ### Review-stack findings
 - Role 1 (Opus pre-commit) — CRITICAL/HIGH (fixed): ...
-- Role 3 (`daca-dod-reviewer` → `daca-bc-consistency-reviewer` / `daca-documentation-reviewer`) — DoD blockers + drift confirmed + fixed / accepted: ...
+- Role 3 (`daca-comprehensive-code-review` + `daca-bc-consistency-reviewer`) — DoD blockers + drift confirmed + fixed / accepted: ...
 
 ### Open questions
 - ...

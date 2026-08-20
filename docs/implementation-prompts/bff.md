@@ -1,6 +1,6 @@
 # Master System Prompt — Implement the **EShop.BFF** (Backend-for-Frontend, Wave 3)
 
-> **The live exemplar of this kit.** The BFF is the one unbuilt unit; this prompt is both its dispatch spec and the worked example of `_template.md` — pointer-based DDD/EDA contract, non-negotiable gates with pasted output, and `daca-bc-consistency-reviewer` as the final DoD step (archetype: 2-layer aggregation gateway). Current truths it threads: **one consumer group per service** = `bff-group` ([`events-catalog.md § 3.1`](../bc-design/events-catalog.md)); the durable business key is **`OrderId`** ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)); telemetry correlates on W3C **`traceId`**; the FusionCache backplane is **`redis-cache`**, never `redis-basket` ([ADR-0016](../adr/0016-redis-topology.md)).
+> **The live exemplar of this kit.** The BFF is the one unbuilt unit; this prompt is both its dispatch spec and the worked example of `_template.md` — pointer-based DDD/EDA contract, non-negotiable gates with pasted output, and `daca-bc-consistency-reviewer` as a Role-3 sibling at the DoD gate (archetype: 2-layer aggregation gateway). Current truths it threads: **one consumer group per service** = `bff-group` ([`events-catalog.md § 3.1`](../bc-design/events-catalog.md)); the durable business key is **`OrderId`** ([ADR-0029](../adr/0029-order-keyed-saga-and-pre-assigned-orderid.md)); telemetry correlates on W3C **`traceId`**; the FusionCache backplane is **`redis-cache`**, never `redis-basket` ([ADR-0016](../adr/0016-redis-topology.md)).
 
 > Paste this as the first message in a fresh Claude Code session for your local DotNetAtlas clone.
 
@@ -133,7 +133,7 @@ Concrete deliverables. Extends `_shared.md § 12` adapted (2 layers not 4):
 - [ ] Integration tests: (a) happy-path composition; (b) upstream timeout → fail-safe returns stale cache; (c) upstream 5xx → fallback; (d) invalidator consumer fires on fake `ProductPriceChanged` → tag removed; (e) checkout idempotency
 - [ ] Docker-compose: BFF container + healthcheck (no new topics, no outbox-relay)
 - [ ] All `<applicable_adrs>` enforced (architecture tests + verification commands)
-- [ ] Review stack (`_shared.md § 11`) run end-to-end: Opus pre-commit → gates pasted → `daca-dod-reviewer` blockers fixed (Role 3; delegates to `daca-bc-consistency-reviewer` + `daca-documentation-reviewer`); its Self-attested bucket attested
+- [ ] Review stack (`_shared.md § 11`) run end-to-end: Opus pre-commit → gates pasted → `daca-comprehensive-code-review` + `daca-bc-consistency-reviewer` blockers fixed (Role 3); the Self-attested bucket attested
 </dod>
 
 <boundaries>
@@ -203,8 +203,8 @@ Per `_shared.md § 11` (three roles). Before declaring DoD met:
 
 1. **Role 1** — Opus `feature-dev:code-reviewer` ran pre-commit on every ≥ 5-file milestone; CRITICAL/HIGH fixed.
 2. **Role 2 (gate)** — run every command in `<verification>`; paste the **actual** output; invoke `superpowers:verification-before-completion`.
-3. **Role 3 (DoD gate)** — self-attest the **Self-attested** bucket of `daca-dod-reviewer`'s bar in your summary, then run `daca-dod-reviewer` on your diff with its delegates run as siblings: Architecture/DDD → `daca-bc-consistency-reviewer` (archetype: 2-layer aggregation gateway) vs the golden reference + `conventions.md` + the BFF arch tests; Documentation → `daca-documentation-reviewer`. Fix every blocker.
-4. **Security pass** — run `/security-review` scoped to the auth-forwarding (user-JWT + service-token attachment) and PII-composition paths. The BFF is the system's highest-risk surface and arch tests won't catch a leaked token, a JWT written to a log, or a span tagged with a composed address (ADR-0011 forbids it). (This is the `daca-dod-reviewer`'s applicability-gated `/security-review` trigger — auth / PII / secrets / new external endpoint — firing here; the BFF is its highest-risk instance, not a special case.)
+3. **Role 3 (DoD gate)** — self-attest the **Self-attested** bucket of `daca-comprehensive-code-review`'s bar in your summary, then run it on your diff per `_shared.md § 11`, spawning its delegate roster as siblings. Run `daca-bc-consistency-reviewer` alongside them (archetype: 2-layer aggregation gateway) vs the golden reference + `conventions.md` + the BFF arch tests. Fix every blocker.
+4. **Security pass** — run `/security-review` scoped to the auth-forwarding (user-JWT + service-token attachment) and PII-composition paths. The BFF is the system's highest-risk surface and arch tests won't catch a leaked token, a JWT written to a log, or a span tagged with a composed address (ADR-0011 forbids it). (Role 3 already audits Security & Validation through its own delegate; this is a deliberate **second, independent** pass on the highest-risk surface in the system.)
 </peer_review>
 
 <session_summary>
