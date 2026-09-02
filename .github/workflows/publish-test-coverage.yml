@@ -22,7 +22,7 @@ jobs:
           name: raw-coverage
           path: artifacts/raw-coverage
       - name: Combine Coverage Reports
-        uses: danielpalme/ReportGenerator-GitHub-Action@9870ed167742d546b99962ff815fcc1098355ed8 #5.4.17
+        uses: danielpalme/ReportGenerator-GitHub-Action@d3ebf1f760f7d8ab92cc44d9bcfee7ad73722a31 # v5.5.11
         with:
           reports: "artifacts/raw-coverage/**/*.cobertura.xml"
           targetdir: "${{ runner.temp }}/coveragereport"
