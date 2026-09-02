@@ -24,12 +24,10 @@ namespace Catalog.Infrastructure.Common;
 internal static class HealthChecksDependencyInjection
 {
     /// <summary>
-    /// Fraction of the Kafka check window the probe producer gets as its delivery cap; the remaining
-    /// 20% is the margin in which an undeliverable probe is purged before the check window closes.
-    /// Share the factor, never the resulting millisecond value — windows differ across services, so a
-    /// literal is only correct for the one window it was computed against.
+    /// Margin by which the probe producer outlives the check that sent it, so the check's own
+    /// cancellation — not librdkafka's timer — is what ends the await.
     /// </summary>
-    private const double ProbeHeadroomFactor = 0.8;
+    private static readonly TimeSpan ProbeDeliveryGrace = TimeSpan.FromSeconds(1);
 
     internal static IServiceCollection AddCatalogHealthChecks(
         this IServiceCollection services,
@@ -46,25 +44,6 @@ internal static class HealthChecksDependencyInjection
         var kafkaOptions = configuration
             .GetRequiredSection(KafkaOptions.Section)
             .Get<KafkaOptions>()!;
-
-        // Fail fast and self-heal: retries off, and librdkafka's 5-min default message.timeout.ms would
-        // leave an undeliverable probe (broker blip) queued long after the check that sent it gave up,
-        // starving later probes on this process-lifetime producer and wedging readiness Unhealthy until
-        // a restart. The AddKafka timeout below cannot prevent that — it abandons the awaiting task but
-        // cannot retract a message already handed to librdkafka.
-        // INVARIANT: message.timeout.ms and socket.timeout.ms stay strictly below that timeout, so an
-        // abandoned probe is purged before the next one runs. Validation has not run at this point, so
-        // what holds that floor is [Range] on HealthChecksOptions.KafkaTimeout failing startup before a
-        // probe ever executes — a derived 0 would mean *infinite* to librdkafka.
-        var producerTimeoutMs = (int)(timeouts.KafkaTimeout.TotalMilliseconds * ProbeHeadroomFactor);
-
-        var producerConfig = new ProducerConfig
-        {
-            BootstrapServers = kafkaOptions.BrokersFlat,
-            MessageTimeoutMs = producerTimeoutMs,
-            SocketTimeoutMs = producerTimeoutMs,
-            MessageSendMaxRetries = 0,
-        };
 
         var redisCacheConnectionString =
             configuration.GetConnectionString(IdempotencyKeyServiceCollectionExtensions.RedisConnectionStringName)
@@ -85,8 +64,22 @@ internal static class HealthChecksDependencyInjection
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,
                 timeout: timeouts.RedisTimeout)
+            // Cancelling the check abandons the await; it does NOT retract the message — Confluent.Kafka
+            // registers the token to TrySetCanceled the delivery handler, IProducer exposes no purge, so
+            // an undeliverable probe retires on librdkafka's own message.timeout.ms, on a producer
+            // KafkaHealthCheck caches for process lifetime.
+            // INVARIANT: message.timeout.ms > KafkaTimeout, or the producer gives up first and
+            // KafkaTimeout stops meaning what it says about when the probe reports Unhealthy. The 1s
+            // grace clears the check's own cancellation latency; retries stay off so a failed probe is
+            // not left queued on that long-lived producer.
             .AddKafka(
-                producerConfig,
+                new ProducerConfig
+                {
+                    BootstrapServers = kafkaOptions.BrokersFlat,
+                    MessageTimeoutMs =
+                        (int)(timeouts.KafkaTimeout + ProbeDeliveryGrace).TotalMilliseconds,
+                    MessageSendMaxRetries = 0,
+                },
                 name: "Kafka",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,

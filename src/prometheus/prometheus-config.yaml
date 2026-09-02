@@ -19,9 +19,9 @@ scrape_configs:
     # container ran the set ~10x/min and now runs it ~6x/min, with compose the larger share.
     # health_checks-dashboard.json reads these gauges raw with no rate() windows, so the coarser
     # resolution costs only flap-detection latency.
-    # scrape_timeout stays explicit: the global default at the top of this file is far tighter than
-    # this set's worst case (Kafka alone is allowed 5s), so inheriting it would time out healthy
-    # scrapes.
+    # scrape_timeout stays explicit: the global default at the top of this file is far tighter
+    # than this set's worst case — the largest per-check `timeout:` across the scraped services
+    # — so inheriting it would time out healthy scrapes.
     scrape_interval: 30s
     scrape_timeout: 10s
     metrics_path: /api/health/prometheus

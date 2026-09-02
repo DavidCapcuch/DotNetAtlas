@@ -10,6 +10,12 @@ x-readiness-healthcheck: &readiness-healthcheck
   # the probe never hits in-container loopback. IP literals bypass /etc/hosts.
   test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8080/api/readiness"]
   interval: 15s
+  # At or above this the orchestrator aborts the request first, so the container's verdict
+  # reflects a probe abort rather than the readiness verdict, and the per-check attribution the
+  # server would have logged and exported is never produced. Checks run concurrently, so this
+  # bounds the slowest check rather than their sum — but only a check registered with an
+  # explicit `timeout:` is bounded at all; a registration without one defaults to
+  # Timeout.InfiniteTimeSpan and can blow this budget on its own.
   timeout: 5s
   retries: 3
   start_period: 45s
