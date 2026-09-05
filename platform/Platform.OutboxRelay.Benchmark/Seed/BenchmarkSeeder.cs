@@ -21,6 +21,11 @@ namespace Platform.OutboxRelay.Benchmark.Seed;
 /// </summary>
 public class BenchmarkSeeder
 {
+    /// <summary>
+    /// The fixture provisions this on the broker, which does not auto-create topics.
+    /// </summary>
+    public const string SeededTopicName = "catalog.products";
+
     private readonly IDbContextFactory<OutboxDbContext> _dbContextFactory;
     private readonly UniversalAvroSerializer _universalAvroSerializer;
 
@@ -95,7 +100,7 @@ public class BenchmarkSeeder
                 KafkaKey = productCreatedEvent.ProductId.ToString(),
                 AvroPayload = avroPayload,
                 Type = typeof(ProductCreatedEvent).FullName!,
-                TopicName = "catalog.products",
+                TopicName = SeededTopicName,
                 Headers = null,
                 CreatedUtc = utcNow
             });

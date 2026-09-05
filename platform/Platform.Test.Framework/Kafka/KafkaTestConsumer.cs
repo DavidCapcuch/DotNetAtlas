@@ -34,8 +34,7 @@ public sealed class KafkaTestConsumer<TValue> : IKafkaTestConsumer
             BootstrapServers = bootstrapServers,
             GroupId = $"test-consumer-{Guid.NewGuid():N}",
             AutoOffsetReset = AutoOffsetReset.Earliest,
-            EnableAutoCommit = false,
-            AllowAutoCreateTopics = true
+            EnableAutoCommit = false
         })
             .SetValueDeserializer(new AvroDeserializer<TValue>(_schemaClient).AsSyncOverAsync())
             .Build();

@@ -50,6 +50,7 @@ public sealed class KafkaTestContainer : ITestContainer
             .WithCleanUp(true)
             .WithNetwork(_network)
             .WithNetworkAliases("kafka")
+            .WithEnvironment("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false")
             .Build();
 
         // Do NOT use host.docker.internal here; it is not available inside Linux containers with Docker

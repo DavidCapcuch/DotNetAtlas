@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Platform.OutboxRelay.Benchmark.Seed;
 using Platform.OutboxRelay.WorkerService.Common.Config;
 using Platform.OutboxRelay.WorkerService.OutboxRelay;
 using Platform.OutboxRelay.WorkerService.OutboxRelay.Config;
@@ -53,6 +54,8 @@ internal sealed class BenchmarkFixture : AppFixture<Platform.OutboxRelay.WorkerS
             _dbContainer.StartAsync(),
             _kafkaContainer.StartAsync());
         KafkaOptions = _kafkaContainer.KafkaOptions;
+
+        await _kafkaContainer.CreateKafkaTopicsAsync([BenchmarkSeeder.SeededTopicName]);
 
         Log.Information("Containers started successfully");
     }
