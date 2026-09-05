@@ -33,7 +33,7 @@ public class HealthChecksDependencyInjectionTests
             .Where(registration => registration.Tags.Contains(ServiceDefaultHealthCheckTags.ReadinessTag))
             .Select(registration => registration.Name)
             .Should().BeEquivalentTo(
-                ["ApplicationLifecycle", "Saga DB", "Saga StateMachine", "Kafka"],
+                ["ApplicationLifecycle", "Saga DB", "Stuck Sagas", "Kafka"],
                 "readiness is the declared dependency set; the Schema Registry is deliberately " +
                 "absent because it is contacted cold-cache only");
     }
@@ -43,7 +43,8 @@ public class HealthChecksDependencyInjectionTests
         var configuration = new ConfigurationManager();
         configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["HealthChecks:KafkaTimeout"] = "00:00:05",
+            ["HealthChecks:DbTimeout"] = "00:00:01",
+            ["HealthChecks:KafkaTimeout"] = "00:00:02",
             ["Kafka:Brokers:0"] = "localhost:9092",
         });
 

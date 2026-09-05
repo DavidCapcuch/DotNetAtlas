@@ -5,7 +5,9 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Platform.ServiceDefaults.Pii;
+using SagaOrchestrators.Common.Config;
 using SagaOrchestrators.Common.Observability;
+using SagaOrchestrators.Common.Observability.Metrics;
 using SagaOrchestrators.Common.Observability.Tracing;
 using SagaOrchestrators.Payments.PaymentProcessingSaga;
 using SagaOrchestrators.Payments.PaymentProcessingSaga.Observability;
@@ -60,9 +62,23 @@ public static class ObservabilityDependencyInjection
             return services;
         }
 
+        /// <summary>
+        /// Wires the observers and the background sweep that watch saga state. Registered
+        /// unconditionally, unlike <c>AddOpenTelemetryInternal</c> above: the stuck-saga count
+        /// also backs a health check, so it has to be swept whether or not an OTLP endpoint is
+        /// configured to export it.
+        /// </summary>
         public IServiceCollection AddSagaStateObservability()
         {
             services.AddStateObserver<PaymentProcessingSagaState, PaymentSagaStateObserver>();
+
+            services.AddOptionsWithValidateOnStart<StuckSagaOptions>()
+                .BindConfiguration(StuckSagaOptions.Section)
+                .ValidateDataAnnotations();
+
+            services.AddMetrics();
+            services.AddSingleton<StuckSagaMetrics>();
+            services.AddHostedService<StuckSagaMetricsCollector>();
 
             return services;
         }

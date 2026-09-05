@@ -161,7 +161,7 @@ Compensation paths are explicit and vary by failure point: failures before captu
 - **Payment-failure compensation is cheap** — release the stock, cancel the order, emit `CheckoutFailedEvent`. No refund needed because payment was never captured.
 - **Reuses existing saga infrastructure**: MassTransit state machines, EF Core optimistic-concurrency persistence on the shared `saga` PostgreSQL schema, Kafka consumer-adapter pattern, transactional outbox — all of which are already exercised by the sibling `PaymentProcessingSaga`.
 - **The `PaymentProcessingSaga` sub-saga** keeps refund/capture/retry logic in one place. Today the Checkout saga is its only caller, but the seam stays open: any future payment-using workflow (subscription billing, refund-as-a-service) would compose against the same sub-saga without re-implementing capture/void/refund orchestration. No changes to Payments are required.
-- **Same deployment unit and operational mental model** as existing sagas — no new infrastructure, dashboards, or health checks to learn. Existing `SagaHealthCheck`, stuck-saga alerts, and OpenTelemetry tracing extend to Checkout with trivial additions.
+- **Same deployment unit and operational mental model** as existing sagas — no new infrastructure, dashboards, or health checks to learn. Existing `StuckSagaHealthCheck`, stuck-saga alerts, and OpenTelemetry tracing extend to Checkout with trivial additions.
 - **Onboarding cost is low** because the reserve-first pattern is already the mental model new engineers bring with them from other e-commerce domains.
 
 ### Negative
@@ -199,7 +199,7 @@ Compensation paths are explicit and vary by failure point: failures before captu
 
   At default values: `30 + 60 + 90 + 30 + 2×300 = 810s` vs `900s` TTL → 90s margin. Tuning `CompensationSeconds` upward (e.g., 300 → 600) or shortening Inventory's TTL silently inverts the inequality and turns the race from "rare benign" into "default". **An architecture test in `saga/SagaOrchestrators.UnitTests/` MUST encode this invariant** (see [`docs/bc-design/checkout-saga.md`](../bc-design/checkout-saga.md)) so that any future timeout retuning fails the build instead of paging on-call.
 - **Architecture tests**: architecture-test fixtures must assert that `CheckoutSagaOrchestrator` lives under `saga/SagaOrchestrators/Checkout/`, does NOT depend on any service assembly directly, and that all state transitions terminate in one of the four terminal states (`Confirmed`, `Failed`, `Compensated`, `CompensationStuck`). Additionally the timeout invariant test described above MUST be present.
-- **Observability**: OpenTelemetry activity source `SagaOrchestrators.Checkout`; OTEL meter with counters for `saga.checkout.started`, `saga.checkout.confirmed`, `saga.checkout.failed`, `saga.checkout.compensated`, `saga.checkout.stuck`, plus histograms for per-phase latency. The `SagaHealthCheck` includes a stuck-saga extension specific to Checkout's `CompensationStuck` terminal.
+- **Observability**: OpenTelemetry activity source `SagaOrchestrators.Checkout`; OTEL meter with counters for `saga.checkout.started`, `saga.checkout.confirmed`, `saga.checkout.failed`, `saga.checkout.compensated`, `saga.checkout.stuck`, plus histograms for per-phase latency. The stuck-saga sweep includes an extension specific to Checkout's `CompensationStuck` terminal.
 
 ## Related Decisions
 

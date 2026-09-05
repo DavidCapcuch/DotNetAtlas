@@ -108,7 +108,7 @@ This layering adds indirection (two saga instances per checkout, both observable
 - Consumer groups are **per-saga** (not per-message): `saga-checkout` (Checkout saga across `basket.sessions`, `ordering.orders`, `inventory.reservations`, `payments.transactions`); `saga-payment-processing` (PaymentProcessingSaga across `payments.transactions` and `payments.payment-commands`).
 - Outbox pattern ensures saga state changes and published messages are transactionally consistent — see [Platform.ReliableMessaging.Outbox.EFCore](../../platform/Platform.ReliableMessaging.Outbox.EFCore/).
 - Saga folders: [`saga/SagaOrchestrators/Checkout/CheckoutSaga/`](../../saga/SagaOrchestrators/Checkout/CheckoutSaga/), [`saga/SagaOrchestrators/Payments/PaymentProcessingSaga/`](../../saga/SagaOrchestrators/Payments/PaymentProcessingSaga/).
-- Health check: `SagaHealthCheck` reports degraded / unhealthy on stuck-saga counts; `CompensationStuck` (Checkout saga abnormal terminal) increments a dedicated counter wired to ops alerting.
+- Health check: `StuckSagaHealthCheck` reports degraded — never unhealthy — on the stuck-saga count that `StuckSagaMetricsCollector` sweeps in the background; every replica counts the same rows, so failing readiness on it would drop them all from rotation while none of them is broken. `CompensationStuck` (Checkout saga abnormal terminal) increments a dedicated counter wired to ops alerting.
 
 ## Related Decisions
 

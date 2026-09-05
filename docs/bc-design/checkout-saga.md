@@ -143,7 +143,7 @@ All states are `public State` properties on `CheckoutSagaOrchestrator`. MassTran
 8. **`CompensatingStockReservations`** — at least one reservation may exist and must be released. Compensation is **single-pass** (no refund phase): reached from a stock failure, an authorization decline (`PaymentFailedSagaEvent` in `AwaitingPaymentAuthorization`), or a confirmation failure (after the saga has already sent `AbortCaptureCommand` for the pre-capture void). Entry actions: (a) publish `ReleaseReservationCommand` for every `ReservationId` currently in `Reserved` status in `ReservationIdsJson`; (b) publish `CancelOrderCommand` to Ordering (if `OrderId` is set); (c) arm `CompensationTimeout`. Waits for `ReservationReleasedSagaEvent` per in-flight reservation (match against the tracking dictionary). Transitions to `Compensated` when every dispatched release has been confirmed AND Ordering has acked the cancel (via `OrderCancelledSagaEvent`).
 9. **`Compensated`** (terminal) — all compensations complete. Saga publishes a terminal `CheckoutFailedEvent` to `checkout.sagas` — the saga-level failure event that Ordering does not emit on its own because Ordering only knows about its own cancellation, not the broader saga failure. **Resolved** (was an open question for Stage 2 Agent 5 — separate schema vs. relying on `OrderCancelledEvent + OrderFailedEvent` from Ordering): `CheckoutFailedEvent` ships as a separate schema on `checkout.sagas` for symmetry with `CheckoutCompletedEvent`, published with **no v1 consumer** — a forensic record + future-consumer seam (see § 9.1).
 10. **`Failed`** (terminal) — reached when no compensation is required (e.g., `OrderFailedEvent` in `AwaitingOrderCreation` before stock was touched; or `OrderCreationTimeout` where the command was presumed never accepted). The saga simply emits `CheckoutFailedEvent` and finalizes.
-11. **`CompensationStuck`** (terminal, abnormal) — reached when `CompensationTimeout` fires while in `CompensatingStockReservations`. Emits `CheckoutStuckEvent` (ops alert), does NOT auto-retry, and remains finalized for manual operator intervention. The stuck-saga health check in `SagaHealthCheck` already counts sagas in non-terminal states older than `StuckSagaThresholdMinutes`; `CompensationStuck` is explicitly terminal so it does not inflate that metric — operators track these separately via the dedicated counter (§ 11).
+11. **`CompensationStuck`** (terminal, abnormal) — reached when `CompensationTimeout` fires while in `CompensatingStockReservations`. Emits `CheckoutStuckEvent` (ops alert), does NOT auto-retry, and remains finalized for manual operator intervention. The `StuckSagaMetricsCollector` sweep already counts sagas in non-terminal states older than `StuckSagaThresholdMinutes`; `CompensationStuck` is explicitly terminal so it does not inflate that metric — operators track these separately via the dedicated counter (§ 11).
 
 ---
 
@@ -565,7 +565,7 @@ kafkaConfigurator.ConfigureCheckoutSagaKafkaConsumers(registrationContext, schem
 - `BasketSnapshotJson`, `ReservationIdsJson`, `ShippingAddressJson`, `BillingAddressJson` — typed as `string`, mapped as `jsonb` column via `.HasColumnType("jsonb")` in `OnModelCreating`.
 - `CurrentState` — length 64, indexed for stuck-saga queries.
 - Index on `CorrelationId` (PK implicit).
-- Partial index on `CurrentState` for non-terminal states (supports `SagaHealthCheck` queries).
+- Partial index on `CurrentState` for non-terminal states (supports stuck-saga sweep queries).
 
 ### 10.4 Consumer group strategy
 
@@ -634,11 +634,11 @@ Follows the existing pattern established in `saga/SagaOrchestrators/Payments/Pay
 
 Extend the existing `TraceTags` class with `Checkout` sub-section: `TraceTags.Checkout.CorrelationId`, `TraceTags.Checkout.UserId`, `TraceTags.Checkout.OrderId`, `TraceTags.Checkout.ProductId`, `TraceTags.Checkout.ReservationId`, `TraceTags.Checkout.PaymentTransactionId`. Every log line from saga handlers includes `CorrelationId` at minimum.
 
-### 11.4 Stuck-saga health check extension
+### 11.4 Stuck-saga sweep extension
 
-The existing `SagaHealthCheck` (see `saga/SagaOrchestrators/Common`) counts sagas in non-terminal states older than `StuckSagaThresholdMinutes`. For Checkout:
+The existing `StuckSagaMetricsCollector` (see `saga/SagaOrchestrators/Common/Observability/Metrics/`) counts sagas in non-terminal states older than `StuckSagaThresholdMinutes`. For Checkout:
 
-- Add `CheckoutSagaState.TerminalStates = [ Confirmed, Failed, Compensated, CompensationStuck ]` — the health check excludes these.
+- Add `CheckoutSagaState.TerminalStates = [ Confirmed, Failed, Compensated, CompensationStuck ]` — the sweep excludes these.
 - `CompensationStuck` is terminal, so it WON'T count as stuck. Instead it increments the `saga.checkout.stuck` counter (alerting dimension), and operators track those specifically.
 
 ---

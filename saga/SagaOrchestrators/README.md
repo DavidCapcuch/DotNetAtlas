@@ -36,7 +36,7 @@ Bound from [`appsettings.json`](appsettings.json). The options classes live unde
 
 ### Metrics (OpenTelemetry)
 
-Each saga has its own metric family, named for it: `saga.checkout.*` from [`CheckoutSagaMetrics`](Checkout/CheckoutSaga/Observability/CheckoutSagaMetrics.cs) and `saga.payments.*` from [`PaymentProcessingSagaMetrics`](Common/Observability/Metrics/PaymentProcessingSagaMetrics.cs), each instrument declared there with its description. The stuck-saga gauge is the exception — it is published by [`SagaStateMachineHealthCheck`](Common/Observability/HealthChecks/SagaStateMachineHealthCheck.cs), next to the health check that computes it rather than in a metrics class.
+Each saga has its own metric family, named for it: `saga.checkout.*` from [`CheckoutSagaMetrics`](Checkout/CheckoutSaga/Observability/CheckoutSagaMetrics.cs) and `saga.payments.*` from [`PaymentProcessingSagaMetrics`](Common/Observability/Metrics/PaymentProcessingSagaMetrics.cs), each instrument declared there with its description. The `saga.stuck.payment` gauge lives in [`StuckSagaMetrics`](Common/Observability/Metrics/StuckSagaMetrics.cs) and is refreshed by [`StuckSagaMetricsCollector`](Common/Observability/Metrics/StuckSagaMetricsCollector.cs) on the `StuckSaga:SweepIntervalSeconds` cadence.
 
 ### Tracing
 
@@ -48,7 +48,9 @@ Endpoint paths are not owned here. [`Program.cs`](Program.cs) calls `MapPlatform
 
 **Those constants are not the only copy.** [`docker-compose.yaml`](../../docker-compose.yaml)'s `x-readiness-healthcheck` anchor, the Prometheus scrape config, and this project's `launchSettings.json` each hardcode the path rather than deriving it, so changing a constant silently breaks them until they are changed too.
 
-The custom saga health check ([`SagaStateMachineHealthCheck`](Common/Observability/HealthChecks/SagaStateMachineHealthCheck.cs)) flags long-running non-terminal states against the `SagaHealthCheck` thresholds ([`SagaHealthCheckOptions`](Common/Config/SagaHealthCheckOptions.cs) is its schema). It is registered `Degraded`, which the platform still serves as **200** — a stuck saga raises the alarm without pulling the instance out of rotation, since a restart would not unstick it. Only the DB and Kafka checks fail readiness outright.
+The custom saga health check ([`StuckSagaHealthCheck`](Common/Observability/HealthChecks/StuckSagaHealthCheck.cs)) reports the stuck-saga count against the `StuckSaga` thresholds ([`StuckSagaOptions`](Common/Config/StuckSagaOptions.cs) is its schema). It reports `Degraded` at most, which the platform still serves as **200** — a stuck saga raises the alarm without pulling the instance out of rotation, since every replica counts the same rows and a restart would not unstick one. Only the DB and Kafka checks fail readiness outright.
+
+It reads the count rather than querying for it, so it does no I/O and carries no `timeout:`. The query belongs to the background sweep instead, where the DbContext's retrying execution strategy is free to take as long as it likes — inside a readiness probe that same strategy would start a fresh attempt inside any deadline and hang the endpoint for every other check with it.
 
 ## Running locally
 
