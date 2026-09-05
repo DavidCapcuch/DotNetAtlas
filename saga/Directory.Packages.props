@@ -12,24 +12,24 @@
       one (https://masstransit.massient.com/configuration/license). The 9.1.1
       bump was reverted because no license is available.
     -->
-    <PackageVersion Include="MassTransit" Version="8.5.7" />
-    <PackageVersion Include="MassTransit.EntityFrameworkCore" Version="8.5.7" />
-    <PackageVersion Include="MassTransit.SqlTransport.PostgreSQL" Version="8.5.7" />
-    <PackageVersion Include="MassTransit.Kafka" Version="8.5.7" />
-    <PackageVersion Include="MassTransit.TestFramework" Version="8.5.7" />
+    <PackageVersion Include="MassTransit" Version="8.5.10" />
+    <PackageVersion Include="MassTransit.EntityFrameworkCore" Version="8.5.10" />
+    <PackageVersion Include="MassTransit.SqlTransport.PostgreSQL" Version="8.5.10" />
+    <PackageVersion Include="MassTransit.Kafka" Version="8.5.10" />
+    <PackageVersion Include="MassTransit.TestFramework" Version="8.5.10" />
     <!-- Confluent Schema Registry -->
-    <PackageVersion Include="Confluent.SchemaRegistry" Version="2.14.0" />
-    <PackageVersion Include="Confluent.SchemaRegistry.Serdes.Avro" Version="2.14.0" />
+    <PackageVersion Include="Confluent.SchemaRegistry" Version="2.15.0" />
+    <PackageVersion Include="Confluent.SchemaRegistry.Serdes.Avro" Version="2.15.0" />
     <!-- Entity Framework Core -->
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.8" />
-    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageVersion Include="EFCore.NamingConventions" Version="10.0.1" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.11" />
     <!-- Health Checks -->
-    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.Common" Version="10.6.0" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.Common" Version="10.9.0" />
     <PackageVersion Include="AspNetCore.HealthChecks.Publisher.Prometheus" Version="9.0.0" />
     <PackageVersion Include="AspNetCore.HealthChecks.Prometheus.Metrics" Version="9.0.0" />
     <PackageVersion Include="AspNetCore.HealthChecks.Hangfire" Version="9.0.0" />
@@ -41,41 +41,41 @@
     <PackageVersion Include="Serilog.Sinks.OpenTelemetry" Version="4.2.0" />
     <PackageVersion Include="Serilog.Expressions" Version="5.0.0" />
     <!-- OpenTelemetry -->
-    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
-    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.3" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.18.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Process" Version="1.15.1-beta.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.15.1-beta.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Hangfire" Version="1.15.1-beta.1" />
     <PackageVersion Include="OpenTelemetry.Resources.Container" Version="1.15.1-beta.1" />
     <PackageVersion Include="OpenTelemetry.Resources.Host" Version="1.15.1-beta.1" />
     <!-- Options & Configuration -->
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.11" />
     <!-- Feature flags (ADR-0014) -->
-    <PackageVersion Include="OpenFeature" Version="2.14.0" />
+    <PackageVersion Include="OpenFeature" Version="2.14.1" />
     <!-- Test framework packages -->
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <PackageVersion Include="xunit.analyzers" Version="1.27.0" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />
-    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.6.0" />
-    <PackageVersion Include="AwesomeAssertions" Version="9.4.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.9.0" />
+    <PackageVersion Include="AwesomeAssertions" Version="9.6.0" />
     <PackageVersion Include="NSubstitute" Version="5.3.0" />
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
-    <PackageVersion Include="Serilog.Sinks.XUnit.Injectable" Version="4.0.222" />
+    <PackageVersion Include="Serilog.Sinks.XUnit.Injectable" Version="4.0.256" />
     <!-- Analyzers -->
     <PackageVersion Include="AwesomeAssertions.Analyzers" Version="9.0.8" />
     <PackageVersion Include="NSubstitute.Analyzers.CSharp" Version="1.0.17" />
     <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.556" />
 
     <!-- Transitive pins for NU1903 vulnerabilities (closes #139). -->
-    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.8" />
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.11" />
     <!-- SSH.NET arrives through Testcontainers. Needed because saga/Directory.Build.props NoWarns
          only VSTHRD200/xUnit1051, so this tier keeps NU1903 blocking where test/ suppresses it.
          A Testcontainers bump does NOT clear this: 4.13.0 still requires 2025.1.0, and
