@@ -303,6 +303,10 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_MIN_INSYNC_REPLICAS: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # kafka-create-topic below IS the topology — a producer naming anything else must fail rather
+      # than get one conjured at broker defaults (1 partition, 7d). Client-side
+      # AllowAutoCreateTopics is pinned only on the readiness probes, so enforcement has to be here.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       KAFKA_HEAP_OPTS: "-Xmx512M -Xms512M"
       CLUSTER_ID: "EmptNWtoR4GGWx-BH6nGLQ"
     ports:
@@ -331,8 +335,7 @@ services:
   # Topic taxonomy (full reference: docs/kafka-topology.md):
   #   * Event-log    — retention.ms=-1 (infinite). Downstream BCs replay-rebuild
   #                    from these (catalog.*, ordering.orders, inventory.*-events,
-  #                    inventory.reservations, payments.transactions). BACKWARD
-  #                    compat per ADR-0007.
+  #                    inventory.reservations, payments.transactions).
   #   * Saga state   — retention.ms=2592000000 (30d). Run-history of in-flight
   #                    sagas (basket.sessions, checkout.sagas). 30d forensic
   #                    window per ADR-0004.
@@ -342,6 +345,8 @@ services:
   #   * Audit        — retention.ms=315360000000 (10y). Regulatory retention
   #                    (invoicing.invoices).
   #   * Health probe — defaults, partitions=1 (healthchecks).
+  #   The DLT lines below are not a sixth class — retention.ms=1209600000 (14d), partitions
+  #   matching the source; governed by docs/bc-design/kafka-dlt-strategy.md.
   kafka-create-topic:
     container_name: kafka-create-topic
     image: confluentinc/cp-kafka:7.5.9

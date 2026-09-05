@@ -84,9 +84,9 @@ The Checkout saga in `saga/SagaOrchestrators/` consumes `basket.sessions`, `orde
 
 **Source topics with no current consumer:**
 
-`catalog.categories`, `inventory.stock-events`, `inventory.reservations` (saga-only; see above) — no BC currently registers a `DeadLetterMiddleware`-wrapped consumer. If a consumer lands later it will produce to `<topic>.<BC>.DLT` per the convention in § 1.
+`catalog.categories`, `inventory.stock-events`, `inventory.reservations` (saga-only; see above) — no BC currently registers a `DeadLetterMiddleware`-wrapped consumer. A consumer landing later dead-letters to `<topic>.<BC>.DLT` per the convention in § 1 — which the Docker-compose note below requires be created first.
 
-**Docker-compose note:** the 10 per-consumer-BC DLT topics from § 3 are pre-created by the `kafka-create-topic` block with 3 partitions (matching source) + **14-day** retention (`retention.ms=1209600000`) + `min.insync.replicas=1` — see resolved F-3 in § 7. Any DLT not in that list (e.g. a future consumer's) is auto-created on first produce at the cluster default (3 partitions, broker-default 7-day retention) until it is added to the pre-create block.
+**Docker-compose note:** the broker runs with `auto.create.topics.enable=false`, so a DLT missing from the `kafka-create-topic` block does not exist and the produce to it throws. `DeadLetterMiddleware` does not catch that throw and KafkaFlow's `ConsumerWorker` commits the offset regardless, so the poison message is dropped with neither a DLT copy nor the middleware's own `sent to DLT` log — the only trace is a generic `Error processing message`. Registering a consumer means adding its DLT line to `kafka-create-topic` in the same change.
 
 ---
 

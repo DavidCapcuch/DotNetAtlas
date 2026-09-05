@@ -40,6 +40,8 @@ Defaults (no explicit `retention.ms` config): Kafka broker default (7d) applies.
 
 ## Conventions
 
+- **Auto-create is off on the broker** (`KAFKA_AUTO_CREATE_TOPICS_ENABLE=false`) — producing to a name not in `kafka-create-topic` fails instead of conjuring a 1-partition topic outside this inventory. It surfaces as `UNKNOWN_TOPIC_OR_PARTITION` in the producing container's log and nowhere else — the readiness probe produces to `healthchecks`, which is provisioned, so every container healthcheck stays green through it.
+- **`--if-not-exists` never reconciles** — changing a partition count or retention in `kafka-create-topic` leaves an already-created topic exactly as it was. `kafka_data`/`kafka_metadata` are named volumes, so locally that means `docker compose down -v` before the edit takes effect.
 - **Replication factor** is `1` everywhere because the reference compose is a single-broker dev setup. Production raises this to `3` with `min.insync.replicas=2`.
 - **`min.insync.replicas=1`** is set explicitly on every topic to make the single-broker config legible; production override per environment.
 - **Partition count** defaults to `3` (matches saga + outbox-relay parallelism). `inventory.reservations` raises to `6` to scale per-`OrderId` consumer parallelism; `healthchecks` drops to `1` because order doesn't matter.
@@ -48,7 +50,7 @@ Defaults (no explicit `retention.ms` config): Kafka broker default (7d) applies.
 ## Adding a new topic
 
 1. Decide the class. If unsure between event-log and command, default to **command** unless downstream BCs need to replay-rebuild from it.
-2. Add the `kafka-topics --create …` line in `docker-compose.yaml` (kafka-create-topic init block) following the class's partition/retention defaults.
+2. Add the `kafka-topics --create …` line in `docker-compose.yaml` (kafka-create-topic init block) following the class's partition/retention defaults, then apply it to the running stack with `docker compose up -d kafka-create-topic` and check that container exits 0 — until it re-runs the topic does not exist and the first produce to it fails.
 3. Update the table in this file.
 4. Register the Avro schema under `platform/Platform.SchemaRegistry.Contracts/Avro/<Owner>/<Aggregate>/` with the `Event` or `Command` filename suffix. The dynamic `schema-registry-init` script picks up the new schema automatically; no list to update.
 
