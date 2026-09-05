@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
 ARG BASE_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra@sha256:de3e2d510c3b30dd10a3ababad927725839aacd0bbd6a3e8aef9a5a4408ccc12
 
 FROM ${BASE_IMAGE} AS base
@@ -8,7 +8,7 @@ ENV DOTNET_gcServer=1 \
     DOTNET_TieredPGO=1
 EXPOSE 8080
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0.100-noble AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.100-noble@sha256:c7445f141c04f1a6b454181bd098dcfa606c61ba0bd213d0a702489e5bd4cd71 AS build
 ARG BUILD_CONFIGURATION=Release
 ARG VERSION=0.0.0
 ARG ASSEMBLY_VERSION=0.0.0.0
