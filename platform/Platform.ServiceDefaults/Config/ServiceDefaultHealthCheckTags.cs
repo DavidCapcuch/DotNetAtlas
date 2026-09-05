@@ -11,9 +11,12 @@ namespace Platform.ServiceDefaults.Config;
 /// <see cref="Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckRegistration.Timeout"/>
 /// could never fire on it. That is a property of the pinned package version rather than of the
 /// concept, so <c>ApplicationLifecycleHealthCheckTests</c> asserts it instead of trusting it.
-/// Anything that performs I/O should carry one. Other registrations
-/// currently omit it — <c>AddDbContextCheck</c> exposes no such parameter at all, and a few I/O
-/// probes have simply never been given one — but those are gaps, not precedent to copy.
+/// Anything that performs I/O should carry one, but a registered <c>timeout:</c> only cancels a
+/// token: it bounds a check whose client honours cancellation, and nothing else. Where the client
+/// does not — StackExchange.Redis has no cancellable ping, and Npgsql stops honouring the token
+/// once past the socket connect — the bound has to come from that client's own timeouts, set on
+/// the probe's own connection. A registration declaring a number that nothing enforces is the
+/// gap, not the absence of one.
 /// </para>
 /// </summary>
 public static class ServiceDefaultHealthCheckTags

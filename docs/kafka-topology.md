@@ -12,7 +12,7 @@ Reference for the Kafka topics defined in `docker-compose.yaml` (kafka-create-to
 | **Saga state** | `2592000000` (30d) | `FORWARD_TRANSITIVE` | Run-history of in-flight + recently terminal sagas; 30d is long enough for offline forensics and short enough to bound storage. Same producer-additive evolution shape as event-log. |
 | **Command** | `604800000` (7d) | `FULL_TRANSITIVE` | Transient intent. Consumer and producer can deploy in either order, so compat must work in both directions. A command not consumed within a week is a runbook event, not a replay candidate. |
 | **Audit** | `315360000000` (10y) | `FORWARD_TRANSITIVE` | Regulatory retention. Used for invoicing/financial trails that must survive long after the operational system retains them elsewhere. |
-| **Health probe** | default (~7d) | n/a | Single-partition liveness signal. Not a business topic. |
+| **Health probe** | default (~7d) | n/a | Single-partition readiness signal. Not a business topic. |
 
 Defaults (no explicit `retention.ms` config): Kafka broker default (7d) applies. Treated as **command** class in this taxonomy.
 
@@ -34,7 +34,7 @@ Defaults (no explicit `retention.ms` config): Kafka broker default (7d) applies.
 | `notifications.notify-commands` | 3 | 604800000 | command | Inbound `NotifyUserCommand` (channel-agnostic; [events-catalog.md § 2](bc-design/events-catalog.md), [ADR-0031](adr/0031-notify-user-command-and-notification-id.md)). |
 | `notifications.notify-events` | 3 | -1 | event-log | `NotificationDeliveryStatusChangedEvent` delivery confirmations ([events-catalog.md § 2](bc-design/events-catalog.md), [ADR-0031](adr/0031-notify-user-command-and-notification-id.md)). |
 | `invoicing.invoices` | 3 | 315360000000 | audit | Invoice issuance events; 10-year regulatory retention. |
-| `healthchecks` | **1** | default (~7d) | health-probe | Liveness signal only; single partition is correct. |
+| `healthchecks` | **1** | default (~7d) | health-probe | Readiness signal only; single partition is correct. |
 
 > **DLT topics are not listed above.** They are *derived* (`{source-topic}.{consumer-bc}.DLT`, 14-day retention), governed by [kafka-dlt-strategy.md](bc-design/kafka-dlt-strategy.md), and pre-created in the same `kafka-create-topic` block in [docker-compose.yaml](../docker-compose.yaml). The table above covers business + health topics only.
 

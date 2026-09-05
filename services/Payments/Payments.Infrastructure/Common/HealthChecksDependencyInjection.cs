@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Npgsql;
 using Payments.Infrastructure.Common.Config;
 using Payments.Infrastructure.Messaging.Kafka.Config;
 using Payments.Infrastructure.Persistence.Database;
@@ -13,10 +14,8 @@ namespace Payments.Infrastructure.Common;
 /// <summary>
 /// Health-check surface for the Payments service — ApplicationLifecycle, <see cref="PaymentsDbContext"/>,
 /// and Kafka (the in-process payment-commands consumer). Per-probe timeouts come from
-/// <see cref="HealthChecksOptions"/>; <c>AddDbContextCheck</c> does not expose a direct
-/// timeout parameter, so the DB readiness probe runs under EF's command-timeout default
-/// (operators who need a tighter DB-level timeout switch to <c>AddNpgSql</c> or wire
-/// <c>CommandTimeout</c> into <c>EfCoreOptions</c>). No Redis check — Payments has no
+/// <see cref="HealthChecksOptions"/>.
+/// No Redis check — Payments has no
 /// idempotency cache layer. The Schema Registry is deliberately NOT a readiness probe: the
 /// Avro serializer/deserializer contact it only cold-cache (schema-IDs are cached after
 /// first use), so steady-state operation survives an SR outage — SR is a boot-ordering
@@ -42,16 +41,46 @@ internal static class HealthChecksDependencyInjection
             .GetRequiredSection(HealthChecksOptions.Section)
             .Get<HealthChecksOptions>()!;
 
+        // Bounds both phases of the database probe below. Worst case is twice this value: the
+        // connect and the query each get it.
+        var dbProbeSeconds = (int)timeouts.DbTimeout.TotalSeconds;
+
         var kafkaOptions = configuration
             .GetRequiredSection(KafkaOptions.Section)
             .Get<KafkaOptions>()!;
 
         services.AddHealthChecks()
             .AddApplicationLifecycleHealthCheck([ServiceDefaultHealthCheckTags.ReadinessTag])
+            // A deadline cannot bound this check: the retrying execution strategy starts a fresh attempt
+            // inside one, and against a pooled connection the hang moves from the connect to the query,
+            // where a connect timeout does not apply. The probe therefore opens its own unpooled
+            // connection, whose Timeout and CommandTimeout bound both phases and touch nothing the
+            // application uses. Pooling stays off because a stale pooled connection is tried, fails, and
+            // then a fresh one is opened — paying the timeout twice (measured 6.0s against a paused
+            // server, versus 2.0s unpooled, either side of the orchestrator budget). The cost of that
+            // isolation: the probe no longer touches the pool the application uses, so pool exhaustion
+            // reports Healthy here — watch the client connection metrics for it, not readiness.
             .AddDbContextCheck<PaymentsDbContext>(
                 name: "Payments DB",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
-                failureStatus: HealthStatus.Unhealthy)
+                failureStatus: HealthStatus.Unhealthy,
+                customTestQuery: async (context, cancellationToken) =>
+                {
+                    var probeConnectionString = new NpgsqlConnectionStringBuilder(
+                        context.Database.GetConnectionString())
+                    {
+                        Timeout = dbProbeSeconds,
+                        CommandTimeout = dbProbeSeconds,
+                        Pooling = false,
+                    }.ConnectionString;
+
+                    await using var connection = new NpgsqlConnection(probeConnectionString);
+                    await connection.OpenAsync(cancellationToken);
+
+                    await using var command = new NpgsqlCommand("SELECT 1", connection);
+                    await command.ExecuteScalarAsync(cancellationToken);
+                    return true;
+                })
             // Cancelling the check abandons the await; it does NOT retract the message — Confluent.Kafka
             // registers the token to TrySetCanceled the delivery handler, IProducer exposes no purge, so
             // an undeliverable probe retires on librdkafka's own message.timeout.ms, on a producer
@@ -67,7 +96,9 @@ internal static class HealthChecksDependencyInjection
                     MessageTimeoutMs =
                         (int)(timeouts.KafkaTimeout + ProbeDeliveryGrace).TotalMilliseconds,
                     MessageSendMaxRetries = 0,
+                    AllowAutoCreateTopics = false,
                 },
+                topic: "healthchecks",
                 name: "Kafka",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,

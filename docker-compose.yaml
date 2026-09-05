@@ -13,9 +13,15 @@ x-readiness-healthcheck: &readiness-healthcheck
   # At or above this the orchestrator aborts the request first, so the container's verdict
   # reflects a probe abort rather than the readiness verdict, and the per-check attribution the
   # server would have logged and exported is never produced. Checks run concurrently, so this
-  # bounds the slowest check rather than their sum — but only a check registered with an
-  # explicit `timeout:` is bounded at all; a registration without one defaults to
-  # Timeout.InfiniteTimeSpan and can blow this budget on its own.
+  # bounds the slowest check rather than their sum — but only a check whose deadline something
+  # actually enforces is bounded at all, and a registered `timeout:` only cancels a token. It
+  # holds where the client honours cancellation and nowhere else: StackExchange.Redis has no
+  # cancellable ping, and Npgsql stops honouring the token once past the socket connect. Both
+  # are bounded instead by their own client timeouts, set on the probe's connection from the
+  # per-host `HealthChecks` section — and each elapses at a MULTIPLE of its configured value:
+  # roughly 3x for Redis, and 2x for the database, whose connect and query each get it. The
+  # [Range] ceilings on those two values are what keep the multiple under this budget, so
+  # raising either means raising this timeout in the same change.
   timeout: 5s
   retries: 3
   start_period: 45s
@@ -1143,6 +1149,8 @@ services:
         condition: service_completed_successfully
       kafka:
         condition: service_healthy
+      kafka-create-topic:
+        condition: service_completed_successfully
       schema-registry:
         condition: service_healthy
     environment:
@@ -1182,6 +1190,8 @@ services:
         condition: service_completed_successfully
       kafka:
         condition: service_healthy
+      kafka-create-topic:
+        condition: service_completed_successfully
       schema-registry:
         condition: service_healthy
     environment:
@@ -1220,6 +1230,8 @@ services:
         condition: service_completed_successfully
       kafka:
         condition: service_healthy
+      kafka-create-topic:
+        condition: service_completed_successfully
       schema-registry:
         condition: service_healthy
     environment:
@@ -1258,6 +1270,8 @@ services:
         condition: service_completed_successfully
       kafka:
         condition: service_healthy
+      kafka-create-topic:
+        condition: service_completed_successfully
       schema-registry:
         condition: service_healthy
     environment:
@@ -1296,6 +1310,8 @@ services:
         condition: service_completed_successfully
       kafka:
         condition: service_healthy
+      kafka-create-topic:
+        condition: service_completed_successfully
       schema-registry:
         condition: service_healthy
     environment:
@@ -1334,6 +1350,8 @@ services:
         condition: service_completed_successfully
       kafka:
         condition: service_healthy
+      kafka-create-topic:
+        condition: service_completed_successfully
       schema-registry:
         condition: service_healthy
     environment:
@@ -1372,6 +1390,8 @@ services:
         condition: service_completed_successfully
       kafka:
         condition: service_healthy
+      kafka-create-topic:
+        condition: service_completed_successfully
       schema-registry:
         condition: service_healthy
     environment:
@@ -1410,6 +1430,8 @@ services:
         condition: service_completed_successfully
       kafka:
         condition: service_healthy
+      kafka-create-topic:
+        condition: service_completed_successfully
       schema-registry:
         condition: service_healthy
     environment:

@@ -44,8 +44,9 @@ public class HealthChecksDependencyInjectionTests
         var configuration = new ConfigurationManager();
         configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["HealthChecks:KafkaTimeout"] = "00:00:05",
-            ["HealthChecks:RedisTimeout"] = "00:00:04",
+            ["HealthChecks:DbTimeout"] = "00:00:01",
+            ["HealthChecks:KafkaTimeout"] = "00:00:02",
+            ["HealthChecks:RedisTimeout"] = "00:00:01",
             ["Kafka:Brokers:0"] = "localhost:9092",
             [$"ConnectionStrings:{IdempotencyKeyServiceCollectionExtensions.RedisConnectionStringName}"] =
                 "localhost:6379",

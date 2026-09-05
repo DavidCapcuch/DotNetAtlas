@@ -44,7 +44,8 @@ public class HealthChecksDependencyInjectionTests
         var configuration = new ConfigurationManager();
         configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["HealthChecks:RedisTimeout"] = "00:00:04",
+            ["HealthChecks:DbTimeout"] = "00:00:01",
+            ["HealthChecks:RedisTimeout"] = "00:00:01",
             ["ConnectionStrings:Redis:Basket"] = "localhost:6380",
             [$"ConnectionStrings:{IdempotencyKeyServiceCollectionExtensions.RedisConnectionStringName}"] =
                 "localhost:6379",

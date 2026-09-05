@@ -34,7 +34,7 @@ public static class InfrastructureDependencyInjection
             .AddBasketClient(configuration)
             .AddBasketWriteClient()
             .AddBffMessaging(configuration)
-            .AddBffHealthChecks();
+            .AddBffHealthChecks(configuration);
 
         return services;
     }

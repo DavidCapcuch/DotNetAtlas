@@ -43,7 +43,8 @@ public class HealthChecksDependencyInjectionTests
         var configuration = new ConfigurationManager();
         configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["HealthChecks:KafkaTimeout"] = "00:00:05",
+            ["HealthChecks:DbTimeout"] = "00:00:01",
+            ["HealthChecks:KafkaTimeout"] = "00:00:02",
             ["Kafka:Brokers:0"] = "localhost:9092",
         });
 

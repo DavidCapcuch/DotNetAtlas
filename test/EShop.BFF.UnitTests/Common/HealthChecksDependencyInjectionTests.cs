@@ -1,4 +1,6 @@
+using EShop.BFF.Infrastructure.Caching;
 using EShop.BFF.Infrastructure.Common;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
@@ -39,8 +41,15 @@ public class HealthChecksDependencyInjectionTests
 
     private static IReadOnlyCollection<HealthCheckRegistration> RegisterHealthChecks()
     {
+        var configuration = new ConfigurationManager();
+        configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["HealthChecks:RedisTimeout"] = "00:00:01",
+            [$"ConnectionStrings:{BffCacheConstants.RedisCacheConnectionStringName}"] = "localhost:6379",
+        });
+
         var services = new ServiceCollection();
-        services.AddBffHealthChecks();
+        services.AddBffHealthChecks(configuration);
 
         using var provider = services.BuildServiceProvider();
         return [.. provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations];
