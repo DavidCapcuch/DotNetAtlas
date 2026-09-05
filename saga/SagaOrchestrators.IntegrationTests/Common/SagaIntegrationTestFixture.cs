@@ -83,7 +83,13 @@ public sealed class SagaIntegrationTestFixture : WebApplicationFactory<Program>,
         // we cannot access Services for IOptions here because that automatically starts the server, and the
         // server will fail to start without topics pre-created
         var topicsOptions = LoadTopicsFromConfiguration();
-        await _kafkaContainer.CreateKafkaTopicsAsync(topicsOptions.GetAllTopics());
+        await _kafkaContainer.CreateKafkaTopicsAsync(
+            topicsOptions.GetAllTopics(),
+            partitionOverrides: new Dictionary<string, int>
+            {
+                // 6 in docker-compose.yaml, for cross-order consumer parallelism keyed on OrderId.
+                [topicsOptions.InventoryReservations] = 6
+            });
 
         KafkaProducer = new KafkaTestProducer(_kafkaContainer.KafkaOptions);
 

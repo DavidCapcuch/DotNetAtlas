@@ -76,7 +76,20 @@ public sealed class KafkaTestContainer : ITestContainer
         KafkaOptions = CreateKafkaOptions(bootstrapServers, schemaRegistryUrl);
     }
 
-    public async Task CreateKafkaTopicsAsync(string[] topics, int partitions = 3)
+    /// <summary>
+    /// Creates <paramref name="topics"/> on the broker, which does not auto-create them.
+    /// </summary>
+    /// <param name="topics">Topic names to create.</param>
+    /// <param name="partitions">Partition count applied to every topic without an override.</param>
+    /// <param name="partitionOverrides">
+    /// Per-topic partition counts, for the topics whose production count differs from
+    /// <paramref name="partitions"/>. Partition count is observable to a consumer group, so a topic
+    /// the suite exercises for parallelism must carry the count `docker-compose.yaml` gives it.
+    /// </param>
+    public async Task CreateKafkaTopicsAsync(
+        string[] topics,
+        int partitions = 3,
+        IReadOnlyDictionary<string, int>? partitionOverrides = null)
     {
         var adminClientConfig = new AdminClientConfig
         {
@@ -88,7 +101,7 @@ public sealed class KafkaTestContainer : ITestContainer
         await adminClient.CreateTopicsAsync(topics.Select(name => new TopicSpecification
         {
             Name = name,
-            NumPartitions = partitions,
+            NumPartitions = partitionOverrides?.GetValueOrDefault(name, partitions) ?? partitions,
             ReplicationFactor = 1
         }));
     }
