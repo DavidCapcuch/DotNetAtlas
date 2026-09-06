@@ -17,9 +17,9 @@ public sealed class KafkaOptions
     public required string[] Brokers { get; set; }
 
     /// <summary>
-    /// Returns brokers as a semicolon-separated string for Kafka client configuration.
+    /// Returns brokers as the comma-separated list librdkafka's <c>bootstrap.servers</c> parses.
     /// </summary>
-    public string BrokersFlat => string.Join(';', Brokers);
+    public string BrokersFlat => string.Join(',', Brokers);
 
     /// <summary>
     /// Schema Registry connection configuration.

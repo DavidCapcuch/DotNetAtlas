@@ -16,7 +16,7 @@ public sealed class KafkaOptions
     [MinLength(1)]
     public required string[] Brokers { get; set; }
 
-    public string BrokersFlat => string.Join(';', Brokers);
+    public string BrokersFlat => string.Join(',', Brokers);
 
     /// <summary>
     /// Schema Registry connection configuration.
