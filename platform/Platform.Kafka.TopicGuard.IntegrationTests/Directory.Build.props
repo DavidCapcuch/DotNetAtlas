@@ -1,0 +1,7 @@
+<Project>
+    <!-- Re-use the test-tier build props (usings, xunit/AwesomeAssertions PackageReferences,
+         IsTestProject/IsPackable, coverlet + xunit runner config, VSTHRD200 suppression).
+         Test-framework PackageVersion entries live in platform/Directory.Packages.props
+         (nearest-wins CPM) and must stay in lockstep with test/Directory.Packages.props. -->
+    <Import Project="$(MSBuildThisFileDirectory)../../test/Directory.Build.props"/>
+</Project>

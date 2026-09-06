@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- IHealthCheck and the IHealthChecksBuilder the registration hangs off. -->
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+
+        <!-- IAdminClient.GetMetadata is the whole mechanism. DI and logging abstractions arrive
+             through the framework reference above; listing them here trips NU1510. -->
+        <PackageReference Include="Confluent.Kafka" />
+
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Platform.Kafka.TopicGuard.UnitTests" />
+    </ItemGroup>
+</Project>

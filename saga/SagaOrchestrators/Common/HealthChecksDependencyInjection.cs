@@ -2,6 +2,7 @@ using Confluent.Kafka;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Npgsql;
+using Platform.Kafka.TopicGuard;
 using Platform.ServiceDefaults.Config;
 using SagaOrchestrators.Common.Config;
 using SagaOrchestrators.Common.Config.Kafka;
@@ -109,7 +110,12 @@ internal static class HealthChecksDependencyInjection
                 name: "Kafka",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,
-                timeout: timeouts.KafkaTimeout);
+                timeout: timeouts.KafkaTimeout)
+            .AddKafkaTopicsExistenceHealthCheck(
+                sagaKafkaOptions.BrokersFlat,
+                sagaKafkaOptions.Topics.GetAllTopics(),
+                name: "Kafka topics",
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag]);
 
         return services;
     }

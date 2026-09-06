@@ -33,7 +33,7 @@ public class HealthChecksDependencyInjectionTests
             .Where(registration => registration.Tags.Contains(ServiceDefaultHealthCheckTags.ReadinessTag))
             .Select(registration => registration.Name)
             .Should().BeEquivalentTo(
-                ["ApplicationLifecycle", "Notifications DB", "Kafka"],
+                ["ApplicationLifecycle", "Notifications DB", "Kafka", "Kafka topics"],
                 "readiness is the declared dependency set; Notifications uses no Redis, and the " +
                 "SMTP relay is not a readiness gate");
     }
@@ -46,6 +46,9 @@ public class HealthChecksDependencyInjectionTests
             ["HealthChecks:DbTimeout"] = "00:00:01",
             ["HealthChecks:KafkaTimeout"] = "00:00:02",
             ["Kafka:Brokers:0"] = "localhost:9092",
+            ["Topics:NotifyCommands"] = "notifications.notify-commands",
+            ["Topics:NotifyEvents"] = "notifications.notify-events",
+            ["Topics:DltTopicSuffix"] = ".Notifications.DLT",
         });
 
         var services = new ServiceCollection();

@@ -52,7 +52,8 @@ Defaults (no explicit `retention.ms` config): Kafka broker default (7d) applies.
 1. Decide the class. If unsure between event-log and command, default to **command** unless downstream BCs need to replay-rebuild from it.
 2. Add the `kafka-topics --create …` line in `docker-compose.yaml` (kafka-create-topic init block) following the class's partition/retention defaults, then apply it to the running stack with `docker compose up -d kafka-create-topic` and check that container exits 0 — until it re-runs the topic does not exist and the first produce to it fails.
 3. Update the table in this file.
-4. Register the Avro schema under `platform/Platform.SchemaRegistry.Contracts/Avro/<Owner>/<Aggregate>/` with the `Event` or `Command` filename suffix. The dynamic `schema-registry-init` script picks up the new schema automatically; no list to update.
+4. Add it to `TopicsOptions.GetAllTopics()` in **every** service that names it — the producer *and* each consumer, which are different services (Inventory carries `catalog.products`, Invoicing carries `ordering.orders`, the BFF carries all four topics it subscribes to). Each consuming service also adds the `<topic><DltTopicSuffix>` sibling; the producing service does not, because nothing could ever dead-letter to it. A topic absent from a service's method is unguarded there: that service reports ready and the failure resurfaces at first produce.
+5. Register the Avro schema under `platform/Platform.SchemaRegistry.Contracts/Avro/<Owner>/<Aggregate>/` with the `Event` or `Command` filename suffix. The dynamic `schema-registry-init` script picks up the new schema automatically; no list to update.
 
 ## Related decisions
 

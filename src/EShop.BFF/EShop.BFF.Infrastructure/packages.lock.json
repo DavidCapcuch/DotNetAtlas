@@ -312,10 +312,10 @@
       },
       "Confluent.Kafka": {
         "type": "Transitive",
-        "resolved": "2.8.0",
-        "contentHash": "i5Qb5BPthGXmLRSZWXVLPVNfo9Mxt+UieC+E/ZTFmlGIuPPd57g7Sxp8QP7fYp7qEBXs561jvWDLGaCZqV9ycg==",
+        "resolved": "2.14.0",
+        "contentHash": "NnG0UXR9Wnup3Nvik6SBVaHRzCu0Iit8BE7ayaWsLt+yRWrI0ZY6o8pxPB6B/jyu+fbUllZ9efsbyFwrowDcpg==",
         "dependencies": {
-          "librdkafka.redist": "2.8.0"
+          "librdkafka.redist": "2.14.0"
         }
       },
       "Confluent.SchemaRegistry": {
@@ -417,8 +417,8 @@
       },
       "librdkafka.redist": {
         "type": "Transitive",
-        "resolved": "2.8.0",
-        "contentHash": "Gg8nPjn9+Sp6X+O1g9duKarCteFQjpkCVJS06ihVQf4PVnR/jPXkN3vwvWe5zP4L47xiEfU+6wIp4pbIvaQ6rQ=="
+        "resolved": "2.14.0",
+        "contentHash": "jqmYswYUiW9So5lce1Upo/zm5V7p/kWaqnUqkP5Lar1Ekq2yLrORoDCJ1JIiVLD3xdVkavwqW9iFKHBfkTsS7w=="
       },
       "Microsoft.AspNetCore.Authentication.JwtBearer": {
         "type": "Transitive",
@@ -1061,6 +1061,12 @@
         "resolved": "8.0.0",
         "contentHash": "7mu9v0QDv66ar3DpGSZHg9NuNcxDaaAcnMULuZlaTpP9+hwXhrxNGsF5GmLkSHxFdb5bBc1TzeujsRgTrPWi+Q=="
       },
+      "platform.kafka.topicguard": {
+        "type": "Project",
+        "dependencies": {
+          "Confluent.Kafka": "[2.14.0, )"
+        }
+      },
       "platform.schemaregistry.contracts": {
         "type": "Project",
         "dependencies": {
@@ -1105,8 +1111,8 @@
     "net10.0/linux-x64": {
       "librdkafka.redist": {
         "type": "Transitive",
-        "resolved": "2.8.0",
-        "contentHash": "Gg8nPjn9+Sp6X+O1g9duKarCteFQjpkCVJS06ihVQf4PVnR/jPXkN3vwvWe5zP4L47xiEfU+6wIp4pbIvaQ6rQ=="
+        "resolved": "2.14.0",
+        "contentHash": "jqmYswYUiW9So5lce1Upo/zm5V7p/kWaqnUqkP5Lar1Ekq2yLrORoDCJ1JIiVLD3xdVkavwqW9iFKHBfkTsS7w=="
       }
     }
   }

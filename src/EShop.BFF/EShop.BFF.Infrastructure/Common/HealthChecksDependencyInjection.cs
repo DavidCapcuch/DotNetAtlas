@@ -1,8 +1,10 @@
 using EShop.BFF.Infrastructure.Caching;
 using EShop.BFF.Infrastructure.Common.Config;
+using EShop.BFF.Infrastructure.Messaging.Config;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Platform.Kafka.TopicGuard;
 using Platform.ServiceDefaults.Config;
 
 namespace EShop.BFF.Infrastructure.Common;
@@ -45,6 +47,14 @@ internal static class HealthChecksDependencyInjection
         // Appending is safe: on a duplicate key ConfigurationOptions.Parse takes the last occurrence.
         var redisProbeMs = (int)timeouts.RedisTimeout.TotalMilliseconds;
 
+        var kafkaOptions = configuration
+            .GetRequiredSection(BffKafkaOptions.Section)
+            .Get<BffKafkaOptions>()!;
+
+        var topicsOptions = configuration
+            .GetRequiredSection(BffTopicsOptions.Section)
+            .Get<BffTopicsOptions>()!;
+
         services
             .AddHealthChecks()
             .AddApplicationLifecycleHealthCheck([ServiceDefaultHealthCheckTags.ReadinessTag])
@@ -54,7 +64,14 @@ internal static class HealthChecksDependencyInjection
                 name: "redis-cache",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,
-                timeout: timeouts.RedisTimeout);
+                timeout: timeouts.RedisTimeout)
+            // The BFF still probes no upstream BC and no Kafka broker — invalidation is off the
+            // request path, so a stalled consumer means stale cache, not an inability to serve.
+            .AddKafkaTopicsExistenceHealthCheck(
+                kafkaOptions.BrokersFlat,
+                topicsOptions.GetAllTopics(),
+                name: "Kafka topics",
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag]);
 
         return services;
     }

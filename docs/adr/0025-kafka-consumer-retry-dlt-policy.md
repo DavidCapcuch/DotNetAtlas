@@ -310,6 +310,13 @@ requirement (driver 6).
   application-level `HttpRequestException` from a future outbound call) will
   dead-letter unless a handler wraps it in `RetryableException`. The marker is
   the deliberate escape hatch; handlers must use it consciously.
+- **A dead-letter topic is a hard provisioning prerequisite of registering a
+  consumer**, since the broker no longer auto-creates one — mechanism and
+  consequences in [kafka-dlt-strategy.md § 3](../bc-design/kafka-dlt-strategy.md).
+  Two things bound it: each BC's `GetAllTopics()` includes a DLT for every topic
+  it consumes, so a missing one shows up as a red readiness naming that topic
+  rather than surfacing at the first poison message; and the middleware records
+  the drop with both causes rather than claiming a routing that did not happen.
 
 ### Risks
 

@@ -15,6 +15,12 @@ public sealed class BffKafkaOptions
     [MinLength(1)]
     public required string[] Brokers { get; set; }
 
+    /// <summary>
+    /// The broker list in the single-string form Confluent's clients take, matching the
+    /// <c>BrokersFlat</c> the other bounded contexts' Kafka options expose.
+    /// </summary>
+    public string BrokersFlat => string.Join(',', Brokers);
+
     [Required]
     public required BffSchemaRegistryOptions SchemaRegistry { get; set; }
 }

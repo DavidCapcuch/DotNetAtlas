@@ -53,11 +53,38 @@ internal sealed class DeadLetterMiddleware : IMessageMiddleware
         var originalTopic = context.ConsumerContext.Topic;
         var dltTopic = $"{originalTopic}{_topicSuffix}";
 
-        await _dltProducer.ProduceAsync(dltTopic, context.Message.Key, context.Message.Value, dltHeaders);
+        var key = context.Message.Key is byte[] keyBytes
+            ? Encoding.UTF8.GetString(keyBytes)
+            : context.Message.Key;
+
+        // One record per outcome, and never one that claims a routing that did not happen. The
+        // broker does not auto-create topics, so a DLT absent from the kafka-create-topic block
+        // makes ProduceAsync throw; KafkaFlow's worker commits the offset regardless, so the
+        // message is dropped. An operator reading "routed to DLT x" and finding x empty has been
+        // told the opposite of what occurred.
+        try
+        {
+            await _dltProducer.ProduceAsync(dltTopic, context.Message.Key, context.Message.Value, dltHeaders);
+        }
+        catch (Exception produceFailure)
+        {
+            _logger.LogError(
+                new AggregateException(
+                    $"Poison message with key {key} could not be routed to dead-letter topic "
+                    + $"{dltTopic}. The offset commits regardless, so this message is dropped.",
+                    exception,
+                    produceFailure),
+                "Dead-letter routing FAILED for {Key} on {DltTopic}; message dropped",
+                key,
+                dltTopic);
+
+            throw;
+        }
 
         _logger.LogError(exception,
-            "Message with key {Key} sent to DLT due to exception",
-            context.Message.Key is byte[] keyBytes ? Encoding.UTF8.GetString(keyBytes) : context.Message.Key);
+            "Message with key {Key} routed to DLT {DltTopic}",
+            key,
+            dltTopic);
     }
 
     private static MessageHeaders CreateDltHeaders(IMessageContext context, Exception exception)

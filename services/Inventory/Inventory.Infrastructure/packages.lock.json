@@ -1380,6 +1380,12 @@
           "Serilog": "[4.3.1, )"
         }
       },
+      "platform.kafka.topicguard": {
+        "type": "Project",
+        "dependencies": {
+          "Confluent.Kafka": "[2.14.0, )"
+        }
+      },
       "platform.kafkaflow.deadletter": {
         "type": "Project",
         "dependencies": {

@@ -133,6 +133,7 @@ Layering and dependency rules are enforced by [architecture-tests.md](architectu
 |---|---|
 | Naming (event/command/handler) | This file § 1 + [eshop-master-design.md § 3.2](../eshop-master-design.md) + [architecture-tests.md § 1.3](architecture-tests.md) |
 | Per-topic topology (partitions / retention / class) | [kafka-topology.md](../kafka-topology.md) |
+| Topic provisioning + readiness verification (`GetAllTopics()`, auto-create off) | [kafka-topology.md](../kafka-topology.md) § Adding a new topic + [ADR-0033](../adr/0033-kafka-topic-contract-doc-ssot.md) |
 | Per-event contract (producer / consumers / group / key / events) | [events-catalog.md § 2](events-catalog.md) |
 | Schema evolution / compatibility | [ADR-0007](../adr/0007-avro-compatibility-modes.md) + [kafka-topology.md](../kafka-topology.md) (class → mode) |
 | Time + timezone | [ADR-0015](../adr/0015-time-timezone-policy.md) |

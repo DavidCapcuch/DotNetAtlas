@@ -19,6 +19,9 @@ public sealed class TopicsOptions
     /// </summary>
     [Required]
     [Length(1, 64)]
+    [RegularExpression(
+        @"^\..+",
+        ErrorMessage = "DltTopicSuffix must start with a dot.")]
     public required string DltTopicSuffix { get; set; }
 
     /// <summary>Topic carrying NotifyUserCommand (consumed by this BC).</summary>
@@ -30,4 +33,15 @@ public sealed class TopicsOptions
     [Required]
     [Length(1, MaximumKafkaTopicLength)]
     public required string NotifyEvents { get; set; }
+
+    /// <summary>
+    /// Every topic Notifications needs provisioned, verified by its readiness check. Consumed topics also
+    /// contribute their dead-letter sibling — see <c>docs/bc-design/kafka-dlt-strategy.md</c>.
+    /// </summary>
+    public string[] GetAllTopics() =>
+    [
+        NotifyEvents,
+        NotifyCommands,
+        NotifyCommands + DltTopicSuffix
+    ];
 }

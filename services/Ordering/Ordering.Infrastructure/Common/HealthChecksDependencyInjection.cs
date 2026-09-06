@@ -4,9 +4,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Npgsql;
+using Ordering.Application.Common.Messaging;
 using Ordering.Infrastructure.Common.Config;
 using Ordering.Infrastructure.Messaging.Kafka.Config;
 using Ordering.Infrastructure.Persistence.Database;
+using Platform.Kafka.TopicGuard;
 using Platform.ServiceDefaults.Config;
 using Platform.ServiceDefaults.Idempotency;
 
@@ -59,6 +61,10 @@ internal static class HealthChecksDependencyInjection
         var kafkaOptions = configuration
             .GetRequiredSection(KafkaOptions.Section)
             .Get<KafkaOptions>()!;
+
+        var topicsOptions = configuration
+            .GetRequiredSection(TopicsOptions.Section)
+            .Get<TopicsOptions>()!;
 
         var redisCacheConnectionString =
             configuration.GetConnectionString(IdempotencyKeyServiceCollectionExtensions.RedisConnectionStringName)
@@ -127,7 +133,12 @@ internal static class HealthChecksDependencyInjection
                 name: "Kafka",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,
-                timeout: timeouts.KafkaTimeout);
+                timeout: timeouts.KafkaTimeout)
+            .AddKafkaTopicsExistenceHealthCheck(
+                kafkaOptions.BrokersFlat,
+                topicsOptions.GetAllTopics(),
+                name: "Kafka topics",
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag]);
 
         return services;
     }

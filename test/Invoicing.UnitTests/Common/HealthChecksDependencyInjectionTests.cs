@@ -34,7 +34,7 @@ public class HealthChecksDependencyInjectionTests
             .Where(registration => registration.Tags.Contains(ServiceDefaultHealthCheckTags.ReadinessTag))
             .Select(registration => registration.Name)
             .Should().BeEquivalentTo(
-                ["ApplicationLifecycle", "Invoicing DB", "redis-cache", "Kafka"],
+                ["ApplicationLifecycle", "Invoicing DB", "redis-cache", "Kafka", "Kafka topics"],
                 "readiness is the declared dependency set; the Schema Registry and Azure Blob " +
                 "storage are deliberately absent");
     }
@@ -50,6 +50,12 @@ public class HealthChecksDependencyInjectionTests
             ["Kafka:Brokers:0"] = "localhost:9092",
             [$"ConnectionStrings:{IdempotencyKeyServiceCollectionExtensions.RedisConnectionStringName}"] =
                 "localhost:6379",
+            ["Topics:Invoices"] = "invoicing.invoices",
+            ["Topics:OrderingOrders"] = "ordering.orders",
+            ["Topics:PaymentsTransactions"] = "payments.transactions",
+            ["Topics:NotificationsNotifyCommands"] = "notifications.notify-commands",
+            ["Topics:NotificationsNotifyEvents"] = "notifications.notify-events",
+            ["Topics:DltTopicSuffix"] = ".Invoicing.DLT",
         });
 
         var services = new ServiceCollection();

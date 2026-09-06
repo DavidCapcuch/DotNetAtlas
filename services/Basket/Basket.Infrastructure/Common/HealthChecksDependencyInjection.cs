@@ -1,10 +1,13 @@
+using Basket.Application.Common.Messaging;
 using Basket.Infrastructure.Common.Config;
+using Basket.Infrastructure.Messaging.Kafka.Config;
 using Basket.Infrastructure.Persistence.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Npgsql;
+using Platform.Kafka.TopicGuard;
 using Platform.ServiceDefaults.Config;
 using Platform.ServiceDefaults.Idempotency;
 
@@ -53,6 +56,16 @@ internal static class HealthChecksDependencyInjection
         // its own retry behaviour; appending is safe, since ConfigurationOptions.Parse takes the last
         // occurrence of a duplicate key.
         var redisProbeMs = (int)timeouts.RedisTimeout.TotalMilliseconds;
+
+        // Basket runs no Kafka client of its own — outbox-relay-basket does the producing — so these
+        // are materialised only to name the topic the check verifies.
+        var kafkaOptions = configuration
+            .GetRequiredSection(KafkaOptions.Section)
+            .Get<KafkaOptions>()!;
+
+        var topicsOptions = configuration
+            .GetRequiredSection(TopicsOptions.Section)
+            .Get<TopicsOptions>()!;
 
         var redisBasketConnectionString =
             configuration.GetConnectionString("Redis:Basket")
@@ -112,7 +125,14 @@ internal static class HealthChecksDependencyInjection
                 name: "redis-cache",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,
-                timeout: timeouts.RedisTimeout);
+                timeout: timeouts.RedisTimeout)
+            // Basket still omits the Kafka broker probe — it publishes through the outbox and
+            // serves every request with the broker down.
+            .AddKafkaTopicsExistenceHealthCheck(
+                kafkaOptions.BrokersFlat,
+                topicsOptions.GetAllTopics(),
+                name: "Kafka topics",
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag]);
 
         return services;
     }

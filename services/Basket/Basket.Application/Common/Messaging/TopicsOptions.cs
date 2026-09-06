@@ -24,4 +24,15 @@ public sealed class TopicsOptions
     [Required]
     [Length(1, MaximumKafkaTopicLength)]
     public required string BasketSessions { get; set; }
+
+    /// <summary>
+    /// Every topic Basket needs provisioned, verified by its readiness check.
+    /// </summary>
+    /// <remarks>
+    /// No dead-letter siblings: Basket registers no Kafka consumer — it publishes through the outbox
+    /// and <c>outbox-relay-basket</c> does the producing. Verifying the name on Basket's own
+    /// readiness is still what makes a typo loud, since the relay would otherwise pile up
+    /// undeliverable rows with no signal anywhere.
+    /// </remarks>
+    public string[] GetAllTopics() => [BasketSessions];
 }

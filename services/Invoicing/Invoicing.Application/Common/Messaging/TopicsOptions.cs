@@ -61,5 +61,28 @@ public sealed class TopicsOptions
     /// <summary>Suffix appended to each consumer's DLT (e.g. <c>.Invoicing.DLT</c>).</summary>
     [Required(AllowEmptyStrings = false)]
     [Length(1, 64)]
+    [RegularExpression(
+        @"^\..+",
+        ErrorMessage = "DltTopicSuffix must start with a dot.")]
     public required string DltTopicSuffix { get; set; }
+
+    /// <summary>
+    /// Every topic Invoicing needs provisioned, verified by its readiness check. Consumed topics also contribute
+    /// their dead-letter sibling — see <c>docs/bc-design/kafka-dlt-strategy.md</c>.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="NotificationsNotifyCommands"/> is published, not consumed, despite reading like a
+    /// consumed one — so it contributes no dead-letter sibling.
+    /// </remarks>
+    public string[] GetAllTopics() =>
+    [
+        Invoices,
+        NotificationsNotifyCommands,
+        OrderingOrders,
+        OrderingOrders + DltTopicSuffix,
+        PaymentsTransactions,
+        PaymentsTransactions + DltTopicSuffix,
+        NotificationsNotifyEvents,
+        NotificationsNotifyEvents + DltTopicSuffix
+    ];
 }

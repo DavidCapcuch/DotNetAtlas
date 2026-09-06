@@ -1,3 +1,4 @@
+using Catalog.Application.Common.Messaging;
 using Catalog.Infrastructure.Common.Config;
 using Catalog.Infrastructure.Persistence.Database;
 using Catalog.IntegrationTests.Common.TestClientInfrastructure;
@@ -5,6 +6,7 @@ using FastEndpoints.Testing;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -87,6 +89,26 @@ public class IntegrationTestFixture : AppFixture<Program>
         await _dbContainer.StartAsync();
         await _redisContainer.StartAsync();
         await _kafkaContainer.StartAsync();
+
+        // The broker does not auto-create topics. Provisioned from Catalog's own configuration
+        // rather than a literal list, so this cannot drift from the set the readiness check verifies.
+        await _kafkaContainer.CreateKafkaTopicsAsync(LoadTopicsFromConfiguration().GetAllTopics());
+    }
+
+    private static TopicsOptions LoadTopicsFromConfiguration()
+    {
+        var catalogApiPath = Path.Combine(
+            SolutionPaths.GetSolutionRootDirectory(), "services", "Catalog", "Catalog.Api");
+
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(catalogApiPath)
+            .AddJsonFile("appsettings.json", optional: false)
+            .Build();
+
+        return configuration.GetSection(TopicsOptions.Section).Get<TopicsOptions>()
+               ?? throw new InvalidOperationException(
+                   $"Failed to bind configuration section '{TopicsOptions.Section}' to "
+                   + $"{nameof(TopicsOptions)}. Verify appsettings.json carries the topic values.");
     }
 
     protected override ValueTask SetupAsync()

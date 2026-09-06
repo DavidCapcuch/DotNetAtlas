@@ -33,7 +33,7 @@ public class HealthChecksDependencyInjectionTests
             .Where(registration => registration.Tags.Contains(ServiceDefaultHealthCheckTags.ReadinessTag))
             .Select(registration => registration.Name)
             .Should().BeEquivalentTo(
-                ["ApplicationLifecycle", "Saga DB", "Stuck Sagas", "Kafka"],
+                ["ApplicationLifecycle", "Saga DB", "Stuck Sagas", "Kafka", "Kafka topics"],
                 "readiness is the declared dependency set; the Schema Registry is deliberately " +
                 "absent because it is contacted cold-cache only");
     }
@@ -46,6 +46,14 @@ public class HealthChecksDependencyInjectionTests
             ["HealthChecks:DbTimeout"] = "00:00:01",
             ["HealthChecks:KafkaTimeout"] = "00:00:02",
             ["Kafka:Brokers:0"] = "localhost:9092",
+            ["Kafka:Topics:PaymentsTransactions"] = "payments.transactions",
+            ["Kafka:Topics:PaymentsPaymentCommands"] = "payments.payment-commands",
+            ["Kafka:Topics:BasketSessions"] = "basket.sessions",
+            ["Kafka:Topics:OrderingOrders"] = "ordering.orders",
+            ["Kafka:Topics:InventoryReservations"] = "inventory.reservations",
+            ["Kafka:Topics:OrderingOrderCommands"] = "ordering.order-commands",
+            ["Kafka:Topics:InventoryReservationCommands"] = "inventory.reservation-commands",
+            ["Kafka:Topics:CheckoutSagas"] = "checkout.sagas",
         });
 
         var services = new ServiceCollection();

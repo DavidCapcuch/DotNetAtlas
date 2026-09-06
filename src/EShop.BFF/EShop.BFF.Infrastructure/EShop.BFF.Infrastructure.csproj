@@ -47,6 +47,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\..\..\platform\Platform.Kafka.TopicGuard\Platform.Kafka.TopicGuard.csproj" />
         <ProjectReference Include="..\..\..\platform\Platform.ServiceDefaults\Platform.ServiceDefaults.csproj" />
         <ProjectReference Include="..\..\..\platform\Platform.SharedKernel\Platform.SharedKernel.csproj" />
         <!-- Avro contracts consumed (never produced) by the bff-group cache invalidator (bff.md § 1 + § 2.2). -->

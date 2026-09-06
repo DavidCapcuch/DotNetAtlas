@@ -45,6 +45,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\platform\Platform.Avro.UniversalSerDes\Platform.Avro.UniversalSerDes.csproj" />
+        <ProjectReference Include="..\..\platform\Platform.Kafka.TopicGuard\Platform.Kafka.TopicGuard.csproj" />
         <ProjectReference Include="..\..\platform\Platform.ServiceDefaults\Platform.ServiceDefaults.csproj" />
         <ProjectReference Include="..\..\platform\Platform.ReliableMessaging.Outbox.EFCore\Platform.ReliableMessaging.Outbox.EFCore.csproj" />
         <ProjectReference Include="..\..\platform\Platform.ReliableMessaging.Outbox.Core\Platform.ReliableMessaging.Outbox.Core.csproj" />

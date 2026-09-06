@@ -86,7 +86,9 @@ The Checkout saga in `saga/SagaOrchestrators/` consumes `basket.sessions`, `orde
 
 `catalog.categories`, `inventory.stock-events`, `inventory.reservations` (saga-only; see above) — no BC currently registers a `DeadLetterMiddleware`-wrapped consumer. A consumer landing later dead-letters to `<topic>.<BC>.DLT` per the convention in § 1 — which the Docker-compose note below requires be created first.
 
-**Docker-compose note:** the broker runs with `auto.create.topics.enable=false`, so a DLT missing from the `kafka-create-topic` block does not exist and the produce to it throws. `DeadLetterMiddleware` does not catch that throw and KafkaFlow's `ConsumerWorker` commits the offset regardless, so the poison message is dropped with neither a DLT copy nor the middleware's own `sent to DLT` log — the only trace is a generic `Error processing message`. Registering a consumer means adding its DLT line to `kafka-create-topic` in the same change.
+**A DLT exists per *consumer*, never per producer.** `DeadLetterMiddleware` runs only in a consumer pipeline, so a dead-letter sibling for a topic a service merely publishes to could never receive a message. This is what each BC's `TopicsOptions.GetAllTopics()` encodes: every topic it names, plus a `<topic><DltTopicSuffix>` sibling for the consumed ones only.
+
+**Docker-compose note:** the broker runs with `auto.create.topics.enable=false`, so a DLT missing from the `kafka-create-topic` block does not exist and the produce to it throws. `DeadLetterMiddleware` does not catch that throw and KafkaFlow's `ConsumerWorker` commits the offset regardless, so the poison message is dropped with no DLT copy — though the middleware logs the original exception before attempting the produce, so the cause survives. Registering a consumer means adding its DLT line to `kafka-create-topic` **and** to the consuming BC's `TopicsOptions.GetAllTopics()` in the same change; the latter is what turns a forgotten DLT into a red readiness naming that topic instead of a message lost at the first poison payload.
 
 ---
 

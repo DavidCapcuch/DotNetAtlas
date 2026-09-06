@@ -33,7 +33,7 @@ public class HealthChecksDependencyInjectionTests
             .Where(registration => registration.Tags.Contains(ServiceDefaultHealthCheckTags.ReadinessTag))
             .Select(registration => registration.Name)
             .Should().BeEquivalentTo(
-                ["ApplicationLifecycle", "Payments DB", "Kafka"],
+                ["ApplicationLifecycle", "Payments DB", "Kafka", "Kafka topics"],
                 "readiness is the declared dependency set; Payments uses no Redis, and the " +
                 "external payment gateway is not a readiness gate");
     }
@@ -46,6 +46,9 @@ public class HealthChecksDependencyInjectionTests
             ["HealthChecks:DbTimeout"] = "00:00:01",
             ["HealthChecks:KafkaTimeout"] = "00:00:02",
             ["Kafka:Brokers:0"] = "localhost:9092",
+            ["Topics:Transactions"] = "payments.transactions",
+            ["Topics:PaymentCommands"] = "payments.payment-commands",
+            ["Topics:DltTopicSuffix"] = ".Payments.DLT",
         });
 
         var services = new ServiceCollection();

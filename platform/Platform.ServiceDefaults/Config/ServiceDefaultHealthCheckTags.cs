@@ -49,10 +49,17 @@ public static class ServiceDefaultHealthCheckTags
     /// solution does not currently have — every host starts its Kafka bus before <c>RunAsync</c>,
     /// so the socket opens only once the consumers are up — and becomes load-bearing the moment a
     /// hosted service that must finish before traffic is added. A dependency the service can still
-    /// serve traffic without is deliberately excluded: Basket omits Kafka because it publishes
-    /// through the outbox, and every unit omits the Schema Registry because it is contacted
-    /// cold-cache only. Failing is cheap and self-healing — the instance leaves rotation until it
-    /// recovers.
+    /// serve traffic without is deliberately excluded: Basket omits the Kafka broker probe because
+    /// it publishes through the outbox, and every unit omits the Schema Registry because it is
+    /// contacted cold-cache only. Failing is cheap and self-healing — the instance leaves rotation
+    /// until it recovers.
+    /// <para>
+    /// <c>Kafka topics</c> is the one readiness check that does not probe a live dependency. It
+    /// answers whether this instance ever verified that the topics it names exist, and once it has,
+    /// it never contacts the broker again — so a later broker outage cannot flip a running fleet
+    /// through it. Only an instance that has never verified reports Unhealthy, which is why it can
+    /// afford to: it genuinely does not know whether it can do its job.
+    /// </para>
     /// </summary>
     public const string ReadinessTag = "ready";
 

@@ -32,4 +32,20 @@ public sealed class BffTopicsOptions
     [Required]
     [Length(1, MaximumKafkaTopicLength)]
     public required string BasketSessions { get; set; }
+
+    /// <summary>
+    /// The four topics the cache-invalidation consumer subscribes to.
+    /// </summary>
+    /// <remarks>
+    /// No dead-letter siblings: the BFF's consumer pipeline registers no <c>AddDeadLetter</c>
+    /// middleware and this type carries no suffix, so no <c>*.Bff.DLT</c> topic exists or should.
+    /// Verified against the <c>kafka-create-topic</c> block in <c>docker-compose.yaml</c>.
+    /// </remarks>
+    public string[] GetAllTopics() =>
+    [
+        CatalogProducts,
+        CatalogCategories,
+        InventoryStockEvents,
+        BasketSessions
+    ];
 }

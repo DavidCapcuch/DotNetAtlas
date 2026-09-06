@@ -34,9 +34,11 @@ public class HealthChecksDependencyInjectionTests
             .Where(registration => registration.Tags.Contains(ServiceDefaultHealthCheckTags.ReadinessTag))
             .Select(registration => registration.Name)
             .Should().BeEquivalentTo(
-                ["ApplicationLifecycle", "redis-cache"],
-                "readiness is the declared dependency set; the upstream BCs are deliberately " +
-                "absent because probing them would couple the BFF's availability to theirs");
+                ["ApplicationLifecycle", "redis-cache", "Kafka topics"],
+                "readiness is the declared dependency set; the upstream BCs and the Kafka broker " +
+                "are deliberately absent because probing them would couple the BFF's availability " +
+                "to theirs. \"Kafka topics\" does not couple it either: it contacts no broker once " +
+                "the subscribed topics have been verified");
     }
 
     private static IReadOnlyCollection<HealthCheckRegistration> RegisterHealthChecks()
@@ -46,6 +48,11 @@ public class HealthChecksDependencyInjectionTests
         {
             ["HealthChecks:RedisTimeout"] = "00:00:01",
             [$"ConnectionStrings:{BffCacheConstants.RedisCacheConnectionStringName}"] = "localhost:6379",
+            ["Kafka:Brokers:0"] = "localhost:9092",
+            ["Topics:CatalogProducts"] = "catalog.products",
+            ["Topics:CatalogCategories"] = "catalog.categories",
+            ["Topics:InventoryStockEvents"] = "inventory.stock-events",
+            ["Topics:BasketSessions"] = "basket.sessions",
         });
 
         var services = new ServiceCollection();

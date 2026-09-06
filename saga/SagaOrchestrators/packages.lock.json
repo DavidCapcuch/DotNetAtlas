@@ -829,6 +829,12 @@
           "Confluent.SchemaRegistry.Serdes.Avro": "[2.14.0, )"
         }
       },
+      "platform.kafka.topicguard": {
+        "type": "Project",
+        "dependencies": {
+          "Confluent.Kafka": "[2.14.0, )"
+        }
+      },
       "platform.messaging.abstractions": {
         "type": "Project"
       },

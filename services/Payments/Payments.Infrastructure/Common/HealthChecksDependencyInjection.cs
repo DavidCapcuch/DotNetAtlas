@@ -4,9 +4,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Npgsql;
+using Payments.Application.Common.Messaging;
 using Payments.Infrastructure.Common.Config;
 using Payments.Infrastructure.Messaging.Kafka.Config;
 using Payments.Infrastructure.Persistence.Database;
+using Platform.Kafka.TopicGuard;
 using Platform.ServiceDefaults.Config;
 
 namespace Payments.Infrastructure.Common;
@@ -48,6 +50,10 @@ internal static class HealthChecksDependencyInjection
         var kafkaOptions = configuration
             .GetRequiredSection(KafkaOptions.Section)
             .Get<KafkaOptions>()!;
+
+        var topicsOptions = configuration
+            .GetRequiredSection(TopicsOptions.Section)
+            .Get<TopicsOptions>()!;
 
         services.AddHealthChecks()
             .AddApplicationLifecycleHealthCheck([ServiceDefaultHealthCheckTags.ReadinessTag])
@@ -102,7 +108,12 @@ internal static class HealthChecksDependencyInjection
                 name: "Kafka",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
                 failureStatus: HealthStatus.Unhealthy,
-                timeout: timeouts.KafkaTimeout);
+                timeout: timeouts.KafkaTimeout)
+            .AddKafkaTopicsExistenceHealthCheck(
+                kafkaOptions.BrokersFlat,
+                topicsOptions.GetAllTopics(),
+                name: "Kafka topics",
+                tags: [ServiceDefaultHealthCheckTags.ReadinessTag]);
 
         return services;
     }

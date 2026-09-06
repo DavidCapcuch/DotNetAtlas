@@ -1567,6 +1567,7 @@
           "Inventory.Infrastructure": "[1.0.0, )",
           "NetEscapades.AspNetCore.SecurityHeaders": "[1.3.1, )",
           "Platform.Api": "[1.0.0, )",
+          "Platform.Kafka.TopicGuard": "[1.0.0, )",
           "Platform.ServiceDefaults": "[1.0.0, )"
         }
       },
@@ -1623,6 +1624,7 @@
           "OpenTelemetry.Instrumentation.StackExchangeRedis": "[1.15.1-beta.1, )",
           "OpenTelemetry.Resources.Container": "[1.15.1-beta.1, )",
           "OpenTelemetry.Resources.Host": "[1.15.1-beta.1, )",
+          "Platform.Kafka.TopicGuard": "[1.0.0, )",
           "Platform.KafkaFlow.DeadLetter": "[1.0.0, )",
           "Platform.KafkaFlow.Inbox.EFCore": "[1.0.0, )",
           "Platform.KafkaFlow.ProducerHeaders": "[1.0.0, )",
@@ -1664,6 +1666,12 @@
           "Platform.SharedKernel": "[1.0.0, )",
           "Scrutor": "[7.0.0, )",
           "Serilog": "[4.3.1, )"
+        }
+      },
+      "platform.kafka.topicguard": {
+        "type": "Project",
+        "dependencies": {
+          "Confluent.Kafka": "[2.14.0, )"
         }
       },
       "platform.kafkaflow.deadletter": {

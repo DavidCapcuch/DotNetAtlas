@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- Common test packages live in ../../test/Directory.Build.props; the health-check
+         abstractions arrive with the guard's own Microsoft.AspNetCore.App framework reference.
+         The only platform test project that needs a live broker: what a substitute cannot stand in
+         for is the Metadata shape librdkafka hands back and how an unreachable broker fails. -->
+    <ItemGroup>
+        <ProjectReference Include="..\Platform.Kafka.TopicGuard\Platform.Kafka.TopicGuard.csproj"/>
+        <ProjectReference Include="..\Platform.Test.Framework\Platform.Test.Framework.csproj"/>
+    </ItemGroup>
+</Project>

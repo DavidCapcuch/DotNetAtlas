@@ -1243,6 +1243,12 @@
           "Confluent.SchemaRegistry.Serdes.Avro": "[2.14.0, )"
         }
       },
+      "platform.kafka.topicguard": {
+        "type": "Project",
+        "dependencies": {
+          "Confluent.Kafka": "[2.14.0, )"
+        }
+      },
       "platform.messaging.abstractions": {
         "type": "Project"
       },
@@ -1355,6 +1361,7 @@
           "OpenTelemetry.Resources.Container": "[1.15.1-beta.1, )",
           "OpenTelemetry.Resources.Host": "[1.15.1-beta.1, )",
           "Platform.Avro.UniversalSerDes": "[1.0.0, )",
+          "Platform.Kafka.TopicGuard": "[1.0.0, )",
           "Platform.ReliableMessaging.Outbox.Core": "[1.0.0, )",
           "Platform.ReliableMessaging.Outbox.EFCore": "[1.0.0, )",
           "Platform.SchemaRegistry.Contracts": "[1.0.0, )",

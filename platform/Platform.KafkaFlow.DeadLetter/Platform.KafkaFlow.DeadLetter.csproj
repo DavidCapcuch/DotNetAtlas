@@ -14,4 +14,12 @@
         <!-- RetryableException marker consumed by ConsumerRetry.IsRetryable (ADR-0025). -->
         <ProjectReference Include="..\Platform.SharedKernel\Platform.SharedKernel.csproj"/>
     </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Platform.KafkaFlow.DeadLetter.UnitTests"/>
+
+        <!-- IMessageProducer&lt;DeadLetterMiddleware&gt; names an internal type as its generic
+             argument, so Castle DynamicProxy cannot build a substitute for it without this. -->
+        <InternalsVisibleTo Include="DynamicProxyGenAssembly2"/>
+    </ItemGroup>
 </Project>

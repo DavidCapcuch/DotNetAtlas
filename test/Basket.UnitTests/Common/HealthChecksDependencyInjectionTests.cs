@@ -34,9 +34,11 @@ public class HealthChecksDependencyInjectionTests
             .Where(registration => registration.Tags.Contains(ServiceDefaultHealthCheckTags.ReadinessTag))
             .Select(registration => registration.Name)
             .Should().BeEquivalentTo(
-                ["ApplicationLifecycle", "Basket DB", "redis-basket", "redis-cache"],
-                "readiness is the declared dependency set; Kafka is deliberately absent because " +
-                "Basket publishes through the outbox and runs no in-process consumer");
+                ["ApplicationLifecycle", "Basket DB", "redis-basket", "redis-cache", "Kafka topics"],
+                "readiness is the declared dependency set; the Kafka broker probe is deliberately " +
+                "absent because Basket publishes through the outbox and runs no in-process " +
+                "consumer, so a broker outage breaks no Basket HTTP path. \"Kafka topics\" is not " +
+                "that probe: it contacts no broker once basket.sessions has been verified");
     }
 
     private static IReadOnlyCollection<HealthCheckRegistration> RegisterHealthChecks()
@@ -49,6 +51,8 @@ public class HealthChecksDependencyInjectionTests
             ["ConnectionStrings:Redis:Basket"] = "localhost:6380",
             [$"ConnectionStrings:{IdempotencyKeyServiceCollectionExtensions.RedisConnectionStringName}"] =
                 "localhost:6379",
+            ["Kafka:Brokers:0"] = "localhost:9092",
+            ["Topics:BasketSessions"] = "basket.sessions",
         });
 
         var services = new ServiceCollection();

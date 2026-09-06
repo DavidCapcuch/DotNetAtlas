@@ -1,11 +1,14 @@
 using Avro.Specific;
 using EShop.BFF.Api.Responses;
 using EShop.BFF.Infrastructure.Caching;
+using EShop.BFF.Infrastructure.Messaging.Config;
 using FastEndpoints.Testing;
 using KafkaFlow;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Platform.Test.Framework;
 using Platform.Test.Framework.Kafka;
 using Platform.Test.Framework.Redis;
 using ZiggyCreatures.Caching.Fusion;
@@ -26,10 +29,17 @@ internal sealed class CacheInvalidationTestCollection : TestCollection<CacheInva
 [DisableWafCache]
 public sealed class CacheInvalidationTestFixture : AppFixture<Program>
 {
-    public const string CatalogProductsTopic = "catalog.products";
-    public const string CatalogCategoriesTopic = "catalog.categories";
-    public const string InventoryStockEventsTopic = "inventory.stock-events";
-    public const string BasketSessionsTopic = "basket.sessions";
+    /// <summary>
+    /// Read from the BFF's own <c>appsettings.json</c> rather than spelled here. The readiness
+    /// check verifies this exact set, so a literal that drifted from configuration would turn the
+    /// probe red naming a topic no test mentions.
+    /// </summary>
+    private static readonly BffTopicsOptions Topics = LoadTopicsFromConfiguration();
+
+    public static string CatalogProductsTopic => Topics.CatalogProducts;
+    public static string CatalogCategoriesTopic => Topics.CatalogCategories;
+    public static string InventoryStockEventsTopic => Topics.InventoryStockEvents;
+    public static string BasketSessionsTopic => Topics.BasketSessions;
 
     private readonly RedisTestContainer _redisContainer = new();
     private readonly KafkaTestContainer _kafkaContainer = new();
@@ -41,8 +51,7 @@ public sealed class CacheInvalidationTestFixture : AppFixture<Program>
     {
         await _redisContainer.StartAsync();
         await _kafkaContainer.StartAsync();
-        await _kafkaContainer.CreateKafkaTopicsAsync(
-            [CatalogProductsTopic, CatalogCategoriesTopic, InventoryStockEventsTopic, BasketSessionsTopic]);
+        await _kafkaContainer.CreateKafkaTopicsAsync(Topics.GetAllTopics());
     }
 
     protected override IHost ConfigureAppHost(IHostBuilder a)
@@ -137,5 +146,21 @@ public sealed class CacheInvalidationTestFixture : AppFixture<Program>
         _producer?.Dispose();
         await _kafkaContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();
+    }
+
+    private static BffTopicsOptions LoadTopicsFromConfiguration()
+    {
+        var bffApiPath = Path.Combine(
+            SolutionPaths.GetSolutionRootDirectory(), "src", "EShop.BFF", "EShop.BFF.Api");
+
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(bffApiPath)
+            .AddJsonFile("appsettings.json", optional: false)
+            .Build();
+
+        return configuration.GetSection(BffTopicsOptions.Section).Get<BffTopicsOptions>()
+               ?? throw new InvalidOperationException(
+                   $"Failed to bind configuration section '{BffTopicsOptions.Section}' to "
+                   + $"{nameof(BffTopicsOptions)}. Verify appsettings.json carries the topic values.");
     }
 }

@@ -34,7 +34,7 @@ public class HealthChecksDependencyInjectionTests
             .Where(registration => registration.Tags.Contains(ServiceDefaultHealthCheckTags.ReadinessTag))
             .Select(registration => registration.Name)
             .Should().BeEquivalentTo(
-                ["ApplicationLifecycle", "Inventory DB", "redis-cache", "Kafka"],
+                ["ApplicationLifecycle", "Inventory DB", "redis-cache", "Kafka", "Kafka topics"],
                 "readiness is the declared dependency set; the Schema Registry is deliberately " +
                 "absent because it is contacted cold-cache only");
     }
@@ -50,6 +50,12 @@ public class HealthChecksDependencyInjectionTests
             ["Kafka:Brokers:0"] = "localhost:9092",
             [$"ConnectionStrings:{IdempotencyKeyServiceCollectionExtensions.RedisConnectionStringName}"] =
                 "localhost:6379",
+            ["Topics:InventoryStockEvents"] = "inventory.stock-events",
+            ["Topics:InventoryReservations"] = "inventory.reservations",
+            ["Topics:InventoryReservationCommands"] = "inventory.reservation-commands",
+            ["Topics:CatalogProducts"] = "catalog.products",
+            ["Topics:OrderingOrders"] = "ordering.orders",
+            ["Topics:DltTopicSuffix"] = ".Inventory.DLT",
         });
 
         var services = new ServiceCollection();

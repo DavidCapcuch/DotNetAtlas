@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- Project-specific packages only (common test packages in ../../test/Directory.Build.props). -->
+    <ItemGroup>
+        <!-- Confluent.Kafka (CPM-pinned 2.14.0) aligns the transitive version surfaced by the
+             TopicGuard project reference, avoiding MSB3277 (test projects disable transitive
+             pinning). IAdminClient is substituted directly, so it is referenced here too. -->
+        <PackageReference Include="Confluent.Kafka"/>
+        <PackageReference Include="NSubstitute"/>
+        <PackageReference Include="NSubstitute.Analyzers.CSharp">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Platform.Kafka.TopicGuard\Platform.Kafka.TopicGuard.csproj"/>
+    </ItemGroup>
+</Project>

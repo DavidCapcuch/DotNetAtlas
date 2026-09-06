@@ -77,5 +77,24 @@ public sealed class TopicsOptions
     /// </summary>
     [Required]
     [Length(1, 64)]
+    [RegularExpression(
+        @"^\..+",
+        ErrorMessage = "DltTopicSuffix must start with a dot.")]
     public required string DltTopicSuffix { get; set; }
+
+    /// <summary>
+    /// Every topic Inventory needs provisioned, verified by its readiness check. Consumed topics also contribute
+    /// their dead-letter sibling — see <c>docs/bc-design/kafka-dlt-strategy.md</c>.
+    /// </summary>
+    public string[] GetAllTopics() =>
+    [
+        InventoryStockEvents,
+        InventoryReservations,
+        InventoryReservationCommands,
+        InventoryReservationCommands + DltTopicSuffix,
+        CatalogProducts,
+        CatalogProducts + DltTopicSuffix,
+        OrderingOrders,
+        OrderingOrders + DltTopicSuffix
+    ];
 }

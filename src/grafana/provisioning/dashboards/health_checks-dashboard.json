@@ -168,6 +168,73 @@
         "type": "prometheus",
         "uid": "webstore-metrics"
       },
+      "description": "Scrape targets that are down. A crash-looping container stops being scraped, so its healthcheck series disappear rather than going to zero - the Unhealthy panel then reads 0 for a service that is dead. This is the dead man's switch for that: a container that fails to boot at all, or one killed mid-restart, shows up here and nowhere else.",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 16,
+        "y": 7
+      },
+      "id": 20,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.1.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "webstore-metrics"
+          },
+          "editorMode": "code",
+          "expr": "count(up{job=\"bc-healthchecks\"} == 0) or on() vector(0)",
+          "legendFormat": "Down",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Targets Down (not scraped)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "webstore-metrics"
+      },
       "fieldConfig": {
         "defaults": {
           "mappings": [],

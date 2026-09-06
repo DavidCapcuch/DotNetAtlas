@@ -44,6 +44,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Ordering.Application\Ordering.Application.csproj" />
+        <ProjectReference Include="..\..\..\platform\Platform.Kafka.TopicGuard\Platform.Kafka.TopicGuard.csproj" />
         <ProjectReference Include="..\..\..\platform\Platform.KafkaFlow.DeadLetter\Platform.KafkaFlow.DeadLetter.csproj" />
         <ProjectReference Include="..\..\..\platform\Platform.KafkaFlow.Inbox.EFCore\Platform.KafkaFlow.Inbox.EFCore.csproj" />
         <ProjectReference Include="..\..\..\platform\Platform.KafkaFlow.ProducerHeaders\Platform.KafkaFlow.ProducerHeaders.csproj" />
