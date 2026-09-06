@@ -183,6 +183,10 @@ public class OrderEventKafkaHandler : IMessageHandler<OrderPlacedEvent>
 
 **Note:** The `AddOutboxMessage` method automatically generates OpenTelemetry trace headers (`traceparent`, `tracestate`, `baggage`) from `Activity.Current`, plus `message.id` (GUID v7) and `origin` (from `ConfigureMessageOrigin`). Custom headers are not supported - use OpenTelemetry baggage for custom context propagation.
 
+The `headers` column is `character varying(8192)` and `SerializeHeaders` throws above that, so keep baggage small. ASP.NET Core instrumentation hydrates baggage from the inbound `baggage` request header, so a caller sending a large one fails its own writes.
+
+The relay copies these headers onto the Kafka message, then overwrites `traceparent`/`tracestate` with its own produce span - which is parented on the row's context. The consumer is therefore a child of the relay's produce span, and the row's headers remain the link back to the request that queued it.
+
 ## API Reference
 
 ### Dependency Injection

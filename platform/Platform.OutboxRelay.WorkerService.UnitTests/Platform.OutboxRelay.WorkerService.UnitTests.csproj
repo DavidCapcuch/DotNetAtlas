@@ -6,6 +6,11 @@
              WorkerService project reference, avoiding MSB3277 (test projects disable transitive
              pinning). The tests also name ProducerConfig/Acks directly. -->
         <PackageReference Include="Confluent.Kafka"/>
+
+        <!-- The OTel SDK already flows transitively via the WorkerService project reference; named
+             directly so KafkaProducerDiagnosticsTests' use of Sdk.SetDefaultTextMapPropagator does
+             not depend on the WorkerService keeping an OTel package. -->
+        <PackageReference Include="OpenTelemetry"/>
     </ItemGroup>
 
     <ItemGroup>

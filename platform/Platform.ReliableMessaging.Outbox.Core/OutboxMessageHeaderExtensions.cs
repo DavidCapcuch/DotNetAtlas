@@ -23,8 +23,6 @@ public static class OutboxMessageHeaderExtensions
         PropertyNamingPolicy = null // Keep original casing
     };
 
-    private static readonly TextMapPropagator OtelPropagator = Propagators.DefaultTextMapPropagator;
-
     /// <summary>
     /// Serializes headers dictionary to JSON format for storage.
     /// </summary>
@@ -77,9 +75,9 @@ public static class OutboxMessageHeaderExtensions
     /// <summary>
     /// Builds the outbox-row headers dictionary from the ambient <see cref="Activity"/>, injecting
     /// the OpenTelemetry W3C Trace Context (<c>traceparent</c>, <c>tracestate</c>, <c>baggage</c>)
-    /// via <c>Propagators.DefaultTextMapPropagator</c>. The outbox-relay path copies the row's
-    /// headers verbatim onto the produced Kafka message (the relay's <c>BuildKafkaHeaders</c>), so
-    /// the trace stitches across the outbox boundary end-to-end.
+    /// through <see cref="OutboxTraceContext.Propagator"/>. The relay parents its produce span on
+    /// this context and then stamps that span onto the Kafka message, so the trace runs
+    /// HTTP → outbox row → relay produce → consumer as one chain.
     /// </summary>
     /// <param name="activity">The current Activity with tracing context.</param>
     /// <returns>Headers dictionary ready for serialization, or null if no activity.</returns>
@@ -93,7 +91,7 @@ public static class OutboxMessageHeaderExtensions
         var headers = new Dictionary<string, string>();
         var propagationContext = new PropagationContext(activity.Context, Baggage.Current);
 
-        OtelPropagator.Inject(propagationContext, headers, InjectTraceContext);
+        OutboxTraceContext.Propagator.Inject(propagationContext, headers, InjectTraceContext);
 
         return headers.Count > 0 ? headers : null;
     }

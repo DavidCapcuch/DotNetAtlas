@@ -175,7 +175,7 @@ public sealed class OutboxMessageRelay : IDisposable
 
         var topicName = string.Intern(outboxMessage.TopicName);
 
-        var producerActivity = KafkaProducerDiagnostics.StartProduceActivity(topicName, kafkaMessage, messageHeaders);
+        var producerActivity = KafkaProducerDiagnostics.StartProduceActivityAndStampTraceContext(topicName, kafkaMessage, messageHeaders);
 
         // Don't use await ProduceAsync unless in http context,
         // see https://github.com/confluentinc/confluent-kafka-dotnet/wiki/Producer
