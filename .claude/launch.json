@@ -2,34 +2,155 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "ordering-api",
+      "name": "basket-api",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "services/Ordering/Ordering.Api", "--launch-profile", "http"],
-      "port": 5105
+      "runtimeArgs": ["run", "--project", "services/Basket/Basket.Api", "--launch-profile", "Basket.Api"],
+      "port": 5100
     },
     {
-      "name": "sagas-worker",
+      "name": "catalog-api",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "saga/SagaOrchestrators", "--launch-profile", "SagaOrchestrators.Local"],
-      "port": 65420
+      "runtimeArgs": ["run", "--project", "services/Catalog/Catalog.Api", "--launch-profile", "Catalog.Api"],
+      "port": 5101
     },
     {
-      "name": "payments-api",
+      "name": "inventory-api",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "services/Payments/Payments.Api", "--launch-profile", "http"],
-      "port": 5106
+      "runtimeArgs": ["run", "--project", "services/Inventory/Inventory.Api", "--launch-profile", "Inventory.Api"],
+      "port": 5102
+    },
+    {
+      "name": "invoicing-api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "services/Invoicing/Invoicing.Api", "--launch-profile", "Invoicing.Api"],
+      "port": 5103
     },
     {
       "name": "notifications-api",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "services/Notifications/Notifications.Api", "--launch-profile", "http"],
+      "runtimeArgs": ["run", "--project", "services/Notifications/Notifications.Api", "--launch-profile", "Notifications.Api"],
       "port": 5104
+    },
+    {
+      "name": "ordering-api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "services/Ordering/Ordering.Api", "--launch-profile", "Ordering.Api"],
+      "port": 5105
+    },
+    {
+      "name": "payments-api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "services/Payments/Payments.Api", "--launch-profile", "Payments.Api"],
+      "port": 5106
+    },
+    {
+      "name": "sagas-worker",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "saga/SagaOrchestrators", "--launch-profile", "SagaOrchestrators"],
+      "port": 5107
     },
     {
       "name": "outbox-relay",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "platform/Platform.OutboxRelay.WorkerService", "--launch-profile", "Platform.OutboxRelay.WorkerService.Local"],
-      "port": 65410
+      "runtimeArgs": ["run", "--project", "platform/Platform.OutboxRelay.WorkerService", "--launch-profile", "Platform.OutboxRelay.WorkerService"],
+      "port": 5108
+    },
+
+    {
+      "name": "compose-grafana",
+      "url": "http://localhost:3000",
+      "port": 3000
+    },
+    {
+      "name": "compose-prometheus",
+      "url": "http://localhost:9090",
+      "port": 9090
+    },
+    {
+      "name": "compose-jaeger",
+      "url": "http://localhost:16686",
+      "port": 16686
+    },
+    {
+      "name": "compose-akhq",
+      "url": "http://localhost:9000",
+      "port": 9000
+    },
+    {
+      "name": "compose-seq",
+      "url": "http://localhost:5341",
+      "port": 5341
+    },
+    {
+      "name": "compose-mailpit",
+      "url": "http://localhost:8025",
+      "port": 8025
+    },
+    {
+      "name": "compose-redis-insight",
+      "url": "http://localhost:5540",
+      "port": 5540
+    },
+    {
+      "name": "compose-keycloak",
+      "url": "http://localhost:9011",
+      "port": 9011
+    },
+    {
+      "name": "compose-schema-registry",
+      "url": "http://localhost:8081",
+      "port": 8081
+    },
+    {
+      "name": "compose-nginx-cdn",
+      "url": "http://localhost:8080",
+      "port": 8080
+    },
+
+    {
+      "name": "compose-catalog-api",
+      "url": "http://localhost:8100",
+      "port": 8100
+    },
+    {
+      "name": "compose-ordering-api",
+      "url": "http://localhost:8101",
+      "port": 8101
+    },
+    {
+      "name": "compose-invoicing-api",
+      "url": "http://localhost:8102",
+      "port": 8102
+    },
+    {
+      "name": "compose-notifications-api",
+      "url": "http://localhost:8103",
+      "port": 8103
+    },
+    {
+      "name": "compose-basket-api",
+      "url": "http://localhost:8104",
+      "port": 8104
+    },
+    {
+      "name": "compose-inventory-api",
+      "url": "http://localhost:8105",
+      "port": 8105
+    },
+    {
+      "name": "compose-payments-api",
+      "url": "http://localhost:8106",
+      "port": 8106
+    },
+    {
+      "name": "compose-saga",
+      "url": "http://localhost:8107",
+      "port": 8107
+    },
+    {
+      "name": "compose-bff-api",
+      "url": "http://localhost:8108",
+      "port": 8108
     }
   ]
 }
