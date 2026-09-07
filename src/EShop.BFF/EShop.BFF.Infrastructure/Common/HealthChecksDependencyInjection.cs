@@ -10,11 +10,20 @@ using Platform.ServiceDefaults.Config;
 namespace EShop.BFF.Infrastructure.Common;
 
 /// <summary>
-/// Readiness-probe surface — <c>ApplicationLifecycle</c> and <c>redis-cache</c>. The BFF holds no
-/// state of its own, so nothing here is restart-fixable and its liveness set is empty
-/// (see <see cref="ServiceDefaultHealthCheckTags.LivenessTag"/>). Request-time graceful degradation
-/// when redis-cache is down lives in FusionCache (it falls back to the upstreams); the readiness
-/// gate simply reflects the declared dependency.
+/// Readiness-probe surface — <c>ApplicationLifecycle</c>, <c>redis-cache</c> and the Kafka topics.
+/// The BFF holds no state of its own, so nothing here is restart-fixable and its liveness set is
+/// empty (see <see cref="ServiceDefaultHealthCheckTags.LivenessTag"/>).
+/// <c>redis-cache</c> reports <see cref="HealthStatus.Degraded"/> because FusionCache falls back to
+/// the upstreams when it is down, so the BFF still serves. Degraded leaves readiness at 200 —
+/// <c>MapPlatformHealthCheckEndpoints</c> takes the framework default rather than setting
+/// <c>ResultStatusCodes</c> — so the instance stays in rotation. Why that is the right call, and
+/// not the <see cref="HealthStatus.Unhealthy"/> its siblings register: ADR-0016.
+/// <para>
+/// Consequently no check here can fail once the host is up: ApplicationLifecycle reports only
+/// while starting or stopping, the Kafka-topics check latches Healthy once its topics verify, and
+/// <c>redis-cache</c> is Degraded. A 200 on readiness means this instance can serve — not that
+/// every dependency is up; the per-check Prometheus gauge is what carries that.
+/// </para>
 /// </summary>
 internal static class HealthChecksDependencyInjection
 {
@@ -63,10 +72,10 @@ internal static class HealthChecksDependencyInjection
                 $",syncTimeout={redisProbeMs},asyncTimeout={redisProbeMs}",
                 name: "redis-cache",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
-                failureStatus: HealthStatus.Unhealthy,
+                failureStatus: HealthStatus.Degraded,
                 timeout: timeouts.RedisTimeout)
-            // The BFF still probes no upstream BC and no Kafka broker — invalidation is off the
-            // request path, so a stalled consumer means stale cache, not an inability to serve.
+            // The BFF still probes no upstream BC and no Kafka broker health — invalidation is
+            // off the request path, so a stalled consumer means stale cache, not an inability to serve.
             .AddKafkaTopicsExistenceHealthCheck(
                 kafkaOptions.BrokersFlat,
                 topicsOptions.GetAllTopics(),

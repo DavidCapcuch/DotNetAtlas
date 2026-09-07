@@ -9,8 +9,9 @@ using Platform.ServiceDefaults.Config;
 namespace EShop.BFF.UnitTests.Common;
 
 /// <summary>
-/// Pins which tag each BFF health check carries. Rationale for the liveness/readiness
-/// split: <see cref="ServiceDefaultHealthCheckTags.LivenessTag"/>.
+/// Pins which tag each BFF health check carries, and the status a failing <c>redis-cache</c>
+/// reports. Rationale for the liveness/readiness split:
+/// <see cref="ServiceDefaultHealthCheckTags.LivenessTag"/>.
 /// </summary>
 public class HealthChecksDependencyInjectionTests
 {
@@ -39,6 +40,22 @@ public class HealthChecksDependencyInjectionTests
                 "are deliberately absent because probing them would couple the BFF's availability " +
                 "to theirs. \"Kafka topics\" does not couple it either: it contacts no broker once " +
                 "the subscribed topics have been verified");
+    }
+
+    /// <summary>
+    /// <c>AddRedis</c>'s check returns <c>context.Registration.FailureStatus</c> on every failure
+    /// path, so the registration argument is what decides. Nothing else reads the value back, so a
+    /// wrong one is silent until an outage.
+    /// </summary>
+    [Fact]
+    public void AddBffHealthChecks_RegistersRedisCacheAsDegradedOnFailure()
+    {
+        RegisterHealthChecks()
+            .Single(registration => registration.Name == "redis-cache")
+            .FailureStatus
+            .Should().Be(
+                HealthStatus.Degraded,
+                "the BFF serves uncached without redis-cache, so readiness stays 200 — see ADR-0016");
     }
 
     private static IReadOnlyCollection<HealthCheckRegistration> RegisterHealthChecks()

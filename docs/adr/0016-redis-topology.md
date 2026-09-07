@@ -130,11 +130,17 @@ Rationale for config:
 }
 ```
 
-Basket's `PersistenceDependencyInjection` registers `IConnectionMultiplexer` keyed to `Redis:Basket`. BFF's FusionCache L2 backplane points to `Redis:Cache`. Other services (Catalog, Ordering, Inventory, Payments, Invoicing) use `Redis:Cache` for cached HTTP client responses and similar ephemeral state.
+Basket's `PersistenceDependencyInjection` registers `IConnectionMultiplexer` keyed to `Redis:Basket`. BFF's FusionCache L2 backplane points to `Redis:Cache`. Every other service that needs ephemeral state — chiefly the idempotency-key OutputCache — uses `Redis:Cache`; a service with no such need wires no Redis at all.
 
 ### Health checks
 
-Both instances expose `/healthz` via a service-side check — Basket's readiness fails if `redis-basket` is unreachable; BFF's degrades if `redis-cache` is down (still serves uncached responses).
+Both instances are probed on the readiness endpoint (`/api/readiness`); liveness (`/api/healthz`) probes neither. Each service's own registration sets the status via `failureStatus:`, and is the source of truth for which services probe what.
+
+**The rule: one fail-closed consumer forces `Unhealthy`.** A service reports `Degraded` only where *every* consumer it puts on that instance falls through.
+
+- **`redis-basket`** — `Unhealthy`: the authoritative store, so no basket path serves without it.
+- **`redis-cache`** — `Unhealthy` wherever a fail-closed consumer uses it, chiefly the idempotency-key OutputCache ([ADR-0013](0013-idempotency-key-http.md)), hit on every idempotent write. Pairing that with a degradable cache on the same instance does not soften it — the fail-closed consumer decides.
+- **`redis-cache`** — `Degraded` in the BFF, today the only service whose every consumer falls through: the FusionCache L2 + backplane recomposes from the upstreams, so the BFF still serves uncached responses and readiness stays 200. Every replica shares the one instance, so failing readiness would drop them all from rotation while none of them is broken — the rule [ADR-0001](0001-centralized-saga-orchestration.md) sets for `StuckSagaHealthCheck`. **This flips when `POST /api/v1/bff/checkout` lands** ([bff.md](../bc-design/bff.md) § 3.5): it puts a fail-closed idempotency store on `redis-cache`, moving the BFF to the bullet above.
 
 ### Architecture tests
 

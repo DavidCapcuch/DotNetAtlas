@@ -553,8 +553,9 @@ services:
     profiles:
       - full
     depends_on:
-      # redis-cache is the only readiness-gating dependency (ADR-0016): the BFF degrades
-      # gracefully without it. keycloak is needed for the outbound service token.
+      # redis-cache must be healthy before the BFF starts. It does NOT gate the BFF's readiness
+      # once running — that check reports Degraded, because the BFF serves uncached without it
+      # (ADR-0016). keycloak is needed for the outbound service token.
       redis-cache:
         condition: service_healthy
       keycloak:
