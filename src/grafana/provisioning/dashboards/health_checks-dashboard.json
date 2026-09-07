@@ -40,8 +40,13 @@
         "type": "prometheus",
         "uid": "webstore-metrics"
       },
+      "description": "Counts the health checks currently reporting, not the failing ones - cardinality, not severity. Deliberately uncoloured: any colour here would read as a health claim beside the severity tiles it sits with. The fixed neutral colour keeps that true even if the display mode is changed.",
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "fixedColor": "text",
+            "mode": "fixed"
+          },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -49,10 +54,6 @@
               {
                 "color": "green",
                 "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           },
@@ -62,13 +63,13 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 8,
-        "x": 0,
+        "w": 4,
+        "x": 8,
         "y": 1
       },
       "id": 1,
       "options": {
-        "colorMode": "background",
+        "colorMode": "none",
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
@@ -113,8 +114,15 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "transparent"
+              },
+              {
+                "color": "green",
                 "value": 0
+              },
+              {
+                "color": "red",
+                "value": 1
               }
             ]
           },
@@ -124,8 +132,8 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 8,
-        "x": 8,
+        "w": 4,
+        "x": 12,
         "y": 1
       },
       "id": 2,
@@ -168,13 +176,16 @@
         "type": "prometheus",
         "uid": "webstore-metrics"
       },
-      "description": "Scrape targets that are down. A crash-looping container stops being scraped, so its healthcheck series disappear rather than going to zero - the Unhealthy panel then reads 0 for a service that is dead. This is the dead man's switch for that: a container that fails to boot at all, or one killed mid-restart, shows up here and nowhere else.",
+      "description": "Scrape targets that are down. A crash-looping container stops being scraped, so its healthcheck series disappear rather than going to zero - the Unhealthy panel then reads 0 for a service that is dead. This is the dead man's switch for that: a container that fails to boot at all, or one killed mid-restart, shows up here and nowhere else - which is why it sits beside Unhealthy in the Overall band rather than under a row of its own.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
+              {
+                "color": "transparent"
+              },
               {
                 "color": "green",
                 "value": 0
@@ -191,9 +202,9 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 8,
-        "x": 16,
-        "y": 7
+        "w": 4,
+        "x": 20,
+        "y": 1
       },
       "id": 20,
       "options": {
@@ -227,7 +238,163 @@
           "refId": "A"
         }
       ],
-      "title": "Targets Down (not scraped)",
+      "title": "Targets Down",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "webstore-metrics"
+      },
+      "description": "Fires when no healthcheck series exist for job bc-healthchecks at all. The severity tiles beside it fall back to or on() vector(0), so a job or metric rename makes them read 0 and render green - an all-clear for a board measuring nothing; Targets Down cannot catch a metric rename because the targets are still scraped. Keep sum(): without it the two or-branches carry different label sets, and a range spanning the metric arriving renders two series. Job-wide and all-or-nothing within one job - the outbox-relay-healthchecks targets are outside both guards.",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "green",
+                  "index": 0,
+                  "text": "OK"
+                },
+                "1": {
+                  "color": "red",
+                  "index": 1,
+                  "text": "MISSING"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent"
+              },
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "id": 21,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.1.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "webstore-metrics"
+          },
+          "editorMode": "code",
+          "expr": "sum(absent(healthcheck{job=\"bc-healthchecks\"})) or on() vector(0)",
+          "legendFormat": "Missing",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Metric Missing",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "webstore-metrics"
+      },
+      "description": "Fires when a target is scraped successfully but emits no healthcheck series - one service whose checks were dropped while its container stays up. Metric Missing cannot catch that, because the other services are still emitting. A set difference, not count-minus-count: the arithmetic form cancels a not-reporting target against a down target whose series are still stale. Job-wide: the app filter does not apply.",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent"
+              },
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "id": 22,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.1.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "webstore-metrics"
+          },
+          "editorMode": "code",
+          "expr": "count(up{job=\"bc-healthchecks\"} == 1 unless on(instance, app) healthcheck{job=\"bc-healthchecks\"}) or on() vector(0)",
+          "legendFormat": "Not reporting",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Not Reporting",
       "type": "stat"
     },
     {
@@ -242,8 +409,15 @@
             "mode": "absolute",
             "steps": [
               {
+                "color": "transparent"
+              },
+              {
                 "color": "green",
                 "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 1
               }
             ]
           },
@@ -253,7 +427,7 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 8,
+        "w": 4,
         "x": 16,
         "y": 1
       },
@@ -413,8 +587,13 @@
         "type": "prometheus",
         "uid": "webstore-metrics"
       },
+      "description": "Deliberately uncoloured - no duration threshold is set, so any colour here would be decorative, and a full-width green block reads as an all-clear when the panel has no data.",
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "fixedColor": "text",
+            "mode": "fixed"
+          },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -437,7 +616,7 @@
       "id": 7,
       "maxPerRow": 6,
       "options": {
-        "colorMode": "background",
+        "colorMode": "none",
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
@@ -575,7 +754,7 @@
     }
   ],
   "preload": false,
-  "refresh": "",
+  "refresh": "30s",
   "schemaVersion": 41,
   "tags": [],
   "templating": {
