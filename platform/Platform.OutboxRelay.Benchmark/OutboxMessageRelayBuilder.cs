@@ -1,6 +1,5 @@
 using Confluent.Kafka;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -61,7 +60,6 @@ public sealed class OutboxMessageRelayBuilder
         var dbContextFactory = _serviceProvider.GetRequiredService<IDbContextFactory<OutboxDbContext>>();
         var logger = _serviceProvider.GetRequiredService<ILogger<OutboxMessageRelay>>();
         var metrics = _serviceProvider.GetRequiredService<OutboxRelayMetrics>();
-        var cache = _serviceProvider.GetRequiredService<IMemoryCache>();
 
         // Clone options for customization
         var kafkaProducerOptions =
@@ -84,7 +82,7 @@ public sealed class OutboxMessageRelayBuilder
         var producer = new ProducerBuilder<string?, byte[]>(kafkaProducerOptions).Build();
         var outboxMessageRelay = new OutboxMessageRelay(
             dbContextFactory, producer, Options.Create(outboxRelayOptions),
-            logger, metrics, cache);
+            logger, metrics);
 
         return outboxMessageRelay;
     }

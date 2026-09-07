@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Text;
 using Confluent.Kafka;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Platform.OutboxRelay.WorkerService.Observability.Metrics;
 using Platform.OutboxRelay.WorkerService.Observability.Tracing;
@@ -13,14 +12,11 @@ namespace Platform.OutboxRelay.WorkerService.OutboxRelay;
 
 public sealed class OutboxMessageRelay : IDisposable
 {
-    private const string LastSentIdCacheKey = "OutboxProcessor_LastSentId";
-
     private readonly IDbContextFactory<OutboxDbContext> _dbContextFactory;
     private readonly IProducer<string?, byte[]> _kafkaProducer;
     private readonly OutboxRelayOptions _outboxRelayOptions;
     private readonly ILogger<OutboxMessageRelay> _logger;
     private readonly OutboxRelayMetrics _outboxRelayMetrics;
-    private readonly IMemoryCache _memoryCache;
     private bool _disposed;
 
     public OutboxMessageRelay(
@@ -28,23 +24,31 @@ public sealed class OutboxMessageRelay : IDisposable
         IProducer<string?, byte[]> kafkaProducer,
         IOptions<OutboxRelayOptions> options,
         ILogger<OutboxMessageRelay> logger,
-        OutboxRelayMetrics outboxRelayMetrics,
-        IMemoryCache memoryCache)
+        OutboxRelayMetrics outboxRelayMetrics)
     {
         _dbContextFactory = dbContextFactory;
         _kafkaProducer = kafkaProducer;
         _outboxRelayOptions = options.Value;
         _logger = logger;
         _outboxRelayMetrics = outboxRelayMetrics;
-        _memoryCache = memoryCache;
     }
 
     /// <summary>
-    /// Publishes a batch of unpublished outbox messages with an "at least once" delivery guarantee.
-    /// Only messages confirmed as delivered are deleted from the outbox.
-    /// On error, tracks the earliest failed message ID and deletes all messages before it.
+    /// Publishes a batch of outbox messages with an "at least once" delivery guarantee, then deletes
+    /// exactly the rows the broker acknowledged.
     /// </summary>
-    /// <returns>True if all messages were successfully delivered and confirmed, false otherwise.</returns>
+    /// <remarks>
+    /// The relay keeps no record of what it has published — the outbox table is the record, and the
+    /// delete is the only suppression. A row the delete could not remove is simply selected again on
+    /// the next poll, published again, and the delete retried; consumers dedupe on the
+    /// <c>message.id</c> header (see <c>Platform.KafkaFlow.Inbox.EFCore</c>). The poll loop is the
+    /// retry, so there is no retry state to hold.
+    /// </remarks>
+    /// <returns>
+    /// True when the batch was delivered, confirmed, and cleared from the table. False leaves
+    /// <c>LastSuccessfulExecution</c> unstamped, which is what makes a relay that cannot drain its
+    /// outbox visible to the health check rather than silently idle.
+    /// </returns>
     public async Task<bool> PublishOutboxMessagesAsync(CancellationToken ct)
     {
         var publishedMessagesCount = 0;
@@ -53,11 +57,8 @@ public sealed class OutboxMessageRelay : IDisposable
 
         var startTimestamp = Stopwatch.GetTimestamp();
 
-        var maxDeleteId = 0L;
-        var lastSentIdSnapshot = _memoryCache.Get<long>(LastSentIdCacheKey);
         await using var outboxDbContext = await _dbContextFactory.CreateDbContextAsync(ct);
         var outboxMessages = await outboxDbContext.OutboxMessages
-            .Where(m => m.Id > lastSentIdSnapshot)
             .OrderBy(m => m.Id)
             .Take(_outboxRelayOptions.BatchSize)
             .ToListAsync(ct);
@@ -66,6 +67,8 @@ public sealed class OutboxMessageRelay : IDisposable
         {
             return true;
         }
+
+        var producedIds = new List<long>(outboxMessages.Count);
 
         using var deliveryFailureTracker = new DeliveryFailureTracker(_logger, ct);
         foreach (var outboxMessage in outboxMessages)
@@ -85,7 +88,7 @@ public sealed class OutboxMessageRelay : IDisposable
 
                 publishedMessagesCount++;
                 publishedMessagesByType[messageType] = publishedMessagesByType.GetValueOrDefault(messageType, 0) + 1;
-                maxDeleteId = outboxMessage.Id;
+                producedIds.Add(outboxMessage.Id);
             }
             catch (Exception ex)
             {
@@ -108,36 +111,42 @@ public sealed class OutboxMessageRelay : IDisposable
         var earliestFailedId = deliveryFailureTracker.GetEarliestFailedMessageId();
         if (earliestFailedId.HasValue)
         {
-            maxDeleteId = earliestFailedId.Value - 1;
+            // Inclusive: Produce is fire-and-forget, so the failed row is already in producedIds and
+            // only `>=` keeps it out of the delete set. Narrowing this to `>` deletes it unsent.
+            // Everything after it goes too — librdkafka fails the rest of that partition's batch
+            // rather than reordering, so those rows are undelivered as well.
+            producedIds.RemoveAll(id => id >= earliestFailedId.Value);
             _logger.LogInformation(
-                "Earliest delivery failure at message ID {FailedId}. Will delete messages up to ID {MaxId}",
-                earliestFailedId.Value, maxDeleteId);
+                "Earliest delivery failure at message ID {FailedId}. Deleting the {ConfirmedCount} messages confirmed before it",
+                earliestFailedId.Value, producedIds.Count);
         }
 
-        // Save the LastSentId so that if DB delete below fails, we don't resend the same messages from this batch
-        // in next iteration. However, this doesn't protect against potential restarts, as it's only a memory cache.
-        // For consumers that need idempotency, the OutboxDbContextExtensions.AddOutboxMessage (see Platform.ReliableMessaging.Outbox.EFCore)
-        // ensures that a unique MessageId is generated for each message, so even if we republish the
-        // same batch twice, consumer can implement the InboxPattern (see Platform.KafkaFlow.Inbox.EFCore)
-        // and handle it idempotently by saving processed MessageIds and ignoring duplicate MessageIds.
-        _memoryCache.Set(LastSentIdCacheKey, maxDeleteId);
-
-        try
+        var deleteSucceeded = true;
+        if (producedIds.Count > 0)
         {
-            // This delete can potentially fail (DB goes down, network issues etc.), causing us
-            // to potentially resend the same batch again and is a natural limitation why we can't
-            // guarantee "Exactly once" delivery but only "At least once" delivery.
-            // While the KafkaProducer is configured as "idempotent", that only applies to individual
-            // message delivery and tries to mitigate potential Two Generals problem.
-            await outboxDbContext.OutboxMessages
-                .Where(om => om.Id <= maxDeleteId)
-                .ExecuteDeleteAsync(CancellationToken.None);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to delete outbox messages up to ID {MaxDeleteId}", maxDeleteId);
+            try
+            {
+                // By id, never a `<= max` range: Postgres assigns ids at INSERT but the row stays
+                // invisible until COMMIT, so a row that committed after this batch was selected can
+                // hold a lower id and a range delete would remove it unsent.
+                // CancellationToken.None deliberately: abandoning a delete whose produce already
+                // succeeded guarantees a duplicate on the next poll.
+                await outboxDbContext.OutboxMessages
+                    .Where(om => producedIds.Contains(om.Id))
+                    .ExecuteDeleteAsync(CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                deleteSucceeded = false;
+                _logger.LogError(ex,
+                    "Failed to delete {DeliveredCount} delivered outbox messages; they will be republished and the delete retried on the next poll",
+                    producedIds.Count);
+            }
         }
 
+        // Not gated on the delete: the produce work happened, so its duration is real. Gated on
+        // !earliestFailedId because a partially-failed batch's elapsed time includes waiting out the
+        // failed message's delivery timeout, which would skew the per-message histogram.
         if (publishedMessagesCount > 0 && !earliestFailedId.HasValue)
         {
             var elapsedTime = Stopwatch.GetElapsedTime(startTimestamp);
@@ -160,7 +169,9 @@ public sealed class OutboxMessageRelay : IDisposable
             }
         }
 
-        return failedMessagesByType.Count == 0 && !earliestFailedId.HasValue;
+        // These counters keep climbing through a wedge, because the relay really is republishing.
+        // Only this return tells the health check the batch was never cleared.
+        return deleteSucceeded && failedMessagesByType.Count == 0 && !earliestFailedId.HasValue;
     }
 
     private void PublishMessage(OutboxMessage outboxMessage, DeliveryFailureTracker deliveryFailureTracker)

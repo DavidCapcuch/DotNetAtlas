@@ -30,7 +30,6 @@ public sealed class Program
             builder.Services.AddOpenTelemetryInternal(isDeployedEnvironment, builder.Configuration);
             builder.Services.AddOutboxRelayHealthChecks(builder.Configuration);
             builder.Services.AddDatabase(builder.Configuration);
-            builder.Services.AddMemoryCache();
             builder.AddOutboxRelayWorker();
 
             var app = builder.Build();

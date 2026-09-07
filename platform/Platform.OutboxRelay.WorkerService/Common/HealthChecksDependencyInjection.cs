@@ -111,8 +111,11 @@ internal static class HealthChecksDependencyInjection
             // succeeds when both Postgres and Kafka are reachable, so a dependency outage lasting
             // longer than UnhealthyThreshold fails liveness on every relay replica at once — the
             // cascading restart the rule exists to prevent. It cannot currently distinguish a
-            // wedged loop (a restart helps) from a dependency outage (a restart hurts). Making it
-            // dependency-aware, or moving it off liveness, is open work rather than settled design.
+            // wedged loop (a restart helps), a dependency outage (a restart hurts), or a delete the
+            // relay cannot complete — where a restart actively masks the signal, because
+            // LastSuccessfulExecution resets to MinValue and the check reports Healthy for the whole
+            // StartupGracePeriod while the outbox is still stuck. Making it dependency-aware, or
+            // moving it off liveness, is open work rather than settled design.
             // No timeout: every branch returns Task.FromResult, so a registration Timeout could
             // never fire — rationale on ServiceDefaultHealthCheckTags.
             .AddCheck<OutboxRelayHealthCheck>(
