@@ -405,7 +405,7 @@ Tracked under [#247](https://github.com/DavidCapcuch/DotNetAtlas/issues/247)
 - Implement the previously-stubbed
   `PaymentCommandsDLTRoutingTests.PoisonCommand_AfterRetryExhaustion_LandsOnPaymentsPaymentCommandsDLT`
   — the `KafkaTestContainer` harness exists (see
-  `Catalog.IntegrationTests/Common/IntegrationTestFixture.cs`); follow it rather
+  `test/EShop.BFF.IntegrationTests/Common/CacheInvalidationTestFixture.cs`); follow it rather
   than the obsolete "no wave1 BC has it" claim in the current placeholder. Assert
   a poison (`23505`) command lands on the DLT and a transient
   (`IsTransient`) failure does **not**.

@@ -84,15 +84,7 @@ public class ApiTestFixture : AppFixture<Program>
             webBuilder
                 .UseSetting("ConnectionStrings:Ordering", _dbContainer.ConnectionString)
                 .UseSetting("ConnectionStrings:Redis:Cache", redisConfig.ToString())
-                // Ordering.Api/Program.cs guards the Kafka boot with !IsTesting(), but
-                // AddInfrastructure still binds Kafka options at DI time — point them at
-                // unreachable hosts so any accidental use blows up loudly instead of
-                // silently flowing to a real broker.
-                .UseSetting("Kafka:Brokers:0", "kafka-not-used-in-functional-tests:9094")
-                .UseSetting("Kafka:SchemaRegistry:Url", "http://schema-registry-not-used-in-functional-tests:8081")
-                .UseSetting("Kafka:AvroSerializer:AutoRegisterSchemas", "false")
-                .UseSetting("Kafka:AvroSerializer:SubjectNameStrategy", "Record")
-                .UseSetting("Kafka:AvroSerializer:NormalizeSchemas", "true");
+                .UseUnreachableKafkaSettings();
         });
 
         return base.ConfigureAppHost(a);

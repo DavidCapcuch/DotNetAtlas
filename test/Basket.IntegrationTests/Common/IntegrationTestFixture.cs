@@ -86,15 +86,7 @@ public class IntegrationTestFixture : AppFixture<Program>
                 .UseSetting("ConnectionStrings:Basket", _dbContainer.ConnectionString)
                 .UseSetting("ConnectionStrings:Redis:Basket", redisConnectionString)
                 .UseSetting("ConnectionStrings:Redis:Cache", redisConnectionString)
-                // KafkaOptions.ValidateOnStart requires Brokers + SchemaRegistry + AvroSerializer
-                // even though no Kafka container runs in IT — FakeOutboxWriter handles the publish
-                // path so a real cluster isn't needed. Mirrors Basket.FunctionalTests' approach for
-                // the SchemaRegistry URL placeholder.
-                .UseSetting("Kafka:Brokers:0", "kafka-not-used-in-integration-tests:9092")
-                .UseSetting("Kafka:SchemaRegistry:Url", "http://schema-registry-not-used-in-integration-tests:8081")
-                .UseSetting("Kafka:AvroSerializer:AutoRegisterSchemas", "false")
-                .UseSetting("Kafka:AvroSerializer:SubjectNameStrategy", "Record")
-                .UseSetting("Kafka:AvroSerializer:NormalizeSchemas", "true");
+                .UseUnreachableKafkaSettings();
         });
 
         return base.ConfigureAppHost(a);

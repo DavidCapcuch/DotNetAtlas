@@ -12,6 +12,7 @@ using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Auth;
 using Platform.Test.Framework.Database;
+using Platform.Test.Framework.Kafka;
 using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
@@ -64,11 +65,7 @@ public class ApiTestFixture : AppFixture<Program>
         {
             webBuilder
                 .UseSetting("ConnectionStrings:Notifications", _dbContainer.ConnectionString)
-                // Kafka cluster boot is guarded by !IsTesting() in Program.cs, but AddInfrastructure
-                // still binds KafkaOptions at DI time. Point those at unreachable hosts so any
-                // accidental use blows up loudly rather than silently producing to a real broker.
-                .UseSetting("Kafka:Brokers:0", "kafka-not-used-in-functional-tests:9094")
-                .UseSetting("Kafka:SchemaRegistry:Url", "http://schema-registry-not-used-in-functional-tests:8081");
+                .UseUnreachableKafkaSettings();
         });
 
         return base.ConfigureAppHost(a);

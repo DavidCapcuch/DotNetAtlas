@@ -1,4 +1,3 @@
-using Catalog.Application.Common.Messaging;
 using Catalog.Infrastructure.Common.Config;
 using Catalog.Infrastructure.Persistence.Database;
 using Catalog.IntegrationTests.Common.TestClientInfrastructure;
@@ -6,7 +5,6 @@ using FastEndpoints.Testing;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -31,8 +29,8 @@ namespace Catalog.IntegrationTests.Common;
 internal sealed class IntegrationTestCollection : TestCollection<IntegrationTestFixture>;
 
 /// <summary>
-/// The single Catalog integration fixture: one real <c>Program.cs</c> host on Postgres + Redis +
-/// Kafka Testcontainers, shared by the whole <see cref="IntegrationTestCollection"/> (one instance,
+/// The single Catalog integration fixture: one real <c>Program.cs</c> host on Postgres + Redis
+/// Testcontainers, shared by the whole <see cref="IntegrationTestCollection"/> (one instance,
 /// state reset between tests). Both entrances run against it — the HTTP edge via
 /// <see cref="HttpClientRegistry"/> and, for cross-cutting machinery with no outer entrance, a DI
 /// scope off <see cref="AppFixture{TEntryPoint}.Services"/>.
@@ -69,7 +67,6 @@ public class IntegrationTestFixture : AppFixture<Program>
         });
 
     private readonly RedisTestContainer _redisContainer = new();
-    private readonly KafkaTestContainer _kafkaContainer = new();
 
     private readonly FakeTokenSigner _signer = new(audience: "catalog-service");
 
@@ -88,27 +85,6 @@ public class IntegrationTestFixture : AppFixture<Program>
         // raise "Invalid chunk header encountered".
         await _dbContainer.StartAsync();
         await _redisContainer.StartAsync();
-        await _kafkaContainer.StartAsync();
-
-        // The broker does not auto-create topics. Provisioned from Catalog's own configuration
-        // rather than a literal list, so this cannot drift from the set the readiness check verifies.
-        await _kafkaContainer.CreateKafkaTopicsAsync(LoadTopicsFromConfiguration().GetAllTopics());
-    }
-
-    private static TopicsOptions LoadTopicsFromConfiguration()
-    {
-        var catalogApiPath = Path.Combine(
-            SolutionPaths.GetSolutionRootDirectory(), "services", "Catalog", "Catalog.Api");
-
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(catalogApiPath)
-            .AddJsonFile("appsettings.json", optional: false)
-            .Build();
-
-        return configuration.GetSection(TopicsOptions.Section).Get<TopicsOptions>()
-               ?? throw new InvalidOperationException(
-                   $"Failed to bind configuration section '{TopicsOptions.Section}' to "
-                   + $"{nameof(TopicsOptions)}. Verify appsettings.json carries the topic values.");
     }
 
     protected override ValueTask SetupAsync()
@@ -126,7 +102,7 @@ public class IntegrationTestFixture : AppFixture<Program>
                 .UseSetting($"ConnectionStrings:{nameof(ConnectionStringsOptions.Catalog)}",
                     _dbContainer.ConnectionString)
                 .UseSetting("ConnectionStrings:Redis:Cache", redisConfig.ToString())
-                .UseKafkaSettings(_kafkaContainer.KafkaOptions);
+                .UseUnreachableKafkaSettings();
         });
 
         return base.ConfigureAppHost(a);
@@ -194,6 +170,5 @@ public class IntegrationTestFixture : AppFixture<Program>
         _signer.Dispose();
         await _dbContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();
-        await _kafkaContainer.DisposeAsync();
     }
 }

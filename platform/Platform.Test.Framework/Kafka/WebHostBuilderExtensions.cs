@@ -20,4 +20,13 @@ public static class WebHostBuilderExtensions
 
         return webBuilder;
     }
+
+    public static IWebHostBuilder UseUnreachableKafkaSettings(this IWebHostBuilder webBuilder)
+    {
+        webBuilder.UseSetting($"{KafkaOptions.Section}:Brokers:0", "kafka-not-used-in-tests:9094");
+        webBuilder.UseSetting($"{SchemaRegistryOptions.Section}:Url",
+            "http://schema-registry-not-used-in-tests:8081");
+
+        return webBuilder;
+    }
 }

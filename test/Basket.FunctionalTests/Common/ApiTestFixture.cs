@@ -1,11 +1,9 @@
 using Basket.Application.Abstractions;
-using Basket.Application.Common.Messaging;
 using Basket.FunctionalTests.Common.TestClientInfrastructure;
 using Basket.Infrastructure.Persistence.Database;
 using FastEndpoints.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -41,7 +39,6 @@ public class ApiTestFixture : AppFixture<Program>
         });
 
     private readonly RedisTestContainer _redisContainer = new();
-    private readonly KafkaTestContainer _kafkaContainer = new();
 
     private readonly FakeTokenSigner _signer = new(audience: "basket-service");
 
@@ -70,33 +67,12 @@ public class ApiTestFixture : AppFixture<Program>
         // raise "Invalid chunk header encountered".
         await _dbContainer.StartAsync();
         await _redisContainer.StartAsync();
-        await _kafkaContainer.StartAsync();
-
-        // The broker does not auto-create topics. Provisioned from Basket's own configuration
-        // rather than a literal list, so this cannot drift from the set the readiness check verifies.
-        await _kafkaContainer.CreateKafkaTopicsAsync(LoadTopicsFromConfiguration().GetAllTopics());
 
         // Dedicated multiplexer for test-side Redis assertions (e.g. KeyExistsAsync on
         // CheckoutBasketTests). The host gets its own multiplexer from
         // AddBasketRedisPersistence using the same connection string.
         var redisOptions = _redisContainer.ConfigurationOptions;
         _redisMultiplexer = await ConnectionMultiplexer.ConnectAsync(redisOptions);
-    }
-
-    private static TopicsOptions LoadTopicsFromConfiguration()
-    {
-        var basketApiPath = Path.Combine(
-            SolutionPaths.GetSolutionRootDirectory(), "services", "Basket", "Basket.Api");
-
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(basketApiPath)
-            .AddJsonFile("appsettings.json", optional: false)
-            .Build();
-
-        return configuration.GetSection(TopicsOptions.Section).Get<TopicsOptions>()
-               ?? throw new InvalidOperationException(
-                   $"Failed to bind configuration section '{TopicsOptions.Section}' to "
-                   + $"{nameof(TopicsOptions)}. Verify appsettings.json carries the topic values.");
     }
 
     protected override ValueTask SetupAsync()
@@ -115,7 +91,7 @@ public class ApiTestFixture : AppFixture<Program>
                 .UseSetting("ConnectionStrings:Basket", _dbContainer.ConnectionString)
                 .UseSetting("ConnectionStrings:Redis:Basket", redisConnectionString)
                 .UseSetting("ConnectionStrings:Redis:Cache", redisConnectionString)
-                .UseKafkaSettings(_kafkaContainer.KafkaOptions);
+                .UseUnreachableKafkaSettings();
         });
 
         return base.ConfigureAppHost(a);
@@ -178,6 +154,5 @@ public class ApiTestFixture : AppFixture<Program>
         await _redisMultiplexer.DisposeAsync();
         await _dbContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();
-        await _kafkaContainer.DisposeAsync();
     }
 }
