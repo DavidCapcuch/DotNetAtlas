@@ -1,0 +1,5 @@
+<Project>
+    <!-- Test-framework PackageVersion entries live in platform/Directory.Packages.props
+         (nearest-wins CPM) and must stay in lockstep with test/Directory.Packages.props. -->
+    <Import Project="$(MSBuildThisFileDirectory)../../test/Directory.Build.props"/>
+</Project>

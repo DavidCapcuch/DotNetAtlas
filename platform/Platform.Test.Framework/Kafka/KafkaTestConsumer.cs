@@ -48,7 +48,20 @@ public sealed class KafkaTestConsumer<TValue> : IKafkaTestConsumer
     /// <param name="timeout">Maximum time to wait for a message.</param>
     /// <param name="ct">Optional cancellation token to cancel the operation.</param>
     /// <returns>The deserialized message value, or null if no message was received within the timeout.</returns>
-    public TValue? ConsumeOne(TimeSpan timeout, CancellationToken ct = default)
+    public TValue? ConsumeOne(TimeSpan timeout, CancellationToken ct = default) =>
+        ConsumeOneResult(timeout, ct)?.Message.Value;
+
+    /// <summary>
+    /// Consumes one message from the specified topic within the timeout period.
+    /// </summary>
+    /// <remarks>
+    /// Use this over <see cref="ConsumeOne"/> when the assertion is about something the value does
+    /// not carry — the message's headers, or the partition and offset it landed on.
+    /// </remarks>
+    /// <param name="timeout">Maximum time to wait for a message.</param>
+    /// <param name="ct">Optional cancellation token to cancel the operation.</param>
+    /// <returns>The consume result, or null if no message was received within the timeout.</returns>
+    public ConsumeResult<string, TValue>? ConsumeOneResult(TimeSpan timeout, CancellationToken ct = default)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeout);
@@ -60,7 +73,7 @@ public sealed class KafkaTestConsumer<TValue> : IKafkaTestConsumer
                 var consumeResult = _consumer.Consume(timeout);
                 if (consumeResult?.Message != null)
                 {
-                    return consumeResult.Message.Value;
+                    return consumeResult;
                 }
             }
             catch (ConsumeException e) when (!e.Error.IsFatal)

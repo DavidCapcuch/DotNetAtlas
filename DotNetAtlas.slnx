@@ -116,6 +116,7 @@
     <Project Path="platform/Platform.Kafka.TopicGuard.UnitTests/Platform.Kafka.TopicGuard.UnitTests.csproj" />
     <Project Path="platform/Platform.KafkaFlow.DeadLetter.UnitTests/Platform.KafkaFlow.DeadLetter.UnitTests.csproj" />
     <Project Path="platform/Platform.KafkaFlow.ProducerHeaders.UnitTests/Platform.KafkaFlow.ProducerHeaders.UnitTests.csproj" />
+    <Project Path="platform/Platform.OutboxRelay.WorkerService.IntegrationTests/Platform.OutboxRelay.WorkerService.IntegrationTests.csproj" />
     <Project Path="platform/Platform.OutboxRelay.WorkerService.UnitTests/Platform.OutboxRelay.WorkerService.UnitTests.csproj" />
     <Project Path="platform/Platform.ReliableMessaging.Outbox.EFCore.UnitTests/Platform.ReliableMessaging.Outbox.EFCore.UnitTests.csproj" />
     <Project Path="platform/Platform.ServiceDefaults.UnitTests/Platform.ServiceDefaults.UnitTests.csproj" />

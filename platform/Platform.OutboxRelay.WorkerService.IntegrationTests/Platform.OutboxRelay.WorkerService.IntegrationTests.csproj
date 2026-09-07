@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- Where the writer -> relay -> broker seam is proven; see docs/bc-design/conventions.md § 6. -->
+    <ItemGroup>
+        <ProjectReference Include="..\Platform.OutboxRelay.WorkerService\Platform.OutboxRelay.WorkerService.csproj"/>
+        <ProjectReference Include="..\Platform.SchemaRegistry.Contracts\Platform.SchemaRegistry.Contracts.csproj"/>
+        <ProjectReference Include="..\Platform.Test.Framework\Platform.Test.Framework.csproj"/>
+    </ItemGroup>
+</Project>

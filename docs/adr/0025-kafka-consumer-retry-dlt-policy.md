@@ -389,26 +389,15 @@ Tracked under [#247](https://github.com/DavidCapcuch/DotNetAtlas/issues/247)
   no longer "intentionally omitted").
 - Reconcile [error-taxonomy.md](../bc-design/error-taxonomy.md)'s "errors → DLT
   vs business outcome" table with the transient/poison/business-expected split.
-- Fix the three dangling references to the never-created
-  `docs/runbooks/payments-dlt.md` (code comment in
-  `Payments.Infrastructure/Common/MessagingDependencyInjection.cs`, the
-  `PaymentCommandsDLTRoutingTests` docstring, and the
-  `payments-followup-session1.md` session summary that falsely claims it was
-  "authored") — repoint at `kafka-dlt-strategy.md`, which already covers the
-  Payments DLT.
 
 ### Testing
 
-- Unit-test `IsRetryable` (transient PG codes retry; `23*/22*/42*` + bare
-  `DbUpdateException` → poison; `RetryableException` retries;
-  `OperationCanceledException` excluded).
-- Implement the previously-stubbed
-  `PaymentCommandsDLTRoutingTests.PoisonCommand_AfterRetryExhaustion_LandsOnPaymentsPaymentCommandsDLT`
-  — the `KafkaTestContainer` harness exists (see
-  `test/EShop.BFF.IntegrationTests/Common/CacheInvalidationTestFixture.cs`); follow it rather
-  than the obsolete "no wave1 BC has it" claim in the current placeholder. Assert
-  a poison (`23505`) command lands on the DLT and a transient
-  (`IsTransient`) failure does **not**.
+- Prove against a real broker, in `Platform.KafkaFlow.DeadLetter.IntegrationTests`,
+  that a poison (`23505`) failure lands on the DLT and a transient (`IsTransient`)
+  one does **not**. The classifier and the middleware are each unit-tested already;
+  what nothing covers is that `.AddDeadLetter()` and
+  `RetryForever(Handle(IsRetryable))` compose. Follow
+  `Platform.OutboxRelay.WorkerService.IntegrationTests` for the harness shape.
 
 ### When to revisit
 
