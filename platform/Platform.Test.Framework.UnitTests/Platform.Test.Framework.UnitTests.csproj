@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!-- Project-specific packages only (common test packages in ../../test/Directory.Build.props) -->
+    <ItemGroup>
+        <ProjectReference Include="..\Platform.Test.Framework\Platform.Test.Framework.csproj"/>
+    </ItemGroup>
+</Project>

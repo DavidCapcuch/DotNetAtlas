@@ -31,28 +31,11 @@ public sealed class BasketCacheInvalidationTests(CacheInvalidationTestFixture fi
             CacheInvalidationTestFixture.BasketSessionsTopic, userId, BuildCheckoutEvent(userId));
 
         // Assert — the live consumer removes the basket-bff-{userId} tag within the timeout.
-        var evicted = await EventuallyEvictedAsync(userId);
-        evicted.Should().BeTrue("the bff-group consumer should remove the buyer's basket tag on checkout");
-    }
-
-    private async Task<bool> EventuallyEvictedAsync(Guid userId)
-    {
-        try
-        {
-            await Eventually.UntilAsync(
-                async _ => !await _fixture.IsBasketCachedAsync(userId),
-                EvictionTimeout,
-                $"the bff-group consumer to evict the basket-bff-{userId} tag",
-                TestContext.Current.CancellationToken);
-
-            return true;
-        }
-        catch (TimeoutException)
-        {
-            // One probe past the deadline: an eviction landing inside the final poll interval is a
-            // pass, not a failure.
-            return !await _fixture.IsBasketCachedAsync(userId);
-        }
+        await Eventually.UntilAsync(
+            async _ => !await _fixture.IsBasketCachedAsync(userId),
+            EvictionTimeout,
+            $"the bff-group consumer to evict the buyer's basket tag basket-bff-{userId} on checkout",
+            TestContext.Current.CancellationToken);
     }
 
     private static BasketCheckoutInitiatedEvent BuildCheckoutEvent(Guid userId)

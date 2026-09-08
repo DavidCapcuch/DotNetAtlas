@@ -35,12 +35,12 @@ public sealed class HomePageWarmOnTests(HomePageWarmOnFixture fixture)
 
             return true;
         }
-        catch (TimeoutException)
+        catch (EventuallyTimeoutException)
         {
-            // One probe past the deadline: the caller asserts on this bool inside an
-            // AssertionScope, so a warm landing inside the final poll interval must not read as
-            // a failure — and returning false keeps the paired assertion running.
-            return await condition();
+            // Reported as a value rather than rethrown: the caller asserts on this inside an
+            // AssertionScope, and an escaping exception would abort before the paired assertion
+            // on the upstream call count ran — losing half the diagnostic the scope exists for.
+            return false;
         }
     }
 }

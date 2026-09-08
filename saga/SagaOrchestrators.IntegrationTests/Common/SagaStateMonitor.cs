@@ -17,6 +17,9 @@ public sealed class SagaStateMonitor<TSaga, TSagaState>
     where TSaga : MassTransitStateMachine<TSagaState>
     where TSagaState : class, ISagaStateInstance
 {
+    /// <summary>Bound on the post-timeout read that names the observed state in the failure message.</summary>
+    private static readonly TimeSpan DiagnosticReadTimeout = TimeSpan.FromSeconds(5);
+
     private readonly DbContext _dbContext;
     private readonly TSaga _stateMachine;
 
@@ -38,7 +41,7 @@ public sealed class SagaStateMonitor<TSaga, TSagaState>
     /// <param name="stateSelector">Expression selecting the target state from the saga state machine (e.g., x => x.VoidInProgress).</param>
     /// <param name="timeout">Maximum time to wait for the state transition.</param>
     /// <returns>The saga state once it reaches the expected state.</returns>
-    /// <exception cref="TimeoutException">Thrown if the saga doesn't reach the expected state within the timeout.</exception>
+    /// <exception cref="EventuallyTimeoutException">Thrown if the saga doesn't reach the expected state within the timeout.</exception>
     public async Task<TSagaState> WaitForStateAsync(
         Guid correlationId,
         Expression<Func<TSaga, State>> stateSelector,
@@ -63,24 +66,15 @@ public sealed class SagaStateMonitor<TSaga, TSagaState>
 
             return observed!;
         }
-        catch (TimeoutException)
+        catch (EventuallyTimeoutException expired)
         {
-            // One read past the deadline: a transition landing inside the final poll interval would
-            // otherwise fail a saga that did arrive.
-            var finalState = await _dbContext.Set<TSagaState>()
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+            var actualState = await DescribeStateAsync(correlationId, "not found");
 
-            if (finalState?.CurrentState == stateName)
-            {
-                return finalState;
-            }
-
-            var actualState = finalState?.CurrentState ?? "not found";
-            throw new TimeoutException(
+            throw new EventuallyTimeoutException(
                 $"Saga {typeof(TSagaState).Name} with CorrelationId {correlationId} " +
                 $"did not reach state '{stateName}' within {timeout.TotalSeconds}s. " +
-                $"Actual state: '{actualState}'");
+                $"Actual state: '{actualState}'",
+                expired);
         }
     }
 
@@ -89,7 +83,7 @@ public sealed class SagaStateMonitor<TSaga, TSagaState>
     /// </summary>
     /// <param name="correlationId">The correlation ID of the saga instance.</param>
     /// <param name="timeout">Maximum time to wait for finalization.</param>
-    /// <exception cref="TimeoutException">Thrown if the saga is not finalized within the timeout.</exception>
+    /// <exception cref="EventuallyTimeoutException">Thrown if the saga is not finalized within the timeout.</exception>
     public async Task<bool> WaitForFinalizedAsync(Guid correlationId, TimeSpan timeout)
     {
         try
@@ -103,22 +97,42 @@ public sealed class SagaStateMonitor<TSaga, TSagaState>
 
             return true;
         }
-        catch (TimeoutException)
+        catch (EventuallyTimeoutException expired)
         {
-            // One read past the deadline: a finalize landing inside the final poll interval would
-            // otherwise fail a saga that did complete.
-            var finalState = await _dbContext.Set<TSagaState>()
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+            var currentState = await DescribeStateAsync(correlationId, "gone");
 
-            if (finalState is null)
-            {
-                return true;
-            }
-
-            throw new TimeoutException(
+            throw new EventuallyTimeoutException(
                 $"Saga {typeof(TSagaState).Name} with CorrelationId {correlationId} " +
-                $"was not finalized within {timeout.TotalSeconds}s. Current state: {finalState.CurrentState}");
+                $"was not finalized within {timeout.TotalSeconds}s. " +
+                $"Current state: {currentState}",
+                expired);
+        }
+    }
+
+    /// <summary>
+    /// Names the saga's current state for a failure message. Always yields a word and never throws:
+    /// a read taken to describe a timeout must not become a second failure that replaces it.
+    /// </summary>
+    /// <remarks>
+    /// Read fresh rather than reusing whatever the last probe saw, which can be seconds stale when
+    /// that probe was the one cut short — and bounded, because the database being slow is a likely
+    /// reason for arriving here at all.
+    /// </remarks>
+    private async Task<string> DescribeStateAsync(Guid correlationId, string whenMissing)
+    {
+        using var diagnostic = new CancellationTokenSource(DiagnosticReadTimeout);
+
+        try
+        {
+            var state = await _dbContext.Set<TSagaState>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.CorrelationId == correlationId, diagnostic.Token);
+
+            return state?.CurrentState ?? whenMissing;
+        }
+        catch (OperationCanceledException)
+        {
+            return "unknown (the state read timed out too)";
         }
     }
 

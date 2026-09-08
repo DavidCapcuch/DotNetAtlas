@@ -82,27 +82,10 @@ public sealed class HomePageCacheInvalidationTests(CacheInvalidationTestFixture 
         await _fixture.ProduceAsync(topic, key, @event);
 
         // Assert — the live consumer removes the home-page tag within the timeout.
-        var evicted = await EventuallyEvictedAsync();
-        evicted.Should().BeTrue("the bff-group consumer should remove the home-page tag on the event");
-    }
-
-    private async Task<bool> EventuallyEvictedAsync()
-    {
-        try
-        {
-            await Eventually.UntilAsync(
-                async _ => !await _fixture.IsHomePageCachedAsync(),
-                EvictionTimeout,
-                "the bff-group consumer to evict the home-page tag",
-                TestContext.Current.CancellationToken);
-
-            return true;
-        }
-        catch (TimeoutException)
-        {
-            // One probe past the deadline: an eviction landing inside the final poll interval is a
-            // pass, not a failure.
-            return !await _fixture.IsHomePageCachedAsync();
-        }
+        await Eventually.UntilAsync(
+            async _ => !await _fixture.IsHomePageCachedAsync(),
+            EvictionTimeout,
+            "the bff-group consumer to evict the home-page tag on the event",
+            TestContext.Current.CancellationToken);
     }
 }
