@@ -16,6 +16,7 @@ using SagaOrchestrators.Checkout.CheckoutSaga.Observability;
 using SagaOrchestrators.Checkout.CheckoutSaga.Schedules;
 using SagaOrchestrators.Common.Observability;
 using SagaOrchestrators.Common.Observability.Tracing;
+using SagaOrchestrators.UnitTests.Common;
 
 namespace SagaOrchestrators.UnitTests.Checkout;
 
@@ -340,28 +341,10 @@ public sealed class CheckoutSagaMetricsEmissionTests : IAsyncLifetime
         return entry.GetProperty("ReservationId").GetGuid();
     }
 
-    private async Task WaitForConsumed<T>(int expectedCount)
-        where T : class
-    {
-        var deadline = DateTime.UtcNow.Add(DefaultTimeout);
-        while (DateTime.UtcNow < deadline)
-        {
-            var seen = 0;
-            await foreach (var _ in _sagaHarness.Consumed.SelectAsync<T>(TestContext.Current.CancellationToken))
-            {
-                seen++;
-                if (seen >= expectedCount)
-                {
-                    return;
-                }
-            }
-
-            await Task.Delay(20, TestContext.Current.CancellationToken);
-        }
-
-        throw new TimeoutException(
-            $"Timed out waiting for {expectedCount} {typeof(T).Name} messages; observed only some.");
-    }
+    private Task WaitForConsumed<T>(int expectedCount)
+        where T : class =>
+        _sagaHarness.Consumed.WaitForCountAsync<T>(
+            expectedCount, DefaultTimeout, TestContext.Current.CancellationToken);
 
     private sealed record CheckoutItemSnapshot(
         Guid ProductId,

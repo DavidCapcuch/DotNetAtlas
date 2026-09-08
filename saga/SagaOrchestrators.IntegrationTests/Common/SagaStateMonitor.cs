@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Platform.Test.Framework.Common;
 using SagaOrchestrators.Common.SagaAbstractions;
 
 namespace SagaOrchestrators.IntegrationTests.Common;
@@ -16,7 +17,6 @@ public sealed class SagaStateMonitor<TSaga, TSagaState>
     where TSaga : MassTransitStateMachine<TSagaState>
     where TSagaState : class, ISagaStateInstance
 {
-    private const int DefaultPollingIntervalMs = 100;
     private readonly DbContext _dbContext;
     private readonly TSaga _stateMachine;
 
@@ -45,36 +45,43 @@ public sealed class SagaStateMonitor<TSaga, TSagaState>
         TimeSpan timeout)
     {
         var stateName = GetStateName(stateSelector);
-        var start = DateTime.UtcNow;
+        TSagaState? observed = null;
 
-        while (DateTime.UtcNow - start < timeout)
+        try
         {
-            var state = await _dbContext.Set<TSagaState>()
+            await Eventually.UntilAsync(
+                async token =>
+                {
+                    observed = await _dbContext.Set<TSagaState>()
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(x => x.CorrelationId == correlationId, token);
+
+                    return observed?.CurrentState == stateName;
+                },
+                timeout,
+                $"saga {typeof(TSagaState).Name} with CorrelationId {correlationId} to reach state '{stateName}'");
+
+            return observed!;
+        }
+        catch (TimeoutException)
+        {
+            // One read past the deadline: a transition landing inside the final poll interval would
+            // otherwise fail a saga that did arrive.
+            var finalState = await _dbContext.Set<TSagaState>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
 
-            if (state?.CurrentState == stateName)
+            if (finalState?.CurrentState == stateName)
             {
-                return state;
+                return finalState;
             }
 
-            await Task.Delay(DefaultPollingIntervalMs);
+            var actualState = finalState?.CurrentState ?? "not found";
+            throw new TimeoutException(
+                $"Saga {typeof(TSagaState).Name} with CorrelationId {correlationId} " +
+                $"did not reach state '{stateName}' within {timeout.TotalSeconds}s. " +
+                $"Actual state: '{actualState}'");
         }
-
-        var finalState = await _dbContext.Set<TSagaState>()
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
-
-        if (finalState?.CurrentState == stateName)
-        {
-            return finalState;
-        }
-
-        var actualState = finalState?.CurrentState ?? "not found";
-        throw new TimeoutException(
-            $"Saga {typeof(TSagaState).Name} with CorrelationId {correlationId} " +
-            $"did not reach state '{stateName}' within {timeout.TotalSeconds}s. " +
-            $"Actual state: '{actualState}'");
     }
 
     /// <summary>
@@ -85,34 +92,34 @@ public sealed class SagaStateMonitor<TSaga, TSagaState>
     /// <exception cref="TimeoutException">Thrown if the saga is not finalized within the timeout.</exception>
     public async Task<bool> WaitForFinalizedAsync(Guid correlationId, TimeSpan timeout)
     {
-        var start = DateTime.UtcNow;
-
-        while (DateTime.UtcNow - start < timeout)
+        try
         {
-            var exists = await _dbContext.Set<TSagaState>()
-                .AsNoTracking()
-                .AnyAsync(x => x.CorrelationId == correlationId);
+            await Eventually.UntilAsync(
+                async token => !await _dbContext.Set<TSagaState>()
+                    .AsNoTracking()
+                    .AnyAsync(x => x.CorrelationId == correlationId, token),
+                timeout,
+                $"saga {typeof(TSagaState).Name} with CorrelationId {correlationId} to be finalized");
 
-            if (!exists)
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            // One read past the deadline: a finalize landing inside the final poll interval would
+            // otherwise fail a saga that did complete.
+            var finalState = await _dbContext.Set<TSagaState>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
+
+            if (finalState is null)
             {
                 return true;
             }
 
-            await Task.Delay(DefaultPollingIntervalMs);
+            throw new TimeoutException(
+                $"Saga {typeof(TSagaState).Name} with CorrelationId {correlationId} " +
+                $"was not finalized within {timeout.TotalSeconds}s. Current state: {finalState.CurrentState}");
         }
-
-        var finalState = await _dbContext.Set<TSagaState>()
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
-
-        if (finalState is null)
-        {
-            return true;
-        }
-
-        throw new TimeoutException(
-            $"Saga {typeof(TSagaState).Name} with CorrelationId {correlationId} " +
-            $"was not finalized within {timeout.TotalSeconds}s. Current state: {finalState.CurrentState}");
     }
 
     private string GetStateName(Expression<Func<TSaga, State>> stateSelector)

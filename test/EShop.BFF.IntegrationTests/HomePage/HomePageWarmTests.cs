@@ -1,4 +1,5 @@
 using EShop.BFF.IntegrationTests.Common;
+using Platform.Test.Framework.Common;
 
 namespace EShop.BFF.IntegrationTests.HomePage;
 
@@ -24,18 +25,23 @@ public sealed class HomePageWarmOnTests(HomePageWarmOnFixture fixture)
 
     private static async Task<bool> EventuallyTrueAsync(Func<Task<bool>> condition, TimeSpan timeout)
     {
-        var deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline)
+        try
         {
-            if (await condition())
-            {
-                return true;
-            }
+            await Eventually.UntilAsync(
+                _ => condition(),
+                timeout,
+                "the background warmer to populate the home-page cache",
+                TestContext.Current.CancellationToken);
 
-            await Task.Delay(200, TestContext.Current.CancellationToken);
+            return true;
         }
-
-        return await condition();
+        catch (TimeoutException)
+        {
+            // One probe past the deadline: the caller asserts on this bool inside an
+            // AssertionScope, so a warm landing inside the final poll interval must not read as
+            // a failure — and returning false keeps the paired assertion running.
+            return await condition();
+        }
     }
 }
 

@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Ordering.Orders;
 using Payments.Transactions;
 using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
+using Platform.Test.Framework.Common;
 using SagaOrchestrators.Checkout.CheckoutSaga;
 using SagaOrchestrators.Checkout.CheckoutSaga.Schedules;
 using SagaOrchestrators.Checkout.CheckoutSaga.Snapshots;
@@ -501,27 +502,23 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
     /// </summary>
     private async Task WaitForReservedStatusAsync(Guid correlationId, Guid productId)
     {
-        var deadline = DateTime.UtcNow + DefaultTimeout;
-        while (DateTime.UtcNow < deadline)
-        {
-            var state = await SagaDbContext.CheckoutSagaStates
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
-
-            if (state is not null)
+        await Eventually.UntilAsync(
+            async token =>
             {
-                var current = DeserializeTracking(state.ReservationIdsJson);
-                if (current.TryGetValue(productId, out var entry) && entry.Status == ReservationStatus.Reserved)
+                var state = await SagaDbContext.CheckoutSagaStates
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.CorrelationId == correlationId, token);
+
+                if (state is null)
                 {
-                    return;
+                    return false;
                 }
-            }
 
-            await Task.Delay(100);
-        }
-
-        throw new TimeoutException(
-            $"Saga {correlationId} did not register product {productId} as Reserved within {DefaultTimeout.TotalSeconds}s.");
+                var current = DeserializeTracking(state.ReservationIdsJson);
+                return current.TryGetValue(productId, out var entry) && entry.Status == ReservationStatus.Reserved;
+            },
+            DefaultTimeout,
+            $"saga {correlationId} to register product {productId} as Reserved");
     }
 
     private static Dictionary<Guid, ReservationTracking> DeserializeTracking(string json) =>

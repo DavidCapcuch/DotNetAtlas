@@ -3,6 +3,7 @@ using Catalog.Categories;
 using Catalog.Products;
 using EShop.BFF.IntegrationTests.Common;
 using Inventory.Stock;
+using Platform.Test.Framework.Common;
 
 namespace EShop.BFF.IntegrationTests.HomePage;
 
@@ -87,17 +88,21 @@ public sealed class HomePageCacheInvalidationTests(CacheInvalidationTestFixture 
 
     private async Task<bool> EventuallyEvictedAsync()
     {
-        var deadline = DateTime.UtcNow + EvictionTimeout;
-        while (DateTime.UtcNow < deadline)
+        try
         {
-            if (!await _fixture.IsHomePageCachedAsync())
-            {
-                return true;
-            }
+            await Eventually.UntilAsync(
+                async _ => !await _fixture.IsHomePageCachedAsync(),
+                EvictionTimeout,
+                "the bff-group consumer to evict the home-page tag",
+                TestContext.Current.CancellationToken);
 
-            await Task.Delay(200, TestContext.Current.CancellationToken);
+            return true;
         }
-
-        return !await _fixture.IsHomePageCachedAsync();
+        catch (TimeoutException)
+        {
+            // One probe past the deadline: an eviction landing inside the final poll interval is a
+            // pass, not a failure.
+            return !await _fixture.IsHomePageCachedAsync();
+        }
     }
 }

@@ -6,6 +6,7 @@ using Ordering.Orders;
 using Payments.Transactions;
 using Platform.SchemaRegistry.Contracts.Avro.AvroExtensions;
 using Platform.Test.Framework.Assertions;
+using Platform.Test.Framework.Common;
 using SagaOrchestrators.Checkout.CheckoutSaga;
 using SagaOrchestrators.Checkout.CheckoutSaga.Snapshots;
 using SagaOrchestrators.IntegrationTests.Common;
@@ -381,25 +382,21 @@ public class CheckoutSagaIntegrationTests : BaseSagaIntegrationTest
         Func<CheckoutSagaState, bool> predicate,
         TimeSpan timeout)
     {
-        var deadline = DateTime.UtcNow + timeout;
+        CheckoutSagaState? observed = null;
 
-        while (DateTime.UtcNow < deadline)
-        {
-            var state = await SagaDbContext.CheckoutSagaStates
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.CorrelationId == correlationId);
-
-            if (state is not null && predicate(state))
+        await Eventually.UntilAsync(
+            async token =>
             {
-                return state;
-            }
+                observed = await SagaDbContext.CheckoutSagaStates
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.CorrelationId == correlationId, token);
 
-            await Task.Delay(100);
-        }
+                return observed is not null && predicate(observed);
+            },
+            timeout,
+            $"saga {nameof(CheckoutSagaState)} with CorrelationId {correlationId} to satisfy the expected condition");
 
-        throw new TimeoutException(
-            $"Saga {nameof(CheckoutSagaState)} with CorrelationId {correlationId} " +
-            $"did not satisfy the expected condition within {timeout.TotalSeconds}s.");
+        return observed!;
     }
 
     private static BasketCheckoutInitiatedEvent CreateBasketCheckoutInitiatedEvent(

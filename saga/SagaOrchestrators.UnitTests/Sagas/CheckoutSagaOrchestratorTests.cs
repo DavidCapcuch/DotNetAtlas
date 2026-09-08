@@ -15,6 +15,7 @@ using SagaOrchestrators.Checkout.CheckoutSaga;
 using SagaOrchestrators.Checkout.CheckoutSaga.InternalSagaEvents;
 using SagaOrchestrators.Checkout.CheckoutSaga.Schedules;
 using SagaOrchestrators.UnitTests.Checkout;
+using SagaOrchestrators.UnitTests.Common;
 
 namespace SagaOrchestrators.UnitTests.Sagas;
 
@@ -1093,35 +1094,10 @@ public class CheckoutSagaOrchestratorTests : IAsyncLifetime
         return entry.GetProperty("ReservationId").GetGuid();
     }
 
-    /// <summary>
-    /// Waits until at least <paramref name="expectedCount"/> messages of type
-    /// <typeparamref name="T"/> have been observed by the saga test harness, polling on a short
-    /// interval. Replaces <c>SelectAsync&lt;T&gt;().Take(n).ToListAsync()</c> which is
-    /// ambiguous between MassTransit's and System.Linq's <c>Take</c> on
-    /// <see cref="IAsyncEnumerable{T}"/> in this test project.
-    /// </summary>
-    private async Task WaitForConsumed<T>(int expectedCount)
-        where T : class
-    {
-        var deadline = DateTime.UtcNow.Add(DefaultTimeout);
-        while (DateTime.UtcNow < deadline)
-        {
-            var seen = 0;
-            await foreach (var _ in _sagaHarness.Consumed.SelectAsync<T>(TestContext.Current.CancellationToken))
-            {
-                seen++;
-                if (seen >= expectedCount)
-                {
-                    return;
-                }
-            }
-
-            await Task.Delay(20, TestContext.Current.CancellationToken);
-        }
-
-        throw new TimeoutException(
-            $"Timed out waiting for {expectedCount} {typeof(T).Name} messages; observed only some.");
-    }
+    private Task WaitForConsumed<T>(int expectedCount)
+        where T : class =>
+        _sagaHarness.Consumed.WaitForCountAsync<T>(
+            expectedCount, DefaultTimeout, TestContext.Current.CancellationToken);
 
     /// <summary>
     /// Mirrors the JSON shape written by <c>BasketCheckoutInitiatedConsumer</c>'s
