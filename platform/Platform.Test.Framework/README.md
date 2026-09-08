@@ -1,6 +1,6 @@
 # Platform.Test.Framework
 
-TestContainers‑based components for simplifying spinning up infrastructure setup and state management in integration tests. Components encapsulate setup, DI config, and fast state resets via simple **StartAsync/CleanDataAsync/DisposeAsync**.
+TestContainers‑based components for simplifying spinning up infrastructure setup and state management in integration tests. Components encapsulate setup and DI config.
 
 - **PostgreSQL**: SQL-script migrations via Evolve, fast resets via Respawn, pre-configured ConnectionString
 - **Redis**: flush-all resets, pre-configured ConfigurationOptions.
@@ -13,6 +13,7 @@ TestContainers‑based components for simplifying spinning up infrastructure set
 ```csharp
 using Platform.Test.Framework;
 using Platform.Test.Framework.Database;
+using Respawn;
 
 var postgres = new PostgreSqlTestContainer(
     databaseName: "Catalog",
@@ -75,8 +76,6 @@ await kafka.DisposeAsync();
 
 ### [KafkaTestConsumer<TValue>](Kafka/KafkaTestConsumer.cs)
 
-See also [KafkaTestConsumerRegistry](Kafka/KafkaTestConsumerRegistry.cs)
-
 ```csharp
 using Catalog.Products;
 using Platform.Test.Framework.Kafka;
@@ -91,7 +90,7 @@ var consumer = new KafkaTestConsumer<ProductCreatedEvent>(
     topic: "catalog.products");
 
 var one = consumer.ConsumeOne(TimeSpan.FromSeconds(5));
-var many = consumer.ConsumeAll(TimeSpan.FromSeconds(5), maxCount: 10);
+var many = consumer.ConsumeMultiple(TimeSpan.FromSeconds(5), maxCount: 10);
 
 consumer.Dispose();
 ```
@@ -100,7 +99,7 @@ consumer.Dispose();
 
 **Why to use it:**
 - Correlates each test run with an OpenTelemetry activity and surfaces failures in traces.
-- Exposes TraceId for propagating context to the SUT (e.g., via HTTP headers).
+- Exposes TraceParent for propagating context to the SUT (e.g., via HTTP headers).
 
 **Where to use it:**
 - Wrap each integration test, or create/dispose in your fixture's setup/teardown.

@@ -19,7 +19,6 @@ namespace Platform.ReliableMessaging.Outbox.EFCore;
 /// <para>
 /// This interface exposes <see cref="Database"/> and <see cref="SaveChangesAsync"/> for convenience,
 /// enabling handlers that only need transactional outbox operations to use a single injection.
-/// See the design decision documentation for rationale.
 /// </para>
 /// </remarks>
 /// <example>
@@ -66,7 +65,6 @@ public interface ITransactionalOutbox<TContext>
     /// </summary>
     /// <remarks>
     /// Exposed for convenience to support the common pattern of wrapping outbox operations in a transaction.
-    /// This is a pragmatic design choice - see design decision documentation for rationale.
     /// </remarks>
     DatabaseFacade Database { get; }
 }

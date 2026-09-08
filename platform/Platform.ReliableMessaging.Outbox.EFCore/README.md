@@ -59,7 +59,7 @@ public class AppDbContext : DbContext, IOutboxDbContext
 ### Register Services
 
 ```csharp
-using Platform.ReliableMessaging.Outbox.EFCore;
+using Platform.ReliableMessaging.Outbox.EFCore.Common;
 
 services.AddOutbox(outbox =>
 {
@@ -105,7 +105,7 @@ public class OrderService
 
         // Add integration event to outbox with automatic Avro serialization
         // Headers (traceparent, message.id, origin) are auto-generated from Activity.Current
-        _outbox.AddOutboxMessage(order.Id.ToString(), new OrderCreatedEvent(order.Id, order.Total));
+        _outbox.AddOutboxMessage("ordering.orders", order.Id.ToString(), new OrderCreatedEvent(order.Id, order.Total));
 
         // Both saved atomically in same transaction
         await _outbox.SaveChangesAsync(ct);
@@ -139,7 +139,7 @@ public class OrderBackgroundService
         
         // ... process orders ...
         
-        _outbox.AddOutboxMessage(dbContext, order.Id.ToString(), new OrderProcessedEvent(order.Id));
+        _outbox.AddOutboxMessage(dbContext, "ordering.orders", order.Id.ToString(), new OrderProcessedEvent(order.Id));
         await dbContext.SaveChangesAsync(ct);
     }
 }
@@ -150,6 +150,7 @@ public class OrderBackgroundService
 For Kafka message handlers that need explicit transaction control, use the `Database` property:
 
 ```csharp
+using KafkaFlow;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.ReliableMessaging.Outbox.EFCore.Common;
 
@@ -170,7 +171,7 @@ public class OrderEventKafkaHandler : IMessageHandler<OrderPlacedEvent>
         await _outbox.Database.EnsureTransactionAsync(async () =>
         {
             // Process message and create response event...
-            _outbox.AddOutboxMessage(message.OrderId.ToString(), responseEvent);
+            _outbox.AddOutboxMessage("ordering.orders", message.OrderId.ToString(), responseEvent);
             await _outbox.SaveChangesAsync(ct);
         }, ct);
     }
@@ -179,7 +180,7 @@ public class OrderEventKafkaHandler : IMessageHandler<OrderPlacedEvent>
 
 > **Design Note:** The `ITransactionalOutbox<TContext>` interface exposes `Database` and `SaveChangesAsync` for convenience.
 > While this is technically not "pure" interface segregation, it's a pragmatic choice because the outbox pattern
-> is inherently transaction-driven. See [design decisions](../../docs/design-decisions/transactional-outbox-interface-design.md) for rationale.
+> is inherently transaction-driven.
 
 **Note:** The `AddOutboxMessage` method automatically generates OpenTelemetry trace headers (`traceparent`, `tracestate`, `baggage`) from `Activity.Current`, plus `message.id` (GUID v7) and `origin` (from `ConfigureMessageOrigin`). Custom headers are not supported - use OpenTelemetry baggage for custom context propagation.
 
@@ -214,13 +215,13 @@ The relay copies these headers onto the Kafka message, then overwrites `tracepar
 
 | Method | Description |
 | ------ | ----------- |
-| `AddOutboxMessage(dbContext, kafkaKey, event)` | Add Avro message to specified DbContext's outbox |
+| `AddOutboxMessage(dbContext, topicName, kafkaKey, event)` | Add Avro message to specified DbContext's outbox |
 
 ### ITransactionalOutbox&lt;TContext&gt; Members
 
 | Member | Description |
 | ------ | ----------- |
-| `AddOutboxMessage(kafkaKey, event)` | Add Avro message to injected DbContext's outbox |
+| `AddOutboxMessage(topicName, kafkaKey, event)` | Add Avro message to injected DbContext's outbox |
 | `SaveChangesAsync(ct)` | Save changes to the underlying DbContext |
 | `Database` | DatabaseFacade for transaction management (e.g., `EnsureTransactionAsync`) |
 
