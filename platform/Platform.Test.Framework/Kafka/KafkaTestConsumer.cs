@@ -11,7 +11,7 @@ namespace Platform.Test.Framework.Kafka;
 /// Creates a unique consumer group per instance to avoid conflicts.
 /// </summary>
 /// <typeparam name="TValue">The Avro message type to deserialize.</typeparam>
-public sealed class KafkaTestConsumer<TValue> : IKafkaTestConsumer
+public sealed class KafkaTestConsumer<TValue> : IDisposable
     where TValue : class, ISpecificRecord
 {
     private readonly CachedSchemaRegistryClient _schemaClient;
