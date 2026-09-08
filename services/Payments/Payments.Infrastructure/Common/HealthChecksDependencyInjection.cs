@@ -15,7 +15,10 @@ namespace Payments.Infrastructure.Common;
 
 /// <summary>
 /// Health-check surface for the Payments service — ApplicationLifecycle, <see cref="PaymentsDbContext"/>,
-/// and Kafka (the in-process payment-commands consumer). Per-probe timeouts come from
+/// and Kafka (the in-process payment-commands consumer). Kafka reports
+/// <see cref="HealthStatus.Degraded"/> and the rest <see cref="HealthStatus.Unhealthy"/>; the choice
+/// is made at each registration below, against
+/// <see cref="ServiceDefaultHealthCheckTags.ReadinessTag"/>. Per-probe timeouts come from
 /// <see cref="HealthChecksOptions"/>.
 /// No Redis check — Payments has no
 /// idempotency cache layer. The Schema Registry is deliberately NOT a readiness probe: the
@@ -92,9 +95,14 @@ internal static class HealthChecksDependencyInjection
             // an undeliverable probe retires on librdkafka's own message.timeout.ms, on a producer
             // KafkaHealthCheck caches for process lifetime.
             // INVARIANT: message.timeout.ms > KafkaTimeout, or the producer gives up first and
-            // KafkaTimeout stops meaning what it says about when the probe reports Unhealthy. The 1s
+            // KafkaTimeout stops meaning what it says about when the probe reports Degraded. The 1s
             // grace clears the check's own cancellation latency; retries stay off so a failed probe is
             // not left queued on that long-lived producer.
+            // Degraded per ServiceDefaultHealthCheckTags.ReadinessTag: no Payments request path
+            // publishes — business events go through the outbox and outbox-relay-payments. The two
+            // in-process producers are this probe and the DLT producer (MessagingDependencyInjection
+            // .AddDltProducer), both on paths readiness does not gate, so a broker outage costs no
+            // HTTP path and de-rotating would unblock nothing.
             .AddKafka(
                 new ProducerConfig
                 {
@@ -107,7 +115,7 @@ internal static class HealthChecksDependencyInjection
                 topic: "healthchecks",
                 name: "Kafka",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
-                failureStatus: HealthStatus.Unhealthy,
+                failureStatus: HealthStatus.Degraded,
                 timeout: timeouts.KafkaTimeout)
             .AddKafkaTopicsExistenceHealthCheck(
                 kafkaOptions.BrokersFlat,

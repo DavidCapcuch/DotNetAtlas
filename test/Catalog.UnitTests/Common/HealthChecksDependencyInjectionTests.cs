@@ -9,8 +9,9 @@ using Platform.ServiceDefaults.Idempotency;
 namespace Catalog.UnitTests.Common;
 
 /// <summary>
-/// Pins which tag each Catalog health check carries. Rationale for the liveness/readiness
-/// split: <see cref="ServiceDefaultHealthCheckTags.LivenessTag"/>.
+/// Pins which tag each Catalog health check carries, and the status a failing <c>Kafka</c> reports.
+/// Rationale for the liveness/readiness split:
+/// <see cref="ServiceDefaultHealthCheckTags.LivenessTag"/>.
 /// </summary>
 public class HealthChecksDependencyInjectionTests
 {
@@ -39,15 +40,45 @@ public class HealthChecksDependencyInjectionTests
                 "absent because it is contacted cold-cache only");
     }
 
+    /// <summary>
+    /// <c>AddKafka</c>'s check returns <c>context.Registration.FailureStatus</c> on every failure
+    /// path, so the registration argument is what decides. Confirmed by running the registered check
+    /// against an unreachable broker while writing this; nothing reads the value back afterwards, so
+    /// a wrong one is silent until an outage.
+    /// </summary>
+    [Fact]
+    public void AddCatalogHealthChecks_RegistersKafkaAsDegradedOnFailure()
+    {
+        RegisterHealthChecks()
+            .Single(registration => registration.Name == "Kafka")
+            .FailureStatus
+            .Should().Be(
+                HealthStatus.Degraded,
+                "no Catalog request path publishes, so the HTTP surface serves with the broker " +
+                "down — only consumers stall, and readiness gates HTTP routing, so de-rotating " +
+                "would unblock nothing");
+    }
+
     private static IReadOnlyCollection<HealthCheckRegistration> RegisterHealthChecks()
+    {
+        var services = new ServiceCollection();
+        services.AddCatalogHealthChecks(BuildConfiguration());
+
+        using var provider = services.BuildServiceProvider();
+        return [.. provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations];
+    }
+
+    private static ConfigurationManager BuildConfiguration(string brokers = "localhost:9092")
     {
         var configuration = new ConfigurationManager();
         configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["HealthChecks:DbTimeout"] = "00:00:01",
+            // Bounds the unreachable-broker probe above: the registration derives
+            // MessageTimeoutMs from this, and librdkafka retries metadata until it elapses.
             ["HealthChecks:KafkaTimeout"] = "00:00:02",
             ["HealthChecks:RedisTimeout"] = "00:00:01",
-            ["Kafka:Brokers:0"] = "localhost:9092",
+            ["Kafka:Brokers:0"] = brokers,
             [$"ConnectionStrings:{IdempotencyKeyServiceCollectionExtensions.RedisConnectionStringName}"] =
                 "localhost:6379",
             ["Topics:CatalogProducts"] = "catalog.products",
@@ -56,10 +87,6 @@ public class HealthChecksDependencyInjectionTests
             ["Topics:DltTopicSuffix"] = ".Catalog.DLT",
         });
 
-        var services = new ServiceCollection();
-        services.AddCatalogHealthChecks(configuration);
-
-        using var provider = services.BuildServiceProvider();
-        return [.. provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations];
+        return configuration;
     }
 }

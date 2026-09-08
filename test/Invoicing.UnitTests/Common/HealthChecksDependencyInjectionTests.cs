@@ -9,7 +9,8 @@ using Platform.ServiceDefaults.Idempotency;
 namespace Invoicing.UnitTests.Common;
 
 /// <summary>
-/// Pins which tag each Invoicing health check carries. Rationale for the liveness/readiness
+/// Pins which tag each Invoicing health check carries, and the status a failing
+/// Kafka reports. Rationale for the liveness/readiness
 /// split: <see cref="ServiceDefaultHealthCheckTags.LivenessTag"/>.
 /// </summary>
 public class HealthChecksDependencyInjectionTests
@@ -37,6 +38,19 @@ public class HealthChecksDependencyInjectionTests
                 ["ApplicationLifecycle", "Invoicing DB", "redis-cache", "Kafka", "Kafka topics"],
                 "readiness is the declared dependency set; the Schema Registry and Azure Blob " +
                 "storage are deliberately absent");
+    }
+
+    [Fact]
+    public void AddInvoicingHealthChecks_RegistersKafkaAsDegradedOnFailure()
+    {
+        RegisterHealthChecks()
+            .Single(registration => registration.Name == "Kafka")
+            .FailureStatus
+            .Should().Be(
+                HealthStatus.Degraded,
+                "readiness governs HTTP routing and cannot influence a Kafka consumer — the same " +
+                "reasoning this registration already applies to Azure Blob storage, which it " +
+                "likewise refuses to gate traffic on");
     }
 
     private static IReadOnlyCollection<HealthCheckRegistration> RegisterHealthChecks()

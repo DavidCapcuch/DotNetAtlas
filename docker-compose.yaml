@@ -2,7 +2,11 @@
 # busybox wget (built into the Alpine -extra base each *.api service pins via
 # build.args.BASE_IMAGE; see x-bc-base-image below). Readiness covers host startup
 # plus the downstream dependencies (DB / Redis / Kafka) registered with the `ready`
-# tag in Platform.ServiceDefaults, giving (healthy) a real signal.
+# tag in Platform.ServiceDefaults, giving (healthy) a real signal — with one gap to
+# know about: a check registered failureStatus: Degraded serves 200, so (healthy)
+# does not imply it passed. The five BC APIs register their Kafka broker probe that
+# way, so on a warm instance (healthy) carries no broker signal; a cold one still
+# fails through `Kafka topics`. Which checks and why: ServiceDefaultHealthCheckTags.
 x-readiness-healthcheck: &readiness-healthcheck
   # Use 127.0.0.1 (IP literal) not localhost: catalog/ordering/invoicing.api each
   # have `extra_hosts: "localhost:host-gateway"` (for the Keycloak issuer bridge),

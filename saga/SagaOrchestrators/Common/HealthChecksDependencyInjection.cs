@@ -14,7 +14,13 @@ namespace SagaOrchestrators.Common;
 /// <summary>
 /// Health-check surface for the Saga orchestrator — ApplicationLifecycle,
 /// <see cref="SagaDbContext"/>, Kafka, and the saga-specific
-/// <see cref="StuckSagaHealthCheck"/>.
+/// <see cref="StuckSagaHealthCheck"/>, which is the one check here reporting
+/// <see cref="HealthStatus.Degraded"/> (ADR-0001 — every replica counts the same rows). Kafka stays
+/// <see cref="HealthStatus.Unhealthy"/> rather than taking the
+/// <see cref="HealthStatus.Degraded"/> its sibling BC APIs do
+/// (<see cref="ServiceDefaultHealthCheckTags.ReadinessTag"/>) because that trade buys nothing here:
+/// this host serves no HTTP surface beyond its own probes, so with the broker down there is no set
+/// of requests it could still serve correctly.
 /// Per-probe timeouts come from <see cref="HealthChecksOptions"/>.
 /// The Schema Registry is deliberately NOT a readiness probe: the saga's Avro
 /// serializer/deserializer contact it only cold-cache (schema-IDs are cached after first

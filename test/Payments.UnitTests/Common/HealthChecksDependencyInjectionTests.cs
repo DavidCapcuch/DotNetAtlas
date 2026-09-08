@@ -8,7 +8,8 @@ using Platform.ServiceDefaults.Config;
 namespace Payments.UnitTests.Common;
 
 /// <summary>
-/// Pins which tag each Payments health check carries. Rationale for the liveness/readiness
+/// Pins which tag each Payments health check carries, and the status a failing
+/// Kafka reports. Rationale for the liveness/readiness
 /// split: <see cref="ServiceDefaultHealthCheckTags.LivenessTag"/>.
 /// </summary>
 public class HealthChecksDependencyInjectionTests
@@ -36,6 +37,19 @@ public class HealthChecksDependencyInjectionTests
                 ["ApplicationLifecycle", "Payments DB", "Kafka", "Kafka topics"],
                 "readiness is the declared dependency set; Payments uses no Redis, and the " +
                 "external payment gateway is not a readiness gate");
+    }
+
+    [Fact]
+    public void AddPaymentsHealthChecks_RegistersKafkaAsDegradedOnFailure()
+    {
+        RegisterHealthChecks()
+            .Single(registration => registration.Name == "Kafka")
+            .FailureStatus
+            .Should().Be(
+                HealthStatus.Degraded,
+                "no Payments request path publishes, so the HTTP surface serves with the broker " +
+                "down — only the payment-commands consumer stalls, and readiness gates HTTP " +
+                "routing, so de-rotating would unblock nothing");
     }
 
     private static IReadOnlyCollection<HealthCheckRegistration> RegisterHealthChecks()

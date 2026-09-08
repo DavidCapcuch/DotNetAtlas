@@ -14,7 +14,14 @@ namespace Notifications.Infrastructure.Common;
 
 /// <summary>
 /// Health-check surface for the Notifications worker — ApplicationLifecycle,
-/// <see cref="NotificationsDbContext"/>, and Kafka. Per-probe timeouts come from
+/// <see cref="NotificationsDbContext"/>, and Kafka. Both dependencies report
+/// <see cref="HealthStatus.Unhealthy"/>. Kafka stays there rather than taking the
+/// <see cref="HealthStatus.Degraded"/> its sibling BC APIs do
+/// (<see cref="ServiceDefaultHealthCheckTags.ReadinessTag"/>) because that trade buys nothing here:
+/// this host serves no HTTP endpoints beyond its probes — only a SignalR hub, and every message it
+/// broadcasts arrives on the consumer — so with the broker down there is no set of requests it
+/// could still serve correctly.
+/// Per-probe timeouts come from
 /// <see cref="HealthChecksOptions"/>. No Redis check — Notifications has no idempotency cache layer. The Schema Registry is
 /// deliberately NOT a readiness probe: the in-process NotifyUserCommand consumer's Avro
 /// deserializer contacts it only cold-cache (schema-IDs are cached after first use), so

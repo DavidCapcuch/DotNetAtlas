@@ -9,7 +9,8 @@ using Platform.ServiceDefaults.Idempotency;
 namespace Ordering.UnitTests.Common;
 
 /// <summary>
-/// Pins which tag each Ordering health check carries. Rationale for the liveness/readiness
+/// Pins which tag each Ordering health check carries, and the status a failing
+/// Kafka reports. Rationale for the liveness/readiness
 /// split: <see cref="ServiceDefaultHealthCheckTags.LivenessTag"/>.
 /// </summary>
 public class HealthChecksDependencyInjectionTests
@@ -37,6 +38,19 @@ public class HealthChecksDependencyInjectionTests
                 ["ApplicationLifecycle", "Ordering DB", "redis-cache", "Kafka", "Kafka topics"],
                 "readiness is the declared dependency set; the Schema Registry is deliberately " +
                 "absent because it is contacted cold-cache only");
+    }
+
+    [Fact]
+    public void AddOrderingHealthChecks_RegistersKafkaAsDegradedOnFailure()
+    {
+        RegisterHealthChecks()
+            .Single(registration => registration.Name == "Kafka")
+            .FailureStatus
+            .Should().Be(
+                HealthStatus.Degraded,
+                "no Ordering request path publishes, so the HTTP surface serves with the broker " +
+                "down — only the saga-command consumer stalls, and readiness gates HTTP routing, " +
+                "so de-rotating would unblock nothing");
     }
 
     private static IReadOnlyCollection<HealthCheckRegistration> RegisterHealthChecks()

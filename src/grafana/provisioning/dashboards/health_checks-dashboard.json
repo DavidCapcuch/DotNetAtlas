@@ -402,6 +402,7 @@
         "type": "prometheus",
         "uid": "webstore-metrics"
       },
+      "description": "Checks reporting Degraded, which readiness serves as 200 - so unlike Unhealthy these never leave the endpoint set, never mark the container unhealthy in docker compose ps, and reach an operator here and nowhere else. That makes this tile the only signal for a dependency a service deliberately keeps serving without: the Kafka broker probe in catalog, ordering, inventory, invoicing and payments, and redis-cache in the BFF. Orange at 1, not red - degraded is the intended resting state during such an outage, not a failure to chase. Which checks choose Degraded and why: ServiceDefaultHealthCheckTags.ReadinessTag.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],

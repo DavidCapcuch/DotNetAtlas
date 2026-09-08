@@ -18,7 +18,10 @@ namespace Invoicing.Infrastructure.Common;
 /// Health-check surface for the Invoicing service — ApplicationLifecycle, <see cref="InvoicingDbContext"/>,
 /// <c>redis-cache</c> (the idempotency-key OutputCache per ADR-0013 + ADR-0016, hit on every
 /// idempotent write and fail-closed when down), and Kafka (the in-process enrichment-projection
-/// consumers). Per-probe timeouts come from <see cref="HealthChecksOptions"/>.
+/// consumers). Kafka reports <see cref="HealthStatus.Degraded"/> and the rest
+/// <see cref="HealthStatus.Unhealthy"/>; the choice is made at each registration below, against
+/// <see cref="ServiceDefaultHealthCheckTags.ReadinessTag"/> and, for <c>redis-cache</c>, ADR-0016
+/// § Health checks. Per-probe timeouts come from <see cref="HealthChecksOptions"/>.
 /// Required by
 /// <c>Platform.ServiceDefaults.WebApplicationExtensions.MapPlatformHealthCheckEndpoints</c>
 /// which calls <c>UseHealthChecks(...)</c> against the registered set.
@@ -28,8 +31,9 @@ namespace Invoicing.Infrastructure.Common;
 /// only on the consumer-path (IssueInvoice / IssueCreditNote projections, with RetryForever +
 /// DLT), while every HTTP GET mints its SAS URL client-side and survives a blob outage. Readiness
 /// governs HTTP routing and cannot influence a Kafka consumer, so gating on either would 503 a
-/// pod whose HTTP surface is still healthy. Both are boot-ordering dependencies (compose
-/// <c>depends_on</c>); their runtime health is observed via consumer lag / DLT depth + OTEL.
+/// pod whose HTTP surface is still healthy — the same reasoning that puts the Kafka probe above at
+/// Degraded rather than removing it. Both are boot-ordering dependencies (compose
+/// <c>depends_on</c>).
 /// </summary>
 internal static class HealthChecksDependencyInjection
 {
@@ -124,9 +128,15 @@ internal static class HealthChecksDependencyInjection
             // an undeliverable probe retires on librdkafka's own message.timeout.ms, on a producer
             // KafkaHealthCheck caches for process lifetime.
             // INVARIANT: message.timeout.ms > KafkaTimeout, or the producer gives up first and
-            // KafkaTimeout stops meaning what it says about when the probe reports Unhealthy. The 1s
+            // KafkaTimeout stops meaning what it says about when the probe reports Degraded. The 1s
             // grace clears the check's own cancellation latency; retries stay off so a failed probe is
             // not left queued on that long-lived producer.
+            // Degraded per ServiceDefaultHealthCheckTags.ReadinessTag, on the same reasoning the
+            // class doc already applies to blob storage: readiness governs HTTP routing and cannot
+            // influence a Kafka consumer. No Invoicing request path publishes — business events go
+            // through the outbox and outbox-relay-invoicing — and the two in-process producers are
+            // this probe and the DLT producer (MessagingDependencyInjection.AddDltProducer), both on
+            // paths readiness does not gate.
             .AddKafka(
                 new ProducerConfig
                 {
@@ -139,7 +149,7 @@ internal static class HealthChecksDependencyInjection
                 topic: "healthchecks",
                 name: "Kafka",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
-                failureStatus: HealthStatus.Unhealthy,
+                failureStatus: HealthStatus.Degraded,
                 timeout: timeouts.KafkaTimeout)
             .AddKafkaTopicsExistenceHealthCheck(
                 kafkaOptions.BrokersFlat,

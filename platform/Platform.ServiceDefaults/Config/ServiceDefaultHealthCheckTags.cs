@@ -51,14 +51,36 @@ public static class ServiceDefaultHealthCheckTags
     /// hosted service that must finish before traffic is added. A dependency the service can still
     /// serve traffic without is deliberately excluded: Basket omits the Kafka broker probe because
     /// it publishes through the outbox, and every unit omits the Schema Registry because it is
-    /// contacted cold-cache only. Failing is cheap and self-healing — the instance leaves rotation
-    /// until it recovers.
+    /// contacted cold-cache only.
+    /// <para>
+    /// <b>Which status a failing check reports is a routing decision, never a default.</b> Ask: with
+    /// this dependency down, does the instance still serve a useful set of requests, the rest cleanly
+    /// rejected? <b>No</b> — nothing is left, or a path accepts work it cannot complete — reports
+    /// <see cref="Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy"/>, which maps
+    /// to 503 and takes the instance out of rotation, binding this service's uptime to that
+    /// dependency's. <b>Yes</b> reports
+    /// <see cref="Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded"/>, which maps
+    /// to 200: the dependency is shared, so failing readiness on it drops every replica at once while
+    /// none is broken, trading the set they could still serve for none. Each registration states its
+    /// own choice and why.
+    /// </para>
+    /// <para>
+    /// Two costs come with Degraded. It is a bet on the failure being <i>correlated</i>, which no
+    /// check can observe — a fault that is really per-instance keeps that one instance in rotation,
+    /// so the peer contrast has to come from the exported per-check gauge rather than from routing.
+    /// And a Degraded reaches an operator only through that gauge —
+    /// <c>UsePlatformHealthChecksPrometheusExporter</c> and the health-checks dashboard — never by
+    /// remapping it to 503, and no longer as an <c>unhealthy</c> container in <c>docker compose ps</c>.
+    /// </para>
     /// <para>
     /// <c>Kafka topics</c> is the one readiness check that does not probe a live dependency. It
     /// answers whether this instance ever verified that the topics it names exist, and once it has,
     /// it never contacts the broker again — so a later broker outage cannot flip a running fleet
     /// through it. Only an instance that has never verified reports Unhealthy, which is why it can
-    /// afford to: it genuinely does not know whether it can do its job.
+    /// afford to: it genuinely does not know whether it can do its job. It fixes that status at
+    /// registration and no call site can override it, so on a host whose broker check is Degraded a
+    /// <i>running</i> instance rides out a broker outage while a <i>restarting</i> one still fails
+    /// readiness — broker-outage behaviour there is a function of process age.
     /// </para>
     /// </summary>
     public const string ReadinessTag = "ready";

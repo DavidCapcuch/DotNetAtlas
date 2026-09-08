@@ -17,7 +17,17 @@ namespace Basket.Infrastructure.Common;
 /// Health-check surface — ApplicationLifecycle, <see cref="BasketDbContext"/> (the SQL outbox/inbox
 /// side-car), <c>redis-basket</c> (the aggregate primary store, per ADR-0016), and
 /// <c>redis-cache</c> (the idempotency-key OutputCache per ADR-0013 + ADR-0016, hit on
-/// every idempotent write and fail-closed when down). Both Redis instances are isolated
+/// every idempotent write and fail-closed when down). Every check here reports
+/// <see cref="HealthStatus.Unhealthy"/>; how that choice is made:
+/// <see cref="ServiceDefaultHealthCheckTags.ReadinessTag"/>, and for the two Redis instances,
+/// ADR-0016 § Health checks.
+/// <see cref="BasketDbContext"/> is the deliberate one: reads come from <c>redis-basket</c>, so a
+/// Postgres outage leaves <c>GET</c> serving and fails only the writes, which is a
+/// <see cref="HealthStatus.Degraded"/> shape. It stays <see cref="HealthStatus.Unhealthy"/> because
+/// a basket that cannot be added to or checked out is of little use on its own, and because this is
+/// the store every write needs: de-rotating catches a per-instance Postgres fault its siblings do
+/// not share, and stalls a rolling deploy rather than rolling the fleet onto a dead database.
+/// Both Redis instances are isolated
 /// per ADR-0016 and share one <see cref="HealthChecksOptions.RedisTimeout"/>.
 /// Per-probe timeouts come from <see cref="HealthChecksOptions"/>.
 /// Two dependencies are deliberately NOT readiness probes: (1) the Kafka broker — Basket

@@ -18,8 +18,12 @@ namespace Catalog.Infrastructure.Common;
 /// Readiness-probe surface — ApplicationLifecycle, <see cref="CatalogDbContext"/> (Postgres write
 /// store + atomic projection per ADR-0001 + ADR-0016), <c>redis-cache</c> (the
 /// idempotency-key OutputCache per ADR-0013 + ADR-0016, hit on every idempotent write
-/// and fail-closed when down), and the Kafka cluster (outbox relay publishes + the
-/// in-process inbound <c>StockLevelChangedEvent</c> consumer). The Schema Registry is
+/// and fail-closed when down), and the Kafka cluster (the outbox relay's topics + the
+/// in-process inbound <c>StockLevelChangedEvent</c> consumer). Kafka reports
+/// <see cref="HealthStatus.Degraded"/> and the rest <see cref="HealthStatus.Unhealthy"/>; the choice
+/// is made at each registration below, against
+/// <see cref="ServiceDefaultHealthCheckTags.ReadinessTag"/> and, for <c>redis-cache</c>, ADR-0016
+/// § Health checks. The Schema Registry is
 /// deliberately NOT a readiness probe: the Avro serializer/deserializer contact it only
 /// cold-cache (schema-IDs are cached after first use on both the produce and consume
 /// paths), so steady-state operation survives an SR outage — SR is a boot-ordering
@@ -118,9 +122,14 @@ internal static class HealthChecksDependencyInjection
             // an undeliverable probe retires on librdkafka's own message.timeout.ms, on a producer
             // KafkaHealthCheck caches for process lifetime.
             // INVARIANT: message.timeout.ms > KafkaTimeout, or the producer gives up first and
-            // KafkaTimeout stops meaning what it says about when the probe reports Unhealthy. The 1s
+            // KafkaTimeout stops meaning what it says about when the probe reports Degraded. The 1s
             // grace clears the check's own cancellation latency; retries stay off so a failed probe is
             // not left queued on that long-lived producer.
+            // Degraded per ServiceDefaultHealthCheckTags.ReadinessTag: no Catalog request path
+            // publishes — business events go through the outbox and outbox-relay-catalog. The two
+            // in-process producers are this probe and the DLT producer (MessagingDependencyInjection
+            // .AddDltProducer), both on paths readiness does not gate, so a broker outage costs no
+            // HTTP path and de-rotating would unblock nothing.
             .AddKafka(
                 new ProducerConfig
                 {
@@ -133,7 +142,7 @@ internal static class HealthChecksDependencyInjection
                 topic: "healthchecks",
                 name: "Kafka",
                 tags: [ServiceDefaultHealthCheckTags.ReadinessTag],
-                failureStatus: HealthStatus.Unhealthy,
+                failureStatus: HealthStatus.Degraded,
                 timeout: timeouts.KafkaTimeout)
             .AddKafkaTopicsExistenceHealthCheck(
                 kafkaOptions.BrokersFlat,
