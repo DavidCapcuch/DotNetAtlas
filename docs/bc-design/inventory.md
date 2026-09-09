@@ -753,7 +753,7 @@ Beyond these events, Inventory consumes the saga-issued reservation commands on 
 
 ### 13.2 Kafka topics
 
-Inventory owns `inventory.stock-events` (consumed by Catalog) and `inventory.reservations` (consumed by the checkout saga). Per-topic partitions / retention / class are canonical in [kafka-topology.md](../kafka-topology.md); producers / consumers / keys in [events-catalog.md § 2](events-catalog.md). Design note: `inventory.reservations` is keyed by `OrderId` so every reservation event for one order co-partitions (preserving per-order ordering) and runs extra partitions for saga fan-out.
+Inventory owns `inventory.stock-events` (consumed by Catalog) and `inventory.reservations` (consumed by the checkout saga). Per-topic partitions / retention / class are canonical in [kafka-topology.md](../kafka-topology.md); producers / consumers / keys in [events-catalog.md § 2](events-catalog.md). Design note: `inventory.reservations` is keyed by `OrderId` so every reservation event for one order co-partitions, and runs extra partitions for saga fan-out. Co-partitioning is not per-order ordering: the write path serializes per `ProductId` stream, not per `OrderId`, so two reservation events for one order come from transactions nothing orders ([conventions.md § 6](conventions.md)). Reordering is harmless throughout: the fan-in counters are commutative over `StockReserved` / `StockReservationFailed`, confirmations are informational, and `PendingReleases` is recomputed from the tracking map rather than decremented.
 
 ### 13.3 Outbox relay registration
 

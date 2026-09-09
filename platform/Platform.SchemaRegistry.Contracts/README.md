@@ -167,10 +167,10 @@ Consumer must:
 
 ### Event Ordering and Topic Design
 
-Kafka guarantees ordering **only within a single partition**. Use aggregate ID as the Kafka key:
+Kafka guarantees ordering **only within a single partition**. Key on the aggregate id whose events a consumer must see in order — whether that key actually carries an order is [conventions.md § 6](../../docs/bc-design/conventions.md):
 
 ```
-✅ SINGLE TOPIC with aggregate ID key: Ordering guaranteed
+✅ SINGLE TOPIC keyed on the aggregate id: per-aggregate order holds
 
 Topic: ordering.orders (key = OrderId)
   Partition 0: [

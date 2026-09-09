@@ -119,7 +119,7 @@ Each client resolves the resilience pipeline by name (`"catalog"`, `"basket"`, `
 3. Handler dispatch.
 4. DLT on exception.
 
-**Ordering guarantee note.** Because cache invalidation is an idempotent set-membership removal operation, out-of-order deliveries across partitions are harmless. Within a single partition (keyed by `ProductId` / `OrderId` / `UserId`), order is preserved by Kafka.
+**Ordering guarantee note.** Cache invalidation is an idempotent set-membership removal, so out-of-order delivery is harmless and the BFF depends on no ordering guarantee at all — which is just as well, because end-to-end per-key ordering is narrower than Kafka's partition guarantee ([conventions.md § 6](conventions.md)).
 
 ### 2.3 Authentication pass-through
 

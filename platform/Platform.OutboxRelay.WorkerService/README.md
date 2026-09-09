@@ -7,7 +7,8 @@ Background worker service that polls the outbox table and publishes messages to 
 Messages stored in the outbox table need to be reliably delivered to Kafka. This requires:
 
 - Periodic polling to detect new messages
-- Ordered delivery with at-least-once guarantees
+- At-least-once delivery in insert order — which is not commit order; what that does and does not
+  guarantee is [conventions.md § 6](../../docs/bc-design/conventions.md)
 - Graceful shutdown without message loss
 - Health monitoring and observability
 

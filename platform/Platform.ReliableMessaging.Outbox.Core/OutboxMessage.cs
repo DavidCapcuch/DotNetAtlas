@@ -18,7 +18,9 @@ public class OutboxMessage
     public required string TopicName { get; set; }
 
     /// <summary>
-    /// Kafka Key - typically the Aggregate ID for proper event ordering and partitioning.
+    /// Kafka partition key. Pick it from what the consumer needs co-partitioned — for a command
+    /// topic that is the consumer's consistency boundary, not the producer's. Whether a given key
+    /// carries an order at all is <c>docs/bc-design/conventions.md</c> § 6.
     /// </summary>
     public string? KafkaKey { get; set; }
 
