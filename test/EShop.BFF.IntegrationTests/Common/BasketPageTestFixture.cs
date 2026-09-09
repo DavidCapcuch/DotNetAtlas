@@ -191,10 +191,16 @@ public sealed class BasketPageTestFixture : AppFixture<Program>
         StubTokenEndpoint();
     }
 
-    public async Task<bool> IsBasketCachedAsync(Guid userId)
+    public async Task<bool> IsBasketCachedAsync(Guid userId, CancellationToken ct)
     {
         var cache = Services.GetRequiredService<IFusionCache>();
-        var maybe = await cache.TryGetAsync<BasketPageResponse>(BffCacheConstants.BasketPageKey(userId));
+        var maybe = await cache.TryGetAsync<BasketPageResponse>(
+            BffCacheConstants.BasketPageKey(userId), token: ct);
+
+        // The cache is configured not to rethrow distributed-cache failures, so a read cancelled
+        // mid-flight comes back as a miss rather than as an error. Returning that as "not cached"
+        // would answer a question this read never actually settled, so let the cancellation win.
+        ct.ThrowIfCancellationRequested();
         return maybe.HasValue;
     }
 

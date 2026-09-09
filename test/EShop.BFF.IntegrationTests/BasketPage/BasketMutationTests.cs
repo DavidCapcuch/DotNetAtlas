@@ -37,7 +37,7 @@ public sealed class BasketMutationTests(BasketPageTestFixture fixture) : BaseBas
         using (new AssertionScope())
         {
             response.StatusCode.Should().Be(HttpStatusCode.NoContent);
-            (await Fixture.IsBasketCachedAsync(userId))
+            (await Fixture.IsBasketCachedAsync(userId, TestContext.Current.CancellationToken))
                 .Should().BeFalse("a successful mutation synchronously invalidates the buyer's basket cache");
         }
     }
@@ -88,7 +88,7 @@ public sealed class BasketMutationTests(BasketPageTestFixture fixture) : BaseBas
             response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
             (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
                 .Should().Be(problemJson, "the forwarder relays Basket's verdict body verbatim (bff.md § 3.6)");
-            (await Fixture.IsBasketCachedAsync(userId))
+            (await Fixture.IsBasketCachedAsync(userId, TestContext.Current.CancellationToken))
                 .Should().BeTrue("a non-2xx verdict changed no basket state, so the cache is not invalidated");
         }
     }
@@ -182,7 +182,8 @@ public sealed class BasketMutationTests(BasketPageTestFixture fixture) : BaseBas
         using (new AssertionScope())
         {
             response.StatusCode.Should().Be(HttpStatusCode.NoContent);
-            (await Fixture.IsBasketCachedAsync(userId)).Should().BeFalse();
+            (await Fixture.IsBasketCachedAsync(userId, TestContext.Current.CancellationToken))
+                .Should().BeFalse();
         }
     }
 
@@ -201,7 +202,8 @@ public sealed class BasketMutationTests(BasketPageTestFixture fixture) : BaseBas
         using (new AssertionScope())
         {
             response.StatusCode.Should().Be(HttpStatusCode.NoContent);
-            (await Fixture.IsBasketCachedAsync(userId)).Should().BeFalse();
+            (await Fixture.IsBasketCachedAsync(userId, TestContext.Current.CancellationToken))
+                .Should().BeFalse();
         }
     }
 
@@ -252,7 +254,8 @@ public sealed class BasketMutationTests(BasketPageTestFixture fixture) : BaseBas
         using (new AssertionScope())
         {
             response.StatusCode.Should().Be(HttpStatusCode.NoContent);
-            (await Fixture.IsBasketCachedAsync(userId)).Should().BeFalse();
+            (await Fixture.IsBasketCachedAsync(userId, TestContext.Current.CancellationToken))
+                .Should().BeFalse();
         }
     }
 
@@ -262,7 +265,8 @@ public sealed class BasketMutationTests(BasketPageTestFixture fixture) : BaseBas
         Fixture.StubBasketStatus(404); // no basket yet → empty page, cached, not stale
         var get = await SendAsync(HttpMethod.Get, "/api/v1/bff/basket", userId, body: null);
         get.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await Fixture.IsBasketCachedAsync(userId)).Should().BeTrue("the basket page was just composed and cached");
+        (await Fixture.IsBasketCachedAsync(userId, TestContext.Current.CancellationToken))
+            .Should().BeTrue("the basket page was just composed and cached");
     }
 
     private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string url, Guid userId, object? body)
