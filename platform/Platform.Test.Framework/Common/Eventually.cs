@@ -68,8 +68,9 @@ public static class Eventually
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            // It is the poll delay, not the condition, that trips the deadline — so a condition
-            // that became true during that delay would otherwise fail a run that had succeeded.
+            // Whichever await the deadline cancelled, the condition may already be true — or the
+            // probe may simply not have got to answer — so failing here would fail a run that had
+            // in fact succeeded.
             var (held, fault) = await ProbeOnceMoreAsync(probe, timeout, ct);
             if (held)
             {
