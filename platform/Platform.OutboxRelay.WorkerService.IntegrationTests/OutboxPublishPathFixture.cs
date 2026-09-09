@@ -4,8 +4,10 @@ using Confluent.SchemaRegistry;
 using FastEndpoints.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Npgsql;
 using Platform.OutboxRelay.WorkerService.Common.Config;
 using Platform.OutboxRelay.WorkerService.OutboxRelay;
@@ -191,6 +193,66 @@ public sealed class OutboxPublishPathFixture : AppFixture<Platform.OutboxRelay.W
 
         await using var dbContext = await factory.CreateDbContextAsync(ct);
 
+        return await AddRowsAndSaveAsync(writer, dbContext, rows, ct);
+    }
+
+    /// <summary>
+    /// Writes <paramref name="rows"/> through the real <see cref="IOutboxWriter"/> but leaves the
+    /// transaction open, so the ids exist while the rows stay invisible to the relay.
+    /// </summary>
+    /// <remarks>
+    /// Postgres stamps the identity at INSERT and the row becomes visible only at COMMIT. In a
+    /// single-<c>SaveChanges</c> transaction that gap is microseconds wide — see
+    /// <c>docs/bc-design/conventions.md</c> § 6 for when it is not. This is the seam that widens
+    /// it to test-controlled.
+    /// </remarks>
+    public async Task<PendingOutboxWrite> BeginOutboxWriteAsync(
+        IReadOnlyList<OutboxRow> rows,
+        CancellationToken ct)
+    {
+        var writer = Services.GetRequiredService<IOutboxWriter>();
+
+        // Not the relay's pooled factory: it enables EnableRetryOnFailure, and EF refuses a
+        // user-initiated transaction under a retrying strategy — a retry cannot replay a
+        // transaction it does not own. Production code satisfies that by running the whole unit
+        // inside CreateExecutionStrategy().ExecuteAsync (see InboxMiddleware); this seam cannot,
+        // because holding the transaction open across test steps is the entire point.
+        //
+        // This opens a second backend session against the same database, and that separateness is
+        // what lets the write sit uncommitted while the relay's own session polls past it. The
+        // provider and naming convention mirror PersistenceDependencyInjection.AddDatabase — a
+        // change there has to be repeated here, because nothing links the two.
+        var options = new DbContextOptionsBuilder<OutboxDbContext>()
+            .UseNpgsql(_dbContainer.ConnectionString)
+            .UseSnakeCaseNamingConvention()
+            .Options;
+
+        var dbContext = new OutboxDbContext(options, Services.GetRequiredService<IOptions<OutboxRelayOptions>>());
+        try
+        {
+            var transaction = await dbContext.Database.BeginTransactionAsync(ct);
+            var ids = await AddRowsAndSaveAsync(writer, dbContext, rows, ct);
+
+            return new PendingOutboxWrite(dbContext, transaction, ids);
+        }
+        catch
+        {
+            await dbContext.DisposeAsync();
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Stages <paramref name="rows"/> through the real <see cref="IOutboxWriter"/> and flushes them,
+    /// returning the ids the database assigned. Takes the context as a parameter because the two
+    /// callers differ on which one to use and on who disposes it.
+    /// </summary>
+    private static async Task<IReadOnlyList<long>> AddRowsAndSaveAsync(
+        IOutboxWriter writer,
+        OutboxDbContext dbContext,
+        IReadOnlyList<OutboxRow> rows,
+        CancellationToken ct)
+    {
         foreach (var row in rows)
         {
             writer.AddOutboxMessage(dbContext, row.TopicName, row.KafkaKey, row.Event);
