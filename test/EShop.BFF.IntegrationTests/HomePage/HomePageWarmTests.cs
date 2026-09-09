@@ -23,12 +23,13 @@ public sealed class HomePageWarmOnTests(HomePageWarmOnFixture fixture)
         }
     }
 
-    private static async Task<bool> EventuallyTrueAsync(Func<Task<bool>> condition, TimeSpan timeout)
+    private static async Task<bool> EventuallyTrueAsync(
+        Func<CancellationToken, Task<bool>> condition, TimeSpan timeout)
     {
         try
         {
             await Eventually.UntilAsync(
-                _ => condition(),
+                condition,
                 timeout,
                 "the background warmer to populate the home-page cache",
                 TestContext.Current.CancellationToken);
@@ -60,7 +61,8 @@ public sealed class HomePageWarmOffTests(HomePageWarmOffFixture fixture)
 
         using (new AssertionScope())
         {
-            (await fixture.IsHomePageCachedAsync()).Should().BeFalse("the warmer must skip when the flag is off");
+            (await fixture.IsHomePageCachedAsync(TestContext.Current.CancellationToken))
+                .Should().BeFalse("the warmer must skip when the flag is off");
             fixture.CountCatalogSearchCalls().Should().Be(0, "a skipped warm makes no upstream calls");
         }
     }

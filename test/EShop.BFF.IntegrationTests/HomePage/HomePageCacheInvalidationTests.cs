@@ -76,16 +76,23 @@ public sealed class HomePageCacheInvalidationTests(CacheInvalidationTestFixture 
     {
         // Arrange
         await _fixture.SeedHomePageCacheAsync();
-        (await _fixture.IsHomePageCachedAsync()).Should().BeTrue("the home page was just seeded");
+        (await _fixture.IsHomePageCachedAsync(TestContext.Current.CancellationToken))
+            .Should().BeTrue("the home page was just seeded");
 
         // Act
         await _fixture.ProduceAsync(topic, key, @event);
 
         // Assert — the live consumer removes the home-page tag within the timeout.
         await Eventually.UntilAsync(
-            async _ => !await _fixture.IsHomePageCachedAsync(),
+            async token => !await _fixture.IsHomePageCachedAsync(token),
             EvictionTimeout,
             "the bff-group consumer to evict the home-page tag on the event",
             TestContext.Current.CancellationToken);
+
+        // A cache read the deadline cancelled, or one whose L2 fault was swallowed, both report a
+        // miss — which the negated probe above reads as an eviction. Re-read on the test's own token
+        // so a pass means the entry is gone rather than merely unreadable.
+        (await _fixture.IsHomePageCachedAsync(TestContext.Current.CancellationToken))
+            .Should().BeFalse("the consumer must have removed the entry, not just failed to read it");
     }
 }

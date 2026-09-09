@@ -89,10 +89,15 @@ public abstract class HomePageWarmFixtureBase : AppFixture<Program>
     protected override void ConfigureApp(IWebHostBuilder a) =>
         a.UseEnvironment("Testing").UseTestSerilog().UseWarmFlag(WarmEnabled);
 
-    public async Task<bool> IsHomePageCachedAsync()
+    public async Task<bool> IsHomePageCachedAsync(CancellationToken ct)
     {
         var cache = Services.GetRequiredService<IFusionCache>();
-        var maybe = await cache.TryGetAsync<HomePageResponse>(BffCacheConstants.HomePageKey);
+        var maybe = await cache.TryGetAsync<HomePageResponse>(BffCacheConstants.HomePageKey, token: ct);
+
+        // The cache is configured not to rethrow distributed-cache failures, so a read the deadline
+        // cancelled comes back as a miss rather than as an error. Reporting that as a real answer
+        // would let a probe decide on a read that never completed, so let the deadline win instead.
+        ct.ThrowIfCancellationRequested();
         return maybe.HasValue;
     }
 

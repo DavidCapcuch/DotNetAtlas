@@ -24,7 +24,8 @@ public sealed class BasketCacheInvalidationTests(CacheInvalidationTestFixture fi
         // Arrange
         var userId = Guid.NewGuid();
         await _fixture.SeedBasketCacheAsync(userId);
-        (await _fixture.IsBasketCachedAsync(userId)).Should().BeTrue("the basket was just seeded");
+        (await _fixture.IsBasketCachedAsync(userId, TestContext.Current.CancellationToken))
+            .Should().BeTrue("the basket was just seeded");
 
         // Act — the buyer checks out: the basket became an order.
         await _fixture.ProduceAsync(
@@ -32,10 +33,16 @@ public sealed class BasketCacheInvalidationTests(CacheInvalidationTestFixture fi
 
         // Assert — the live consumer removes the basket-bff-{userId} tag within the timeout.
         await Eventually.UntilAsync(
-            async _ => !await _fixture.IsBasketCachedAsync(userId),
+            async token => !await _fixture.IsBasketCachedAsync(userId, token),
             EvictionTimeout,
             $"the bff-group consumer to evict the buyer's basket tag basket-bff-{userId} on checkout",
             TestContext.Current.CancellationToken);
+
+        // A cache read the deadline cancelled, or one whose L2 fault was swallowed, both report a
+        // miss — which the negated probe above reads as an eviction. Re-read on the test's own token
+        // so a pass means the entry is gone rather than merely unreadable.
+        (await _fixture.IsBasketCachedAsync(userId, TestContext.Current.CancellationToken))
+            .Should().BeFalse("the consumer must have removed the entry, not just failed to read it");
     }
 
     private static BasketCheckoutInitiatedEvent BuildCheckoutEvent(Guid userId)

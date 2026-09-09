@@ -98,10 +98,15 @@ public sealed class CacheInvalidationTestFixture : AppFixture<Program>
         await cache.SetAsync(BffCacheConstants.HomePageKey, page, tags: BffHomePageCache.Tags);
     }
 
-    public async Task<bool> IsHomePageCachedAsync()
+    public async Task<bool> IsHomePageCachedAsync(CancellationToken ct)
     {
         var cache = Services.GetRequiredService<IFusionCache>();
-        var maybe = await cache.TryGetAsync<HomePageResponse>(BffCacheConstants.HomePageKey);
+        var maybe = await cache.TryGetAsync<HomePageResponse>(BffCacheConstants.HomePageKey, token: ct);
+
+        // The cache is configured not to rethrow distributed-cache failures, so a read the deadline
+        // cancelled comes back as a miss rather than as an error. A negated probe would read that as
+        // "evicted" and pass a run where nothing was evicted, so let the deadline win instead.
+        ct.ThrowIfCancellationRequested();
         return maybe.HasValue;
     }
 
@@ -126,10 +131,14 @@ public sealed class CacheInvalidationTestFixture : AppFixture<Program>
             BffCacheConstants.BasketPageKey(userId), page, tags: BffBasketCache.Tags(userId));
     }
 
-    public async Task<bool> IsBasketCachedAsync(Guid userId)
+    public async Task<bool> IsBasketCachedAsync(Guid userId, CancellationToken ct)
     {
         var cache = Services.GetRequiredService<IFusionCache>();
-        var maybe = await cache.TryGetAsync<BasketPageResponse>(BffCacheConstants.BasketPageKey(userId));
+        var maybe = await cache.TryGetAsync<BasketPageResponse>(
+            BffCacheConstants.BasketPageKey(userId), token: ct);
+
+        // See IsHomePageCachedAsync: a cancelled read reports a miss, not an error.
+        ct.ThrowIfCancellationRequested();
         return maybe.HasValue;
     }
 
