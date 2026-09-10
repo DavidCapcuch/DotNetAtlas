@@ -99,8 +99,8 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         await PublishOrderCancelledAsync(userId, orderId, atStatus: OrderStatusAtTransition.StockReserved);
 
         // Assert — Compensated terminal reached + finalized
-        var finalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
-        finalized.Should().BeTrue("the saga must reach the Compensated terminal once all releases land + OrderCancelled arrives");
+        var saga = await SagaStateMonitor.ObserveFinalizationAsync(compensatingState, DefaultTimeout);
+        saga.Should().BeFinalized();
 
         var outboxMessages = await SagaDbContext.OutboxMessages
             .AsNoTracking()
@@ -184,7 +184,8 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
             errorCode: "CONFIRMATION_INVENTORY_OUT_OF_SYNC",
             atStatus: OrderStatusAtTransition.PaymentCompleted);
 
-        await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.CompensatingStockReservations, DefaultTimeout);
+        var compensatingState = await SagaStateMonitor.WaitForStateAsync(
+            correlationId, x => x.CompensatingStockReservations, DefaultTimeout);
 
         // Act 2 — Inventory acknowledges releases + Ordering acknowledges cancel
         await PublishReservationReleasedAsync(orderId, product1, tracking[product1].ReservationId!.Value);
@@ -193,8 +194,8 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         await PublishOrderCancelledAsync(userId, orderId, atStatus: OrderStatusAtTransition.PaymentCompleted);
 
         // Assert — Compensated terminal reached + finalized
-        var finalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
-        finalized.Should().BeTrue("Compensated is reached once abort + all releases + cancel land");
+        var saga = await SagaStateMonitor.ObserveFinalizationAsync(compensatingState, DefaultTimeout);
+        saga.Should().BeFinalized();
 
         var outboxMessages = await SagaDbContext.OutboxMessages
             .AsNoTracking()
@@ -268,7 +269,7 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         await WaitForReservedStatusAsync(correlationId, product1);
         await PublishStockReservationFailedAsync(orderId, product2, requested: 2, available: 0);
 
-        await SagaStateMonitor.WaitForStateAsync(
+        var compensatingState = await SagaStateMonitor.WaitForStateAsync(
             correlationId, x => x.CompensatingStockReservations, DefaultTimeout);
 
         // Act — withhold the ReservationReleasedEvent and OrderCancelledEvent; instead publish
@@ -277,8 +278,8 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
         await Bus.Publish(new CompensationTimeoutExpired { CorrelationId = correlationId });
 
         // Assert — CompensationStuck is abnormal-terminal; saga finalised + CheckoutStuckEvent emitted.
-        var finalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
-        finalized.Should().BeTrue("CompensationTimeout fires the CompensationStuck terminal transition + Finalize()");
+        var saga = await SagaStateMonitor.ObserveFinalizationAsync(compensatingState, DefaultTimeout);
+        saga.Should().BeFinalized();
 
         var outboxMessages = await SagaDbContext.OutboxMessages
             .AsNoTracking()
@@ -324,7 +325,8 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
             correlationId, userId, [(product1, 1, 10m)]);
 
         await KafkaTestProducer.ProduceAsync(TopicsOptions.BasketSessions, userId, basketCheckoutInitiated);
-        await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingOrderCreation, DefaultTimeout);
+        var awaitingOrderState = await SagaStateMonitor.WaitForStateAsync(
+            correlationId, x => x.AwaitingOrderCreation, DefaultTimeout);
 
         // Act — Ordering rejects the create-order request
         await PublishOrderFailedAsync(userId, orderId,
@@ -332,8 +334,8 @@ public class CheckoutSagaCompensationIntegrationTests : BaseSagaIntegrationTest
             atStatus: OrderStatusAtTransition.Created);
 
         // Assert — Failed terminal, no compensation outbox commands (nothing to compensate).
-        var finalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
-        finalized.Should().BeTrue();
+        var saga = await SagaStateMonitor.ObserveFinalizationAsync(awaitingOrderState, DefaultTimeout);
+        saga.Should().BeFinalized();
 
         var outboxMessages = await SagaDbContext.OutboxMessages
             .AsNoTracking()

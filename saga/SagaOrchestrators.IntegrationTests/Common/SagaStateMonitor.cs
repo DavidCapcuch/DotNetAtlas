@@ -79,13 +79,25 @@ public sealed class SagaStateMonitor<TSaga, TSagaState>
     }
 
     /// <summary>
-    /// Waits for a saga to be finalized (removed from the database).
+    /// Waits until no row with <paramref name="observed"/>'s correlation id remains — which is how
+    /// a finalized saga presents, since the orchestrator's <c>SetCompletedWhenFinalized()</c>
+    /// deletes the row on <c>Finalize()</c>.
     /// </summary>
-    /// <param name="correlationId">The correlation ID of the saga instance.</param>
+    /// <param name="observed">
+    /// The most recent state a wait read back. The poll cannot tell a finalized saga from one that
+    /// never started — both are "no row", and the second answers on the first poll — so taking proof
+    /// the saga existed is what rules that case out. Only existence is enforced: pass an older
+    /// observation and the wait still holds, but a failure names a state the saga has since left.
+    /// </param>
     /// <param name="timeout">Maximum time to wait for finalization.</param>
-    /// <exception cref="EventuallyTimeoutException">Thrown if the saga is not finalized within the timeout.</exception>
-    public async Task<bool> WaitForFinalizedAsync(Guid correlationId, TimeSpan timeout)
+    /// <returns>
+    /// The outcome. Assert on it — <c>Should().BeFinalized()</c>; observing alone verifies nothing,
+    /// because a saga that never finalizes is a returned <c>false</c> here, not a throw.
+    /// </returns>
+    public async Task<SagaFinalization> ObserveFinalizationAsync(TSagaState observed, TimeSpan timeout)
     {
+        var correlationId = observed.CorrelationId;
+
         try
         {
             await Eventually.UntilAsync(
@@ -95,18 +107,20 @@ public sealed class SagaStateMonitor<TSaga, TSagaState>
                 timeout,
                 $"saga {typeof(TSagaState).Name} with CorrelationId {correlationId} to be finalized");
 
-            return true;
+            return Outcome(isFinalized: true, currentState: "gone");
         }
-        catch (EventuallyTimeoutException expired)
+        catch (EventuallyTimeoutException)
         {
-            var currentState = await DescribeStateAsync(correlationId, "gone");
-
-            throw new EventuallyTimeoutException(
-                $"Saga {typeof(TSagaState).Name} with CorrelationId {correlationId} " +
-                $"was not finalized within {timeout.TotalSeconds}s. " +
-                $"Current state: {currentState}",
-                expired);
+            return Outcome(isFinalized: false, await DescribeStateAsync(correlationId, "gone"));
         }
+
+        SagaFinalization Outcome(bool isFinalized, string currentState) => new(
+            isFinalized,
+            typeof(TSagaState).Name,
+            correlationId,
+            timeout,
+            observed.CurrentState,
+            currentState);
     }
 
     /// <summary>

@@ -26,7 +26,7 @@ namespace SagaOrchestrators.IntegrationTests.Sagas;
 /// Per the orchestrator's <c>SetCompletedWhenFinalized()</c> + per-terminal <c>.Finalize()</c>,
 /// the saga row is removed by the EF saga repository on terminal. The PII null-out rule from
 /// ADR-0011 is asserted at two layers — (a) the saga row is gone after terminal (verified via
-/// <see cref="SagaStateMonitor{TSaga,TSagaState}.WaitForFinalizedAsync"/>); (b) the saga-terminal
+/// <see cref="SagaStateMonitor{TSaga,TSagaState}.AssertFinalizedAsync"/>); (b) the saga-terminal
 /// Avro event payload bytes contain none of the deterministic address VALUES the test seeded
 /// into the saga state on initiation (verified via UTF-8 byte scan against
 /// <see cref="CheckoutSagaTestPublishers.AddressValueWitnesses"/>). Avro binary encoding does
@@ -103,15 +103,16 @@ public class CheckoutSagaEndToEndIntegrationTests : BaseSagaIntegrationTest
 
         // Act 4 — OrderConfirmed → AwaitingPaymentCapture (saga approves capture — the pivot).
         await PublishOrderConfirmedAsync(userId, orderId);
-        await SagaStateMonitor.WaitForStateAsync(correlationId, x => x.AwaitingPaymentCapture, DefaultTimeout);
+        var awaitingCaptureState = await SagaStateMonitor.WaitForStateAsync(
+            correlationId, x => x.AwaitingPaymentCapture, DefaultTimeout);
 
         // Act 5 — PaymentCompleted (Payments owns this terminal per ADR-0026) → Confirmed (terminal, finalized).
         var paymentTransactionId = Guid.CreateVersion7();
         await PublishPaymentCompletedAsync(correlationId, userId, paymentTransactionId, awaitingPaymentState.TotalAmount);
 
-        // Assert — saga row removed by the EF repo on Finalize() per SetCompletedWhenFinalized()
-        var finalized = await SagaStateMonitor.WaitForFinalizedAsync(correlationId, DefaultTimeout);
-        finalized.Should().BeTrue("the saga must reach the Confirmed terminal and be finalized by MassTransit");
+        // Assert — ADR-0011 layer (a): the saga row is gone after terminal
+        var saga = await SagaStateMonitor.ObserveFinalizationAsync(awaitingCaptureState, DefaultTimeout);
+        saga.Should().BeFinalized();
 
         // Outbox-side assertions: every command + the saga-terminal event landed
         var outboxMessages = await SagaDbContext.OutboxMessages
