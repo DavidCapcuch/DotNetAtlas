@@ -44,7 +44,7 @@
         <!-- Background jobs — Notifications per-channel dispatch (ADR-0032) -->
         <PackageVersion Include="Hangfire.AspNetCore" Version="1.8.23"/>
         <PackageVersion Include="Hangfire.PostgreSql" Version="1.21.1"/>
-        <PackageVersion Include="OpenTelemetry.Instrumentation.Hangfire" Version="1.15.1-beta.1"/>
+        <PackageVersion Include="OpenTelemetry.Instrumentation.Hangfire" Version="1.16.0-beta.2"/>
 
         <!-- Email — Notifications email channel → SMTP/Mailpit (ADR-0032) -->
         <PackageVersion Include="MailKit" Version="4.17.0"/>
@@ -92,18 +92,18 @@
         <PackageVersion Include="Azure.Storage.Blobs" Version="12.28.0"/>
 
         <!-- OpenTelemetry -->
-        <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.15.3"/>
-        <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.3"/>
-        <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3"/>
-        <PackageVersion Include="OpenTelemetry.Extensions.Propagators" Version="1.15.3"/>
-        <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2"/>
-        <PackageVersion Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.15.1-beta.1"/>
-        <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1"/>
-        <PackageVersion Include="OpenTelemetry.Instrumentation.Process" Version="1.15.1-beta.1"/>
-        <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1"/>
-        <PackageVersion Include="OpenTelemetry.Instrumentation.StackExchangeRedis" Version="1.15.1-beta.1"/>
-        <PackageVersion Include="OpenTelemetry.Resources.Container" Version="1.15.1-beta.1"/>
-        <PackageVersion Include="OpenTelemetry.Resources.Host" Version="1.15.1-beta.1"/>
+        <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.16.0"/>
+        <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0"/>
+        <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0"/>
+        <PackageVersion Include="OpenTelemetry.Extensions.Propagators" Version="1.16.0"/>
+        <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.16.0"/>
+        <PackageVersion Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.16.0-beta.1"/>
+        <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.16.0"/>
+        <PackageVersion Include="OpenTelemetry.Instrumentation.Process" Version="1.16.0-rc.1"/>
+        <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.16.0"/>
+        <PackageVersion Include="OpenTelemetry.Instrumentation.StackExchangeRedis" Version="1.16.0-beta.1"/>
+        <PackageVersion Include="OpenTelemetry.Resources.Container" Version="1.16.0-beta.1"/>
+        <PackageVersion Include="OpenTelemetry.Resources.Host" Version="1.16.0-beta.2"/>
 
         <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.556"/>
 
