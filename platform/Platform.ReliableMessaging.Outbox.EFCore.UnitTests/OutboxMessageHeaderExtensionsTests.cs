@@ -99,6 +99,54 @@ public sealed class OutboxMessageHeaderExtensionsTests
     }
 
     [Fact]
+    public void BuildOtelHeadersFromActivity_WithBaggageNeedingEncoding_SurvivesTheColumnRoundTrip()
+    {
+        // Arrange — baggage values arrive from callers (ASP.NET Core hydrates Baggage.Current from
+        // the inbound `baggage` header), so the row format has to carry characters the W3C Baggage
+        // spec requires percent-encoding. The encoder belongs to the OpenTelemetry package and
+        // changes under us on a bump, while the column it writes is read back by a separately
+        // deployed relay — so what needs pinning is that a value survives write → column → read.
+        var originalBaggage = Baggage.Current;
+        const string valueNeedingEncoding = "acme corp, s.r.o. ü";
+        try
+        {
+            using var source = new ActivitySource("Platform.ReliableMessaging.Outbox.EFCore.UnitTests");
+            using var listener = CreateAllDataListener();
+            ActivitySource.AddActivityListener(listener);
+            using var activity = source.StartActivity("outbox.write")!;
+
+            Baggage.SetBaggage("tenant", valueNeedingEncoding);
+
+            // Act — the whole persisted path: inject, serialize into the column, read the column
+            // back, extract through the same pinned propagator the relay uses.
+            var headers = OutboxMessageHeaderExtensions.BuildOtelHeadersFromActivity(activity)!;
+            var row = new OutboxMessage
+            {
+                TopicName = "platform.test",
+                AvroPayload = [],
+                Type = "TestEvent",
+                CreatedUtc = DateTimeOffset.UnixEpoch,
+                Headers = OutboxMessageHeaderExtensions.SerializeHeaders(headers),
+            };
+            var fromColumn = row.DeserializeHeaders()!;
+            var extracted = OutboxTraceContext.Propagator.Extract(default, fromColumn, ReadHeader);
+
+            // Assert
+            using (new AssertionScope())
+            {
+                extracted.Baggage.GetBaggage("tenant").Should().Be(valueNeedingEncoding,
+                    "the relay reads the row in another process, so a value the writer put in baggage has to come back unchanged or custom context is silently corrupted");
+                row.Headers.Should().NotBeNull().And.NotContain(valueNeedingEncoding,
+                    "an unencoded value in the column is not W3C-conformant, and a consumer parsing it per spec would split it at the comma");
+            }
+        }
+        finally
+        {
+            Baggage.Current = originalBaggage;
+        }
+    }
+
+    [Fact]
     public void SerializeHeaders_PreservesTraceparent_SoTheOutboxRowCarriesItToTheRelay()
     {
         // Arrange — the trace context as it would sit on a freshly built outbox-row header set.
@@ -129,6 +177,9 @@ public sealed class OutboxMessageHeaderExtensionsTests
         // Assert
         headers.Should().BeNull();
     }
+
+    private static IEnumerable<string>? ReadHeader(Dictionary<string, string> headers, string key) =>
+        headers.TryGetValue(key, out var value) ? [value] : null;
 
     private static ActivityListener CreateAllDataListener() =>
         new()
