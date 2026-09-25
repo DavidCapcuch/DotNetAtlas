@@ -2,14 +2,14 @@ using System.Net;
 using FastEndpoints;
 using Payments.Api.Endpoints.Payments.GetPaymentsByOrder;
 using Payments.Application.Transactions.GetPaymentsByOrder;
-using Payments.FunctionalTests.Common;
+using Payments.IntegrationTests.Common;
 
-namespace Payments.FunctionalTests.ApiEndpoints.Payments;
+namespace Payments.IntegrationTests.ApiEndpoints.Payments;
 
-[Collection<FunctionalTestCollection>]
-public class GetPaymentsByOrderTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public class GetPaymentsByOrderTests : BaseIntegrationTest
 {
-    public GetPaymentsByOrderTests(ApiTestFixture app)
+    public GetPaymentsByOrderTests(IntegrationTestFixture app)
         : base(app)
     {
     }
@@ -47,6 +47,8 @@ public class GetPaymentsByOrderTests : BaseApiTest
         // Handler intentionally returns an empty list rather than 404 — orders
         // can exist before any payment is requested.
         var orderId = Guid.CreateVersion7();
+        // Another order's payment, so a query that lost its OrderId filter returns a non-empty list.
+        await PaymentSeed.InsertRequestedAsync(DbContext);
 
         // Act
         var (response, payload) = await HttpClientRegistry.AdminClient
@@ -69,6 +71,8 @@ public class GetPaymentsByOrderTests : BaseApiTest
         // Arrange
         var orderId = Guid.CreateVersion7();
         var seeded = await PaymentSeed.InsertRequestedAsync(DbContext, orderId: orderId);
+        // Another order's payment, so a query that lost its OrderId filter returns two rows.
+        await PaymentSeed.InsertRequestedAsync(DbContext);
 
         // Act
         var (response, payload) = await HttpClientRegistry.AdminClient

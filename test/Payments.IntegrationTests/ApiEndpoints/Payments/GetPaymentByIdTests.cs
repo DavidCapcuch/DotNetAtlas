@@ -2,14 +2,15 @@ using System.Net;
 using FastEndpoints;
 using Payments.Api.Endpoints.Payments.GetPaymentById;
 using Payments.Application.Transactions.GetPaymentById;
-using Payments.FunctionalTests.Common;
+using Payments.Domain.Transactions.ValueObjects;
+using Payments.IntegrationTests.Common;
 
-namespace Payments.FunctionalTests.ApiEndpoints.Payments;
+namespace Payments.IntegrationTests.ApiEndpoints.Payments;
 
-[Collection<FunctionalTestCollection>]
-public class GetPaymentByIdTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public class GetPaymentByIdTests : BaseIntegrationTest
 {
-    public GetPaymentByIdTests(ApiTestFixture app)
+    public GetPaymentByIdTests(IntegrationTestFixture app)
         : base(app)
     {
     }
@@ -58,7 +59,10 @@ public class GetPaymentByIdTests : BaseApiTest
     [Fact]
     public async Task WhenAdminAndPaymentDoesNotExist_ReturnsNotFound()
     {
-        // Arrange & Act
+        // Arrange — an unrelated payment, so a query that lost its PaymentId filter returns it instead of 404.
+        await PaymentSeed.InsertRequestedAsync(DbContext);
+
+        // Act
         var (response, problem) = await HttpClientRegistry.AdminClient
             .GETAsync<GetPaymentByIdEndpoint, GetPaymentByIdRequest, ProblemDetails>(
                 new GetPaymentByIdRequest { PaymentId = Guid.CreateVersion7() });
@@ -81,7 +85,7 @@ public class GetPaymentByIdTests : BaseApiTest
     public async Task WhenAdminAndPaymentExists_ReturnsOkWithPayment()
     {
         // Arrange
-        var seeded = await PaymentSeed.InsertRequestedAsync(DbContext);
+        var seeded = await PaymentSeed.InsertRequestedAsync(DbContext, paymentMethodId: "pm_test_card_visa");
 
         // Act
         var (response, payload) = await HttpClientRegistry.AdminClient
@@ -98,11 +102,65 @@ public class GetPaymentByIdTests : BaseApiTest
             payload.Status.Should().Be("Requested");
             payload.Amount.Should().Be(seeded.Amount.Amount);
             payload.Currency.Should().Be(seeded.Amount.Currency.Name);
-            // ADR-0011 — response masks sensitive tokens to last-4 (see PaymentTransactionResponseMapper.MaskTrailing).
-            // Default seed paymentMethodId is "pm_test_card_visa" → "****visa".
+            // ADR-0011 — response masks sensitive tokens to last-4 (see PaymentTransactionRow.MaskTrailing).
             payload.PaymentMethodId.Should().Be("****visa");
             payload.GatewayTransactionId.Should().BeNull();
             payload.AuthorizedAtUtc.Should().BeNull();
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "security")]
+    public async Task WhenAdminAndPaymentAuthorized_ReturnsOkWithMaskedGatewayTransactionId()
+    {
+        // Arrange
+        var authorizedAtUtc = new DateTimeOffset(2026, 6, 4, 12, 0, 0, TimeSpan.Zero);
+        var seeded = await PaymentSeed.InsertAuthorizedAsync(
+            DbContext, gatewayTransactionId: "gw-tx-abc123", gatewayResponseCode: "ok", authorizedAtUtc);
+
+        // Act
+        var (response, payload) = await HttpClientRegistry.AdminClient
+            .GETAsync<GetPaymentByIdEndpoint, GetPaymentByIdRequest, GetPaymentByIdResponse>(
+                new GetPaymentByIdRequest { PaymentId = seeded.Id });
+
+        // Assert
+        using (new AssertionScope())
+        {
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            payload.Status.Should().Be("Authorized");
+            // ADR-0011 — the gateway transaction id is masked to last-4 like the payment-method token.
+            payload.GatewayTransactionId.Should().Be("****c123");
+            payload.GatewayResponseCode.Should().Be("ok");
+            payload.AuthorizedAtUtc.Should().Be(authorizedAtUtc);
+            payload.FailureInfo.Should().BeNull();
+        }
+    }
+
+    [Fact]
+    public async Task WhenAdminAndPaymentFailed_ReturnsOkWithFailureInfo()
+    {
+        // Arrange
+        var recordedAtUtc = new DateTimeOffset(2026, 6, 4, 12, 0, 0, TimeSpan.Zero);
+        var seeded = await PaymentSeed.InsertFailedAsync(
+            DbContext,
+            FailureInfo.Create(FailureReason.InsufficientFunds, "insufficient_funds", recordedAtUtc));
+
+        // Act
+        var (response, payload) = await HttpClientRegistry.AdminClient
+            .GETAsync<GetPaymentByIdEndpoint, GetPaymentByIdRequest, GetPaymentByIdResponse>(
+                new GetPaymentByIdRequest { PaymentId = seeded.Id });
+
+        // Assert
+        using (new AssertionScope())
+        {
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            payload.Status.Should().Be("Failed");
+            payload.FailureInfo.Should().BeEquivalentTo(new FailureInfoDto
+            {
+                Reason = "InsufficientFunds",
+                GatewayCode = "insufficient_funds",
+                RecordedAtUtc = recordedAtUtc,
+            });
         }
     }
 }
