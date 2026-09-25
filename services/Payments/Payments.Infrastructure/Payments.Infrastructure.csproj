@@ -62,6 +62,5 @@
         <InternalsVisibleTo Include="Payments.Api"/>
         <InternalsVisibleTo Include="Payments.UnitTests"/>
         <InternalsVisibleTo Include="Payments.IntegrationTests"/>
-        <InternalsVisibleTo Include="Payments.FunctionalTests"/>
     </ItemGroup>
 </Project>

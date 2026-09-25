@@ -2,7 +2,7 @@ using System.Security.Claims;
 using Payments.Api.Common.Authorization;
 using Platform.Test.Framework.Auth;
 
-namespace Payments.FunctionalTests.Common.TestClientInfrastructure;
+namespace Payments.IntegrationTests.Common.TestClientInfrastructure;
 
 /// <summary>
 /// Maps a <see cref="ClientType"/> to the claim set the Payments authorization

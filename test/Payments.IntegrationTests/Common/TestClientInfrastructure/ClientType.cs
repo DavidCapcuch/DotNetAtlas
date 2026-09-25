@@ -1,7 +1,7 @@
-namespace Payments.FunctionalTests.Common.TestClientInfrastructure;
+namespace Payments.IntegrationTests.Common.TestClientInfrastructure;
 
 /// <summary>
-/// Caller archetypes the Payments admin API recognises in functional tests.
+/// Caller archetypes the Payments admin API recognises in integration tests.
 /// </summary>
 public enum ClientType
 {

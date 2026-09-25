@@ -1,8 +1,8 @@
-namespace Payments.FunctionalTests.Common.TestClientInfrastructure;
+namespace Payments.IntegrationTests.Common.TestClientInfrastructure;
 
 /// <summary>
 /// Stable user ids used by <see cref="FakeTokenCreator"/>. Hard-coded so the
-/// same caller is recognised across functional tests in the same fixture
+/// same caller is recognised across integration tests in the same fixture
 /// lifetime.
 /// </summary>
 internal static class TestUsers

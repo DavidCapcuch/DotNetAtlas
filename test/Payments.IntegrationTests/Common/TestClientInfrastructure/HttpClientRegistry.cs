@@ -1,7 +1,7 @@
 using System.Net.Http.Headers;
 using FastEndpoints.Testing;
 
-namespace Payments.FunctionalTests.Common.TestClientInfrastructure;
+namespace Payments.IntegrationTests.Common.TestClientInfrastructure;
 
 /// <summary>
 /// Pre-built typed <see cref="HttpClient"/>s, one per <see cref="ClientType"/>,

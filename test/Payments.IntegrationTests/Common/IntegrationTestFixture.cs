@@ -4,11 +4,14 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using OpenTelemetry;
 using Payments.Application.Abstractions;
 using Payments.Infrastructure.ExternalServices.PaymentGateway;
 using Payments.Infrastructure.Persistence.Database;
+using Payments.IntegrationTests.Common.TestClientInfrastructure;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
+using Platform.Test.Framework.Auth;
 using Platform.Test.Framework.Database;
 using Platform.Test.Framework.Kafka;
 using Respawn;
@@ -22,26 +25,22 @@ namespace Payments.IntegrationTests.Common;
 internal sealed class IntegrationTestCollection : TestCollection<IntegrationTestFixture>;
 
 /// <summary>
-/// xUnit fixture booting the real <c>Payments.Api</c> host inside a
-/// <see cref="AppFixture{TEntryPoint}"/> against a throwaway Postgres testcontainer.
-/// Follows the canonical integration-fixture pattern: the production composition root runs end-to-end
-/// (so DI-validation issues, options binding, and middleware ordering are exercised), with
-/// only the seam ports swapped in <c>ConfigureTestServices</c>:
-/// <see cref="IOutboxWriter"/> -> <see cref="FakeOutboxWriter"/> (captures topic + key + Avro
-/// payload without standing up a Schema Registry) and <see cref="IPaymentGateway"/> wrapped in
-/// a <see cref="CountingPaymentGateway"/> over the live <see cref="StubPaymentGateway"/>
-/// (the deterministic <c>.99</c> -> decline rule keeps firing, only the call counts are
-/// observed).
+/// The single Payments integration fixture: one real <c>Program.cs</c> host on a Postgres
+/// Testcontainer, shared by the whole <see cref="IntegrationTestCollection"/> (one instance, state
+/// reset between tests). Both entrances run against it — the HTTP edge via
+/// <see cref="HttpClientRegistry"/>, and the saga-command Kafka handlers resolved from the host DI
+/// graph and driven with a <see cref="FakeKafkaMessageContext"/>. The KafkaFlow bus is never started
+/// (the <c>!IsTesting()</c> guard in <c>Program.cs</c>), so no Kafka container is needed.
+/// <para>
+/// The host keeps <c>TimeProvider.System</c>: a fixture-level <c>FakeTimeProvider</c> would be shared by
+/// every test in the collection and can only move forward. Tests needing fixed time construct one
+/// locally (ADR-0015 § Time abstraction).
+/// </para>
 /// </summary>
-/// <remarks>
-/// Tests resolve the four saga-command Kafka typed handlers from the host DI graph and invoke
-/// <c>Handle(IMessageContext, T)</c> directly with a synthetic
-/// <see cref="FakeKafkaMessageContext"/>; the KafkaFlow bus itself is not started (the
-/// <c>!IsTesting()</c> guard in <c>Program.cs</c> short-circuits the
-/// <c>app.Services.CreateKafkaBus().StartAsync()</c> call so no Kafka container is needed in
-/// this BC).
-/// </remarks>
-[DisableWafCache]
+// No [DisableWafCache]: FastEndpoints caches one SUT per derived AppFixture type, and this fixture is
+// shared through a single collection, so the host boots once with or without the cache. Re-add it
+// before a second instance of this type exists — the cache would hand that instance the first one's
+// host, while its own container never starts and its signer is not the key the host trusts.
 public class IntegrationTestFixture : AppFixture<Program>
 {
     private readonly PostgreSqlTestContainer _dbContainer = new(
@@ -52,8 +51,9 @@ public class IntegrationTestFixture : AppFixture<Program>
             SchemasToInclude = [PaymentsDbContext.DefaultSchemaName]
         });
 
-    private FakeOutboxWriter _fakeOutbox = null!;
-    private CountingPaymentGateway _gateway = null!;
+    private readonly FakeTokenSigner _signer = new(audience: "payments-service");
+
+    public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
 
     protected override async ValueTask PreSetupAsync()
     {
@@ -61,6 +61,12 @@ public class IntegrationTestFixture : AppFixture<Program>
         // Windows named pipe interleave on the shared ChunkedReadStream and intermittently
         // raise "Invalid chunk header encountered".
         await _dbContainer.StartAsync();
+    }
+
+    protected override ValueTask SetupAsync()
+    {
+        HttpClientRegistry = new HttpClientRegistry<Program>(this, new FakeTokenCreator(_signer));
+        return ValueTask.CompletedTask;
     }
 
     protected override IHost ConfigureAppHost(IHostBuilder a)
@@ -92,59 +98,37 @@ public class IntegrationTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
-                // TimeProvider.System is auto-registered by the Generic Host (ADR-0015).
-                // Tests that need determinism construct FakeTimeProvider locally per
-                // ADR-0015 line 104; the previous fixture-level FakeTimeProvider leaked
-                // state across tests in the shared collection (SetUtcNow can only move
-                // forward) and is removed.
-
-                // Replace the real Avro/SchemaRegistry-backed outbox writer with an in-memory
-                // fake. Captures topic + key + Avro CLR instance for later assertions without
-                // standing up a Schema Registry container.
-                _fakeOutbox = new FakeOutboxWriter();
+                // Replace the production Avro+SchemaRegistry-backed IOutboxWriter with a fake so
+                // outbox assertions need no Schema Registry round-trip.
                 services.RemoveAll<IOutboxWriter>();
-                services.AddSingleton<IOutboxWriter>(_fakeOutbox);
+                services.AddSingleton<IOutboxWriter, FakeOutboxWriter>();
 
-                // Wrap the live IPaymentGateway (StubPaymentGateway from production wiring)
-                // in a spy decorator so example-mapping examples can assert the saga-retry
-                // short-circuit fired before the gateway port was touched. StubPaymentGateway
-                // is internal — Payments.Infrastructure exposes InternalsVisibleTo on this
-                // assembly.
                 services.RemoveAll<IPaymentGateway>();
                 services.AddSingleton<IPaymentGateway>(sp =>
-                {
-                    _gateway = new CountingPaymentGateway(
-                        new StubPaymentGateway(sp.GetRequiredService<TimeProvider>()));
-                    return _gateway;
-                });
+                    new CountingPaymentGateway(new StubPaymentGateway(sp.GetRequiredService<TimeProvider>())));
+
+                services.ConfigureJwtBearerForTests(_signer);
             });
     }
 
-    /// <summary>
-    /// Creates a per-test DI scope. Caller disposes.
-    /// </summary>
-    public IServiceScope CreateScope() => Services.CreateScope();
+    public async Task ResetFixtureStateAsync()
+    {
+        using var _ = SuppressInstrumentationScope.Begin();
 
-    /// <summary>Wipes every table in the Payments schema between tests.</summary>
-    public Task ResetFixtureStateAsync() => _dbContainer.CleanDataAsync();
+        GetFakeOutbox().Clear();
+        GetGateway().Reset();
+        await _dbContainer.CleanDataAsync();
+    }
 
-    /// <summary>
-    /// Resolves the singleton <see cref="FakeOutboxWriter"/> so individual tests can
-    /// <c>Clear()</c> captured messages or assert on them after driving a handler.
-    /// </summary>
     public FakeOutboxWriter GetFakeOutbox() =>
         (FakeOutboxWriter)Services.GetRequiredService<IOutboxWriter>();
 
-    /// <summary>
-    /// Resolves the singleton spy decorator over <see cref="StubPaymentGateway"/> so individual
-    /// tests can <c>Reset()</c> the call counters between phases or assert that a specific
-    /// gateway method was (or was not) invoked.
-    /// </summary>
     public CountingPaymentGateway GetGateway() =>
         (CountingPaymentGateway)Services.GetRequiredService<IPaymentGateway>();
 
     protected override async ValueTask TearDownAsync()
     {
+        _signer.Dispose();
         await _dbContainer.DisposeAsync();
     }
 }

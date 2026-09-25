@@ -34,7 +34,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <InternalsVisibleTo Include="Payments.FunctionalTests"/>
         <InternalsVisibleTo Include="Payments.IntegrationTests"/>
         <InternalsVisibleTo Include="Payments.ArchitectureTests"/>
     </ItemGroup>

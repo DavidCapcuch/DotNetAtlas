@@ -150,7 +150,6 @@
     <Project Path="test/Ordering.IntegrationTests/Ordering.IntegrationTests.csproj" />
     <Project Path="test/Ordering.UnitTests/Ordering.UnitTests.csproj" />
     <Project Path="test/Payments.ArchitectureTests/Payments.ArchitectureTests.csproj" />
-    <Project Path="test/Payments.FunctionalTests/Payments.FunctionalTests.csproj" />
     <Project Path="test/Payments.IntegrationTests/Payments.IntegrationTests.csproj" />
     <Project Path="test/Payments.UnitTests/Payments.UnitTests.csproj" />
   </Folder>
