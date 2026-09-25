@@ -1,23 +1,23 @@
+using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using Notifications.Application.Bell;
-using Notifications.FunctionalTests.Common;
-using Notifications.FunctionalTests.Common.TestClientInfrastructure;
+using Notifications.IntegrationTests.Common;
+using Notifications.IntegrationTests.Common.TestClientInfrastructure;
 
-namespace Notifications.FunctionalTests.Bell;
+namespace Notifications.IntegrationTests.Bell;
 
 /// <summary>
-/// End-to-end functional tests for the bell transport (#316): an authenticated client connects,
-/// auto-joins its per-user group, and receives a server-side <see cref="INotificationBroadcaster"/>
-/// push — plus the auth gate, group isolation, and the zero-connection no-op.
+/// Slice coverage for the bell transport (#316), entered through its public entrance — a real
+/// SignalR client over the TestServer's WebSocket: an authenticated client connects, auto-joins its
+/// per-user group, and receives a server-side <see cref="INotificationBroadcaster"/> push — plus the
+/// auth gate, group isolation, and the zero-connection no-op.
 /// </summary>
-[Collection<FunctionalTestCollection>]
-public class NotificationBroadcastHubTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public class NotificationBroadcastHubTests : BaseIntegrationTest
 {
-    private static readonly TimeSpan ExpectNoMessageTimeout = TimeSpan.FromMilliseconds(500);
-
     private readonly INotificationBroadcaster _broadcaster;
 
-    public NotificationBroadcastHubTests(ApiTestFixture app)
+    public NotificationBroadcastHubTests(IntegrationTestFixture app)
         : base(app)
     {
         _broadcaster = Scope.ServiceProvider.GetRequiredService<INotificationBroadcaster>();
@@ -30,13 +30,11 @@ public class NotificationBroadcastHubTests : BaseApiTest
         var userId = Guid.CreateVersion7();
         await using var client = await SignalRClientFactory.ConnectAsAsync(userId);
 
-        var received = await PushUntilReceivedAsync(userId, client, new BellNotification("ping"), ct);
+        // Arrives only if the authenticated client auto-joined its user group.
+        var received = await NotificationHubProbe.PushUntilReceivedAsync(
+            _broadcaster, userId, client, new BellNotification("ping"), ct);
 
-        using (new AssertionScope())
-        {
-            received.Should().NotBeNull("the authenticated client auto-joins its user group and receives the push");
-            received!.Message.Should().Be("ping");
-        }
+        received.Message.Should().Be("ping");
     }
 
     // The production dotnetatlas-swagger client stamps a MULTI-VALUED `aud` (bff + the role-only Ordering /
@@ -58,14 +56,11 @@ public class NotificationBroadcastHubTests : BaseApiTest
         var userId = Guid.CreateVersion7();
         await using var client = await SignalRClientFactory.ConnectWithAudiencesAsync(userId, SwaggerStyleAudiences);
 
-        var received = await PushUntilReceivedAsync(userId, client, new BellNotification("ping"), ct);
+        // Arrives only if the bell accepted the multi-valued aud and the client joined its group.
+        var received = await NotificationHubProbe.PushUntilReceivedAsync(
+            _broadcaster, userId, client, new BellNotification("ping"), ct);
 
-        using (new AssertionScope())
-        {
-            received.Should().NotBeNull(
-                "the bell accepts a multi-valued aud (the real dotnetatlas-swagger token shape) when notifications-service is one of the entries");
-            received!.Message.Should().Be("ping");
-        }
+        received.Message.Should().Be("ping");
     }
 
     [Fact]
@@ -97,10 +92,13 @@ public class NotificationBroadcastHubTests : BaseApiTest
         var userId = Guid.CreateVersion7();
         string[] otherBcAudiences = ["basket-service", "catalog-service", "ordering-service"];
 
+        // Pinned to the 401, not any exception: a connect that merely timed out must not pass as a rejection.
         await SignalRClientFactory
             .Invoking(factory => factory.ConnectWithAudiencesAsync(userId, otherBcAudiences))
             .Should()
-            .ThrowAsync<Exception>(
+            .ThrowAsync<HttpRequestException>()
+            .Where(
+                e => e.StatusCode == HttpStatusCode.Unauthorized,
                 "the bell pins aud=notifications-service; a token audienced only for other BCs must be rejected");
     }
 
@@ -113,16 +111,14 @@ public class NotificationBroadcastHubTests : BaseApiTest
         var bystanderId = Guid.CreateVersion7();
         await using var recipient = await SignalRClientFactory.ConnectAsAsync(recipientId);
         await using var bystander = await SignalRClientFactory.ConnectAsAsync(bystanderId);
+        // The bystander must already be in its own group, or "received nothing" proves nothing.
+        await NotificationHubProbe.ProveGroupJoinedAsync(_broadcaster, bystanderId, bystander, ct);
 
-        var recipientReceived = await PushUntilReceivedAsync(
-            recipientId, recipient, new BellNotification("for-recipient"), ct);
-        var bystanderReceived = await bystander.ConsumeOne(ExpectNoMessageTimeout, ct);
+        await NotificationHubProbe.PushUntilReceivedAsync(
+            _broadcaster, recipientId, recipient, new BellNotification("for-recipient"), ct);
 
-        using (new AssertionScope())
-        {
-            recipientReceived.Should().NotBeNull("the push targets the recipient's user group");
-            bystanderReceived.Should().BeNull("a different user must not receive another user's bell push");
-        }
+        (await NotificationHubProbe.ReceivedBeforeSentinelAsync(_broadcaster, bystanderId, bystander, ct))
+            .Should().BeEmpty("a different user must not receive another user's bell push");
     }
 
     [Fact]
@@ -131,7 +127,10 @@ public class NotificationBroadcastHubTests : BaseApiTest
     {
         await SignalRClientFactory.Invoking(factory => factory.ConnectUnauthenticatedAsync())
             .Should()
-            .ThrowAsync<Exception>("the hub is [Authorize]-gated and the connection carries no token");
+            .ThrowAsync<HttpRequestException>()
+            .Where(
+                e => e.StatusCode == HttpStatusCode.Unauthorized,
+                "the hub is [Authorize]-gated and the connection carries no token");
     }
 
     [Fact]
@@ -144,31 +143,5 @@ public class NotificationBroadcastHubTests : BaseApiTest
             .Invoking(b => b.PushToUserAsync(offlineUserId, new BellNotification("into-the-void"), ct))
             .Should()
             .NotThrowAsync("a group-send to zero connections is a successful no-op — the bell is ephemeral");
-    }
-
-    /// <summary>
-    /// Pushes to <paramref name="userId"/>'s group and waits for the first delivery, retrying within a
-    /// bounded budget. SignalR runs the hub's <c>OnConnectedAsync</c> (the group auto-join) shortly
-    /// <i>after</i> the client's <c>StartAsync</c> returns, so the first push can race the join;
-    /// retrying makes the test deterministic without an artificial sleep.
-    /// </summary>
-    private async Task<BellNotification?> PushUntilReceivedAsync(
-        Guid userId, NotificationHubTestClient client, BellNotification payload, CancellationToken ct)
-    {
-        const int attempts = 10;
-        var perAttempt = TimeSpan.FromMilliseconds(200);
-
-        for (var attempt = 0; attempt < attempts; attempt++)
-        {
-            await _broadcaster.PushToUserAsync(userId, payload, ct);
-
-            var received = await client.ConsumeOne(perAttempt, ct);
-            if (received is not null)
-            {
-                return received;
-            }
-        }
-
-        return null;
     }
 }

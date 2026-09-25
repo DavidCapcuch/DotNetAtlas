@@ -23,8 +23,8 @@ try
 
     var isDeployedEnvironment = builder.Environment.IsDeployedEnvironment();
 
-    // The Hangfire processing server is skipped in the test host: integration tests invoke the
-    // channel dispatchers directly (dispatcher-direct seam), so no background job runner is needed.
+    // The Hangfire processing server is skipped in the test host: integration tests run the dispatch
+    // job classes in-process, so no background job runner is needed.
     var enableBackgroundJobServer = !builder.Environment.IsTesting();
 
     builder.Services

@@ -244,8 +244,8 @@ Seeding: dev/docker via EF `UseAsyncSeeding` (seed-if-empty). Both templates and
 
 - `ApplicationInfo.AppName = "Notifications"`; KafkaFlow + outbox OpenTelemetry instrumentation as in v1; Hangfire jobs and the SignalR hub add spans. Structured logs tag `NotificationId`, `TemplateKey`, `Channel` (not PII; `RecipientUserId` per the BC PII rule). One deliberate exception: the fake SMS transport line additionally logs the seeded fake phone number + rendered body — that log line *is* the channel's send (§ 6); a real provider integration must move both into the provider call.
 - **Unit:** `QuietHoursCalculator` (in/out window, midnight-wrap, null), `ChannelType`, the resolution rule, `TemplateRenderer`.
-- **Integration (Testcontainers):** fan-out (one intent → resolved channels) + ledger idempotency (redelivery / double-enqueue → no double-send); quiet-hours deferral; **email asserted via Testcontainers Mailpit REST API**; the bell dispatcher against a broadcaster substitute (the hub + the SignalR test client live in the **integration** suite, per ADR-0032); the Invoicing `Issued → Delivered` round-trip.
-- **Architecture:** standard layering guards + ADR-0015 (`DateTimeOffset`, no `UtcNow` in domain). No bespoke arch tests.
+- **Integration (Testcontainers):** fan-out (one intent → resolved channels) + ledger idempotency (redelivery / double-enqueue → no double-send); quiet-hours deferral; **email asserted via Testcontainers Mailpit REST API**; the bell asserted at a real SignalR client over the TestServer — no broadcaster substitute — plus the hub's auth gate and group isolation (the hub + the SignalR test client live in the **integration** suite, per ADR-0032), and one `order.shipped` journey in `Journeys/`; the Invoicing `Issued → Delivered` round-trip.
+- **Architecture:** standard layering guards, cross-BC isolation and slice independence (eshop-master-design.md § 11.4) + ADR-0015 (`DateTimeOffset`, no `UtcNow` in domain). No bespoke arch tests.
 
 ---
 

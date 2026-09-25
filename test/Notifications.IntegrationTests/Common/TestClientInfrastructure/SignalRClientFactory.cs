@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Notifications.Api.SignalRHubs;
 
-namespace Notifications.FunctionalTests.Common.TestClientInfrastructure;
+namespace Notifications.IntegrationTests.Common.TestClientInfrastructure;
 
 /// <summary>
 /// Builds <see cref="NotificationHubTestClient"/>s connected to the in-process bell hub over the
@@ -14,6 +14,8 @@ namespace Notifications.FunctionalTests.Common.TestClientInfrastructure;
 /// </summary>
 public sealed class SignalRClientFactory
 {
+    private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(30);
+
     private readonly TestServer _server;
     private readonly string? _traceParent;
     private readonly FakeTokenCreator _tokenCreator;
@@ -90,7 +92,17 @@ public sealed class SignalRClientFactory
             .Build();
 
         var client = new NotificationHubTestClient(hubConnection, _cancellationToken);
-        await client.StartAsync();
+        try
+        {
+            await client.StartAsync(ConnectTimeout);
+        }
+        catch
+        {
+            // Rejected connections are an expected outcome for the auth tests; don't leak them.
+            await client.DisposeAsync();
+            throw;
+        }
+
         return client;
     }
 }

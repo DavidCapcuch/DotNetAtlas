@@ -11,7 +11,7 @@ namespace Notifications.Infrastructure.Common;
 /// Hangfire wiring for the per-channel dispatch jobs (ADR-0032). Storage lives in the
 /// <c>notifications</c> Postgres DB (Hangfire's own <c>hangfire</c> schema). The processing
 /// server is gated off in the test host — integration
-/// tests invoke the channel dispatchers directly (dispatcher-direct seam), so no job runner is needed.
+/// tests run the dispatch job classes in-process, so no job runner is needed.
 /// </summary>
 internal static class BackgroundJobsDependencyInjection
 {

@@ -66,6 +66,5 @@
         <InternalsVisibleTo Include="Notifications.Api"/>
         <InternalsVisibleTo Include="Notifications.UnitTests"/>
         <InternalsVisibleTo Include="Notifications.IntegrationTests"/>
-        <InternalsVisibleTo Include="Notifications.FunctionalTests"/>
     </ItemGroup>
 </Project>

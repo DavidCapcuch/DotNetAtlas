@@ -1,4 +1,4 @@
-namespace Notifications.FunctionalTests.Common.TestClientInfrastructure;
+namespace Notifications.IntegrationTests.Common.TestClientInfrastructure;
 
 /// <summary>
 /// Authentication archetypes for the bell hub. The bell is per-user, not role-gated, so there is

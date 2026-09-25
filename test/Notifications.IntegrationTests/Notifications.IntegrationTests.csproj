@@ -1,17 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <!-- Project-specific packages only (common packages in test/Directory.Build.props) -->
     <ItemGroup>
+        <!-- No source reference, but load-bearing: transitive pinning is off in the test tier, so this
+             direct reference is what lifts TestHost and Microsoft.Extensions.* to the central version. -->
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+        <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
         <PackageReference Include="NSubstitute" />
         <PackageReference Include="NSubstitute.Analyzers.CSharp">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="FluentResults.Extensions.FluentAssertions" />
         <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
         <PackageReference Include="Testcontainers" />
-        <PackageReference Include="WireMock.Net" />
-        <PackageReference Include="Scriban.Signed" />
+        <PackageReference Include="TypedSignalR.Client" />
     </ItemGroup>
 
     <ItemGroup>

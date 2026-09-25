@@ -32,7 +32,6 @@
     <ItemGroup>
         <InternalsVisibleTo Include="Notifications.UnitTests"/>
         <InternalsVisibleTo Include="Notifications.IntegrationTests"/>
-        <InternalsVisibleTo Include="Notifications.FunctionalTests"/>
         <InternalsVisibleTo Include="Notifications.ArchitectureTests"/>
     </ItemGroup>
 

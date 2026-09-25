@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Notifications.Application.Bell;
 using TypedSignalR.Client;
 
-namespace Notifications.FunctionalTests.Common.TestClientInfrastructure;
+namespace Notifications.IntegrationTests.Common.TestClientInfrastructure;
 
 /// <summary>
 /// In-test bell client: registers itself as the hub's <see cref="INotificationClientContract"/>
@@ -35,7 +35,17 @@ public sealed class NotificationHubTestClient : INotificationClientContract, IAs
         };
     }
 
-    public Task StartAsync() => _connection.StartAsync(_cancellationToken);
+    /// <summary>
+    /// Connects within <paramref name="timeout"/>. SignalR's handshake timeout only starts once the
+    /// transport is up, so without this bound a stalled WebSocket upgrade would wait on the test token,
+    /// which never fires on its own.
+    /// </summary>
+    public async Task StartAsync(TimeSpan timeout)
+    {
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cancellationToken);
+        cts.CancelAfter(timeout);
+        await _connection.StartAsync(cts.Token);
+    }
 
     /// <summary>
     /// Completes <c>true</c> if the connection is (or becomes) closed within <paramref name="timeout"/>.
@@ -53,8 +63,6 @@ public sealed class NotificationHubTestClient : INotificationClientContract, IAs
         return finished == _closed.Task || _connection.State == HubConnectionState.Disconnected;
     }
 
-    public Task StopAsync() => _connection.StopAsync(_cancellationToken);
-
     public async Task ReceiveNotification(BellNotification notification)
     {
         await _received.Writer.WriteAsync(notification, _cancellationToken);
@@ -62,7 +70,8 @@ public sealed class NotificationHubTestClient : INotificationClientContract, IAs
 
     /// <summary>
     /// Waits up to <paramref name="timeout"/> for one pushed notification; returns <c>null</c> if
-    /// none arrives within the window.
+    /// none arrives within the window. Cancelling <paramref name="ct"/> propagates rather than
+    /// reading as "nothing arrived".
     /// </summary>
     public async Task<BellNotification?> ConsumeOne(TimeSpan timeout, CancellationToken ct = default)
     {
@@ -71,14 +80,19 @@ public sealed class NotificationHubTestClient : INotificationClientContract, IAs
 
         try
         {
-            if (await _received.Reader.WaitToReadAsync(cts.Token))
+            // TryRead, not ReadAsync(token): ReadAsync checks cancellation before it dequeues, so a
+            // window closing between the two awaits would strand an arrived message for the next read.
+            while (await _received.Reader.WaitToReadAsync(cts.Token))
             {
-                return await _received.Reader.ReadAsync(cts.Token);
+                if (_received.Reader.TryRead(out var notification))
+                {
+                    return notification;
+                }
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            // Expected when the timeout elapses with no message.
+            // The window elapsed with nothing received.
         }
 
         return null;

@@ -16,7 +16,7 @@ using Platform.SharedKernel.Exceptions;
 using Platform.Test.Framework.Kafka;
 using Xunit;
 
-namespace Notifications.IntegrationTests.NotifyUser;
+namespace Notifications.IntegrationTests.Messaging.Kafka;
 
 /// <summary>
 /// Integration coverage for the channel-resolution fan-out (notifications.md § 5.3) and the
@@ -26,15 +26,19 @@ namespace Notifications.IntegrationTests.NotifyUser;
 /// enqueuing per resolved channel. The Hangfire enqueuer is substituted so the assertions are on which
 /// channels were enqueued for which instant, not on a live job runner (which the test host does not start).
 /// </summary>
+/// <remarks>
+/// The Kafka message is this BC's entrance (eshop-master-design.md § 11.4): each case feeds the real
+/// Avro <c>NotifyUserCommand</c> to a handler constructed directly, so it can take its own enqueuer
+/// substitute, clock and logger. The consumer middleware in front of the handler — Avro
+/// deserialisation, dead-letter/retry and inbox dedup — is not exercised here; the handler's DI
+/// registration is, by the journey test.
+/// </remarks>
 [Collection<IntegrationTestCollection>]
 public sealed class NotifyUserCommandKafkaHandlerTests : BaseIntegrationTest
 {
-    private readonly IntegrationTestFixture _fixture;
-
     public NotifyUserCommandKafkaHandlerTests(IntegrationTestFixture fixture)
         : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -208,7 +212,7 @@ public sealed class NotifyUserCommandKafkaHandlerTests : BaseIntegrationTest
         TimeProvider? clock = null,
         ILogger<NotifyUserCommandKafkaHandler>? logger = null)
     {
-        await using var scope = _fixture.CreateScope();
+        await using var scope = Fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<INotificationsDbContext>();
         var handler = new NotifyUserCommandKafkaHandler(
             db,
@@ -230,7 +234,7 @@ public sealed class NotifyUserCommandKafkaHandlerTests : BaseIntegrationTest
 
     private async Task ArrangeInvoiceTemplateAsync(CancellationToken ct)
     {
-        await using var scope = _fixture.CreateScope();
+        await using var scope = Fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
         db.Templates.Add(Template.Create("invoicing.invoice-delivered", "Invoice ready."));
         db.TemplateChannels.Add(TemplateChannel.Create(
@@ -240,7 +244,7 @@ public sealed class NotifyUserCommandKafkaHandlerTests : BaseIntegrationTest
 
     private async Task ArrangeOrderShippedTemplateAsync(CancellationToken ct)
     {
-        await using var scope = _fixture.CreateScope();
+        await using var scope = Fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
         db.Templates.Add(Template.Create("order.shipped", "Order shipped."));
         db.TemplateChannels.AddRange(
@@ -257,7 +261,7 @@ public sealed class NotifyUserCommandKafkaHandlerTests : BaseIntegrationTest
         TimeOnly? quietHoursStart = null,
         TimeOnly? quietHoursEnd = null)
     {
-        await using var scope = _fixture.CreateScope();
+        await using var scope = Fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
         db.UserPreferences.Add(NotificationPreference.Create(
             userId,

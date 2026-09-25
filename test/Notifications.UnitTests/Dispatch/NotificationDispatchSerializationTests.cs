@@ -8,8 +8,8 @@ namespace Notifications.UnitTests.Dispatch;
 
 /// <summary>
 /// The Kafka handler enqueues <see cref="NotificationDispatch"/> as a Hangfire job argument, so it is
-/// serialized → persisted → deserialized before the dispatcher ever runs. The dispatcher-direct
-/// integration seam bypasses Hangfire, so this guards the round-trip: a <c>required</c>-init record +
+/// serialized → persisted → deserialized before the dispatcher ever runs. The integration tests run the
+/// job classes in-process, bypassing Hangfire's queue and serializer, so this guards the round-trip: a <c>required</c>-init record +
 /// a <see cref="Dictionary{TKey,TValue}"/> payload must survive Hangfire's configured serializer
 /// (the recommended settings we apply in <c>BackgroundJobsDependencyInjection</c>).
 /// </summary>

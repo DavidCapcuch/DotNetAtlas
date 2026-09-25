@@ -2,7 +2,7 @@ using System.Security.Claims;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Platform.Test.Framework.Auth;
 
-namespace Notifications.FunctionalTests.Common.TestClientInfrastructure;
+namespace Notifications.IntegrationTests.Common.TestClientInfrastructure;
 
 /// <summary>
 /// Mints a bell-hub access token for a given recipient and delegates signing to

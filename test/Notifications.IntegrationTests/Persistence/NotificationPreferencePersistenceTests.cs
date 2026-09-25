@@ -10,22 +10,25 @@ using Xunit;
 namespace Notifications.IntegrationTests.Persistence;
 
 /// <summary>
-/// Round-trips <see cref="NotificationPreference"/> through real PostgreSQL to exercise the two
-/// non-default EF mappings (notifications.md § 8): the <c>IReadOnlyList&lt;ChannelType&gt; ↔ text[]</c>
-/// <c>ValueConverter</c>/<c>ValueComparer</c> (the only collection-valued SmartEnum conversion in the
-/// repo, so its read-path — <c>ChannelType.FromName</c> over a PG array — has no other coverage) and the
-/// <c>TimeOnly? → time</c> quiet-hours columns. Reloads in a fresh scope so the assertion reads the
-/// database, not the change-tracker.
+/// Round-trips <see cref="NotificationPreference"/> through real PostgreSQL across its two non-default
+/// EF mappings (notifications.md § 8): the <c>IReadOnlyList&lt;ChannelType&gt; ↔ text[]</c>
+/// <c>ValueConverter</c>/<c>ValueComparer</c> and the <c>TimeOnly? → time</c> quiet-hours columns.
+/// Reloads in a fresh scope so the assertion reads the database, not the change tracker.
 /// </summary>
+/// <remarks>
+/// The fan-out handler reads these columns (<c>NotifyUserCommandKafkaHandlerTests</c>), but only
+/// through what it resolves from them; this is where every column is asserted as written, including an
+/// empty channel list and null quiet hours, which the handler cannot tell apart from missing ones.
+/// Nothing in production writes <c>user_preferences</c> (rows arrive only via Development seeding), so
+/// the write half has no outer entrance — fold this into a slice test once a preference write
+/// endpoint exists.
+/// </remarks>
 [Collection<IntegrationTestCollection>]
 public sealed class NotificationPreferencePersistenceTests : BaseIntegrationTest
 {
-    private readonly IntegrationTestFixture _fixture;
-
     public NotificationPreferencePersistenceTests(IntegrationTestFixture fixture)
         : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -84,7 +87,7 @@ public sealed class NotificationPreferencePersistenceTests : BaseIntegrationTest
 
     private async Task PersistAsync(NotificationPreference preference, CancellationToken ct)
     {
-        await using var scope = _fixture.CreateScope();
+        await using var scope = Fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
         db.UserPreferences.Add(preference);
         await db.SaveChangesAsync(ct);
@@ -92,7 +95,7 @@ public sealed class NotificationPreferencePersistenceTests : BaseIntegrationTest
 
     private async Task<NotificationPreference> ReloadAsync(Guid userId, CancellationToken ct)
     {
-        await using var scope = _fixture.CreateScope();
+        await using var scope = Fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
         return await db.UserPreferences.AsNoTracking().SingleAsync(p => p.UserId == userId, ct);
     }
