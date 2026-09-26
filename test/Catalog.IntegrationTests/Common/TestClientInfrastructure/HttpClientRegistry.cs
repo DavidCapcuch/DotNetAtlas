@@ -4,41 +4,39 @@ using FastEndpoints.Testing;
 namespace Catalog.IntegrationTests.Common.TestClientInfrastructure;
 
 /// <summary>
-/// Pre-builds three <see cref="HttpClient"/> instances — one per <see cref="ClientType"/> —
-/// each carrying a properly signed JWT with the right Catalog scope claim.
-/// Tests pick the client matching the policy they exercise.
+/// Pre-builds one <see cref="HttpClient"/> per <see cref="ClientType"/>, each carrying a properly
+/// signed JWT with the right Catalog scope claim. Tests pick the client matching the policy they
+/// exercise.
 /// </summary>
 public sealed class HttpClientRegistry<TEntryPoint>
     where TEntryPoint : class
 {
     private readonly AppFixture<TEntryPoint> _appFixture;
     private readonly FakeTokenCreator _tokenCreator;
-    private readonly HttpClient _nonAuthClient;
-    private readonly HttpClient _readClient;
-    private readonly HttpClient _writeClient;
-    private readonly HttpClient _writeScopeNoAdminClient;
+    private readonly Dictionary<ClientType, HttpClient> _clients = [];
+    private string? _traceParent;
 
     public HttpClientRegistry(AppFixture<TEntryPoint> appFixture, FakeTokenCreator tokenCreator)
     {
         _appFixture = appFixture;
         _tokenCreator = tokenCreator;
-        _nonAuthClient = Build(ClientType.NonAuth);
-        _readClient = Build(ClientType.ReadOnly);
-        _writeClient = Build(ClientType.WriteAdmin);
-        _writeScopeNoAdminClient = Build(ClientType.WriteScopeNoAdmin);
+        foreach (var clientType in Enum.GetValues<ClientType>())
+        {
+            _clients[clientType] = Build(clientType);
+        }
     }
 
-    public HttpClient NonAuthClient => _nonAuthClient;
+    public HttpClient NonAuthClient => _clients[ClientType.NonAuth];
 
-    public HttpClient ReadClient => _readClient;
+    public HttpClient ReadClient => _clients[ClientType.ReadOnly];
 
-    public HttpClient WriteClient => _writeClient;
+    public HttpClient WriteClient => _clients[ClientType.WriteAdmin];
 
     /// <summary>
     /// Token holds <c>catalog.write</c> but not the <c>admin</c> role — exercises the role half
     /// of the defense-in-depth write gate (must be rejected with 403).
     /// </summary>
-    public HttpClient WriteScopeNoAdminClient => _writeScopeNoAdminClient;
+    public HttpClient WriteScopeNoAdminClient => _clients[ClientType.WriteScopeNoAdmin];
 
     /// <summary>
     /// Builds a fresh <see cref="HttpClient"/> for the given <paramref name="clientType"/>,
@@ -50,6 +48,24 @@ public sealed class HttpClientRegistry<TEntryPoint>
         return Build(clientType);
     }
 
+    /// <summary>
+    /// Points every client this registry hands out — pre-built and fresh — at the current test's
+    /// trace, so the server spans a request produces join that test's trace instead of starting a
+    /// detached one.
+    /// </summary>
+    public void SetTraceParent(string? traceParent)
+    {
+        _traceParent = traceParent;
+        foreach (var client in _clients.Values)
+        {
+            client.DefaultRequestHeaders.Remove("traceparent");
+            if (!string.IsNullOrWhiteSpace(traceParent))
+            {
+                client.DefaultRequestHeaders.Add("traceparent", traceParent);
+            }
+        }
+    }
+
     private HttpClient Build(ClientType clientType)
     {
         return _appFixture.CreateClient(client =>
@@ -58,6 +74,11 @@ public sealed class HttpClientRegistry<TEntryPoint>
             client.DefaultRequestHeaders.Authorization = string.IsNullOrEmpty(token)
                 ? null
                 : new AuthenticationHeaderValue("Bearer", token);
+
+            if (!string.IsNullOrWhiteSpace(_traceParent))
+            {
+                client.DefaultRequestHeaders.Add("traceparent", _traceParent);
+            }
         });
     }
 }

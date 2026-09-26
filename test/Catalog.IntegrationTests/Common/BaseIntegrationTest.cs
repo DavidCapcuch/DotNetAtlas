@@ -46,6 +46,8 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
             TestContext.Current.TestMethod!.MethodName,
             TestContext.Current.TestCase!.UniqueID,
             testType: "integration");
+
+        HttpClientRegistry.SetTraceParent(_testCaseTracer.TraceParent);
     }
 
     public ValueTask InitializeAsync() => ValueTask.CompletedTask;
