@@ -51,11 +51,10 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 /// directly-constructed SUT (ADR-0015 line 104).
 /// </para>
 /// </summary>
-// No [DisableWafCache]: FastEndpoints caches the WebApplicationFactory by entry point, and this
-// is the only AppFixture<Program> in the project, so nothing can cross-wire onto its cached host.
-// Re-add it only if a second AppFixture<Program> is introduced (e.g. a real-SchemaRegistry
-// fixture for Contracts/) — two subtypes sharing this entry point would otherwise
-// reuse the first-built host and its containers.
+// No [DisableWafCache]: FastEndpoints caches the host per fixture type, and IntegrationTestCollection
+// builds this type once. Add it if the type is ever instantiated twice (a second collection, an
+// IClassFixture or TestBase<IntegrationTestFixture>) — the second instance would reuse the first's
+// host and never run PreSetupAsync.
 public class IntegrationTestFixture : AppFixture<Program>
 {
     private readonly PostgreSqlTestContainer _dbContainer = new(
