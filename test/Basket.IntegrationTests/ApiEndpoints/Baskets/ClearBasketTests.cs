@@ -1,20 +1,13 @@
 using System.Net;
 using Basket.Api.Endpoints.Baskets.AddItem;
-using Basket.Domain.Baskets.ValueObjects;
 using Basket.IntegrationTests.Common;
 using FastEndpoints;
-using FluentResults;
-using NSubstitute;
-using Platform.SharedKernel.ValueObjects;
 
 namespace Basket.IntegrationTests.ApiEndpoints.Baskets;
 
 [Collection<IntegrationTestCollection>]
 public class ClearBasketTests : BaseIntegrationTest
 {
-    private static readonly DateTimeOffset FixedCapturedAt =
-        new(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
-
     public ClearBasketTests(IntegrationTestFixture app)
         : base(app)
     {
@@ -26,7 +19,7 @@ public class ClearBasketTests : BaseIntegrationTest
         // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
-        StubCatalog(productId);
+        StubCatalogProduct(productId);
 
         var client = HttpClientRegistry.RegularUserAuthClient(userId);
         await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
@@ -58,16 +51,5 @@ public class ClearBasketTests : BaseIntegrationTest
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
-    }
-
-    private void StubCatalog(Guid productId)
-    {
-        var snapshot = ProductSnapshot.Create(
-            sku: "SKU",
-            name: "Product",
-            price: Money.Create(10m, "EUR").Value,
-            capturedAtUtc: FixedCapturedAt);
-        Catalog.GetProductSnapshotAsync(productId, Arg.Any<CancellationToken>())
-            .Returns(Result.Ok(snapshot));
     }
 }

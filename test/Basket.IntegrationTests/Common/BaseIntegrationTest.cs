@@ -1,7 +1,10 @@
 using Basket.Application.Abstractions;
+using Basket.Domain.Baskets.ValueObjects;
 using Basket.Infrastructure.Persistence.Database;
 using Basket.IntegrationTests.Common.TestClientInfrastructure;
+using FluentResults;
 using Microsoft.Extensions.DependencyInjection;
+using NSubstitute;
 using Platform.Test.Framework.Tracing;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 
@@ -28,6 +31,11 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
     protected HttpClientRegistry<Program> HttpClientRegistry { get; }
 
     protected IProductCatalogQueryPort Catalog => Fixture.Catalog;
+
+    /// <summary>Asserting on a snapshot field? Pass it via <see cref="BasketTestData.Snapshot"/>.</summary>
+    protected void StubCatalogProduct(Guid productId, ProductSnapshot? snapshot = null) =>
+        Catalog.GetProductSnapshotAsync(productId, Arg.Any<CancellationToken>())
+            .Returns(Result.Ok(snapshot ?? BasketTestData.Snapshot()));
 
     protected BaseIntegrationTest(IntegrationTestFixture app)
     {

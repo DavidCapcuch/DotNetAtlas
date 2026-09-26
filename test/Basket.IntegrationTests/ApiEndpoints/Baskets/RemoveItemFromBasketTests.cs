@@ -1,20 +1,13 @@
 using System.Net;
 using Basket.Api.Endpoints.Baskets.AddItem;
-using Basket.Domain.Baskets.ValueObjects;
 using Basket.IntegrationTests.Common;
 using FastEndpoints;
-using FluentResults;
-using NSubstitute;
-using Platform.SharedKernel.ValueObjects;
 
 namespace Basket.IntegrationTests.ApiEndpoints.Baskets;
 
 [Collection<IntegrationTestCollection>]
 public class RemoveItemFromBasketTests : BaseIntegrationTest
 {
-    private static readonly DateTimeOffset FixedCapturedAt =
-        new(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
-
     public RemoveItemFromBasketTests(IntegrationTestFixture app)
         : base(app)
     {
@@ -26,7 +19,7 @@ public class RemoveItemFromBasketTests : BaseIntegrationTest
         // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
-        StubCatalog(productId);
+        StubCatalogProduct(productId);
 
         var client = HttpClientRegistry.RegularUserAuthClient(userId);
         await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
@@ -45,7 +38,7 @@ public class RemoveItemFromBasketTests : BaseIntegrationTest
         // Arrange
         var userId = Guid.CreateVersion7();
         var sittingProduct = Guid.CreateVersion7();
-        StubCatalog(sittingProduct);
+        StubCatalogProduct(sittingProduct);
 
         var client = HttpClientRegistry.RegularUserAuthClient(userId);
         await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
@@ -83,16 +76,5 @@ public class RemoveItemFromBasketTests : BaseIntegrationTest
         return client.DeleteAsync(
             $"/api/v1/basket/items/{productId}",
             TestContext.Current.CancellationToken);
-    }
-
-    private void StubCatalog(Guid productId)
-    {
-        var snapshot = ProductSnapshot.Create(
-            sku: "SKU",
-            name: "Product",
-            price: Money.Create(10m, "EUR").Value,
-            capturedAtUtc: FixedCapturedAt);
-        Catalog.GetProductSnapshotAsync(productId, Arg.Any<CancellationToken>())
-            .Returns(Result.Ok(snapshot));
     }
 }

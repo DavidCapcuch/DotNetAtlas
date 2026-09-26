@@ -3,13 +3,9 @@ using Basket.Api.Endpoints.Baskets.AddItem;
 using Basket.Api.Endpoints.Baskets.Checkout;
 using Basket.Api.Endpoints.Baskets.GetByUserId;
 using Basket.Application.Baskets.GetByUserId;
-using Basket.Domain.Baskets.ValueObjects;
 using Basket.IntegrationTests.Common;
 using FastEndpoints;
-using FluentResults;
 using Microsoft.EntityFrameworkCore;
-using NSubstitute;
-using Platform.SharedKernel.ValueObjects;
 using Platform.Test.Framework.Assertions;
 
 namespace Basket.IntegrationTests.ApiEndpoints.Baskets;
@@ -17,9 +13,6 @@ namespace Basket.IntegrationTests.ApiEndpoints.Baskets;
 [Collection<IntegrationTestCollection>]
 public class CheckoutBasketTests : BaseIntegrationTest
 {
-    private static readonly DateTimeOffset FixedCapturedAt =
-        new(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
-
     public CheckoutBasketTests(IntegrationTestFixture app)
         : base(app)
     {
@@ -32,7 +25,7 @@ public class CheckoutBasketTests : BaseIntegrationTest
         // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
-        StubCatalog(productId);
+        StubCatalogProduct(productId);
 
         var client = HttpClientRegistry.RegularUserAuthClient(userId);
         await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
@@ -80,7 +73,7 @@ public class CheckoutBasketTests : BaseIntegrationTest
         // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
-        StubCatalog(productId);
+        StubCatalogProduct(productId);
 
         var client = HttpClientRegistry.RegularUserAuthClient(userId);
         await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
@@ -111,7 +104,7 @@ public class CheckoutBasketTests : BaseIntegrationTest
         // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
-        StubCatalog(productId);
+        StubCatalogProduct(productId);
 
         var client = HttpClientRegistry.RegularUserAuthClient(userId);
         await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
@@ -167,8 +160,8 @@ public class CheckoutBasketTests : BaseIntegrationTest
         var bob = Guid.CreateVersion7();
         var aliceProduct = Guid.CreateVersion7();
         var bobProduct = Guid.CreateVersion7();
-        StubCatalog(aliceProduct);
-        StubCatalog(bobProduct);
+        StubCatalogProduct(aliceProduct);
+        StubCatalogProduct(bobProduct);
 
         var aliceClient = HttpClientRegistry.RegularUserAuthClient(alice);
         await aliceClient.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
@@ -215,7 +208,7 @@ public class CheckoutBasketTests : BaseIntegrationTest
         // basket (leaving Items empty + Version=1), then checkout.
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
-        StubCatalog(productId);
+        StubCatalogProduct(productId);
 
         var client = HttpClientRegistry.RegularUserAuthClient(userId);
         await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
@@ -241,16 +234,5 @@ public class CheckoutBasketTests : BaseIntegrationTest
                 .AnyAsync(m => m.KafkaKey == userId.ToString(), TestContext.Current.CancellationToken);
             outboxRowWritten.Should().BeFalse("a rejected checkout publishes nothing");
         }
-    }
-
-    private void StubCatalog(Guid productId)
-    {
-        var snapshot = ProductSnapshot.Create(
-            sku: "SKU",
-            name: "Product",
-            price: Money.Create(10m, "EUR").Value,
-            capturedAtUtc: FixedCapturedAt);
-        Catalog.GetProductSnapshotAsync(productId, Arg.Any<CancellationToken>())
-            .Returns(Result.Ok(snapshot));
     }
 }

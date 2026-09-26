@@ -6,16 +6,12 @@ using Basket.IntegrationTests.Common;
 using FastEndpoints;
 using FluentResults;
 using NSubstitute;
-using Platform.SharedKernel.ValueObjects;
 
 namespace Basket.IntegrationTests.ApiEndpoints.Baskets;
 
 [Collection<IntegrationTestCollection>]
 public class AddItemToBasketTests : BaseIntegrationTest
 {
-    private static readonly DateTimeOffset FixedCapturedAt =
-        new(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
-
     public AddItemToBasketTests(IntegrationTestFixture app)
         : base(app)
     {
@@ -161,17 +157,5 @@ public class AddItemToBasketTests : BaseIntegrationTest
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-    }
-
-    private void StubCatalogProduct(Guid productId, decimal price = 9.99m, string currency = "EUR")
-    {
-        var snapshot = ProductSnapshot.Create(
-            sku: $"SKU-{productId:N}".Substring(0, 12),
-            name: $"Widget-{productId:N}".Substring(0, 12),
-            price: Money.Create(price, currency).Value,
-            capturedAtUtc: FixedCapturedAt);
-
-        Catalog.GetProductSnapshotAsync(productId, Arg.Any<CancellationToken>())
-            .Returns(Result.Ok(snapshot));
     }
 }

@@ -6,16 +6,12 @@ using Basket.IntegrationTests.Common;
 using FastEndpoints;
 using FluentResults;
 using NSubstitute;
-using Platform.SharedKernel.ValueObjects;
 
 namespace Basket.IntegrationTests.ApiEndpoints.Baskets;
 
 [Collection<IntegrationTestCollection>]
 public class RefreshBasketPricesTests : BaseIntegrationTest
 {
-    private static readonly DateTimeOffset FixedCapturedAt =
-        new(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
-
     public RefreshBasketPricesTests(IntegrationTestFixture app)
         : base(app)
     {
@@ -27,18 +23,14 @@ public class RefreshBasketPricesTests : BaseIntegrationTest
         // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
-        StubCatalogSingle(productId, price: 10m);
+        StubCatalogProduct(productId, BasketTestData.Snapshot(price: 10m));
 
         var client = HttpClientRegistry.RegularUserAuthClient(userId);
         await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
             new AddItemToBasketRequest { ProductId = productId, Quantity = 1 });
 
         // Now make GetMany return the same snapshot at a higher price
-        var newSnapshot = ProductSnapshot.Create(
-            sku: "SKU",
-            name: "Product",
-            price: Money.Create(11m, "EUR").Value,
-            capturedAtUtc: FixedCapturedAt);
+        var newSnapshot = BasketTestData.Snapshot(price: 11m);
         Catalog.GetManyAsync(Arg.Any<IEnumerable<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok<IReadOnlyList<(Guid, ProductSnapshot)>>(
             [
@@ -82,7 +74,7 @@ public class RefreshBasketPricesTests : BaseIntegrationTest
         // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
-        StubCatalogSingle(productId, price: 10m);
+        StubCatalogProduct(productId);
 
         var client = HttpClientRegistry.RegularUserAuthClient(userId);
         await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
@@ -100,16 +92,5 @@ public class RefreshBasketPricesTests : BaseIntegrationTest
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
-    }
-
-    private void StubCatalogSingle(Guid productId, decimal price)
-    {
-        var snapshot = ProductSnapshot.Create(
-            sku: "SKU",
-            name: "Product",
-            price: Money.Create(price, "EUR").Value,
-            capturedAtUtc: FixedCapturedAt);
-        Catalog.GetProductSnapshotAsync(productId, Arg.Any<CancellationToken>())
-            .Returns(Result.Ok(snapshot));
     }
 }

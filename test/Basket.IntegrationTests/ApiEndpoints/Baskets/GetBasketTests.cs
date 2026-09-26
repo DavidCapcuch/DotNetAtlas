@@ -2,21 +2,14 @@ using System.Net;
 using Basket.Api.Endpoints.Baskets.AddItem;
 using Basket.Api.Endpoints.Baskets.GetByUserId;
 using Basket.Application.Baskets.GetByUserId;
-using Basket.Domain.Baskets.ValueObjects;
 using Basket.IntegrationTests.Common;
 using FastEndpoints;
-using FluentResults;
-using NSubstitute;
-using Platform.SharedKernel.ValueObjects;
 
 namespace Basket.IntegrationTests.ApiEndpoints.Baskets;
 
 [Collection<IntegrationTestCollection>]
 public class GetBasketTests : BaseIntegrationTest
 {
-    private static readonly DateTimeOffset FixedCapturedAt =
-        new(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
-
     public GetBasketTests(IntegrationTestFixture app)
         : base(app)
     {
@@ -51,7 +44,7 @@ public class GetBasketTests : BaseIntegrationTest
         // Arrange
         var userId = Guid.CreateVersion7();
         var productId = Guid.CreateVersion7();
-        StubCatalog(productId, price: 12.34m, currency: "EUR");
+        StubCatalogProduct(productId, BasketTestData.Snapshot(price: 12.34m, currency: "EUR"));
 
         var client = HttpClientRegistry.RegularUserAuthClient(userId);
         await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
@@ -74,17 +67,5 @@ public class GetBasketTests : BaseIntegrationTest
             body.Total.Should().NotBeNull();
             body.Total!.Amount.Should().Be(12.34m * 3);
         }
-    }
-
-    private void StubCatalog(Guid productId, decimal price, string currency)
-    {
-        var snapshot = ProductSnapshot.Create(
-            sku: "SKU-WIDGET",
-            name: "Widget",
-            price: Money.Create(price, currency).Value,
-            capturedAtUtc: FixedCapturedAt);
-
-        Catalog.GetProductSnapshotAsync(productId, Arg.Any<CancellationToken>())
-            .Returns(Result.Ok(snapshot));
     }
 }
