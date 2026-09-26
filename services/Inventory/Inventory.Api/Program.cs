@@ -29,12 +29,8 @@ try
         .AddApplication()
         .AddInfrastructure(builder.Configuration, isDeployedEnvironment);
 
-    // The reservation-expiry worker boots WITH the host. Skip it in the
-    // Testing environment so functional tests can run EF migrations after
-    // the host starts (the worker's eager startup tick would otherwise
-    // crash querying reservation_audit before the table exists).
-    // Integration tests resolve the worker directly from DI without the
-    // hosted-service loop.
+    // Tests seed reservations at fixed past timestamps, so an expiry worker ticking on the real clock
+    // in the shared test host would release them under other tests.
     if (!builder.Environment.IsTesting())
     {
         builder.Services.AddReservationExpiryWorker();
@@ -64,12 +60,8 @@ try
 
     await app.MigrateOnStartupIfDevelopmentAsync<InventoryDbContext>();
 
-    // Skip the Kafka cluster boot in the test host. Functional / integration
-    // tests register the typed Kafka handlers directly and invoke them with
-    // synthetic message contexts (matches the Ordering precedent at
-    // test/Ordering.IntegrationTests/Common/IntegrationTestFixture.cs:19-20).
-    // Booting the consumers in-test would require Kafka + Schema Registry
-    // containers.
+    // Integration tests invoke the typed Kafka handlers directly with synthetic message contexts;
+    // booting the consumers in-test would require Kafka + Schema Registry containers.
     if (!app.Environment.IsTesting())
     {
         var kafkaBus = app.Services.CreateKafkaBus();
@@ -93,8 +85,7 @@ finally
 }
 
 /// <summary>
-/// Partial <c>Program</c> marker so functional + integration tests can use
-/// <c>WebApplicationFactory&lt;Program&gt;</c> and FastEndpoints'
+/// Partial <c>Program</c> marker so integration tests can host the service through FastEndpoints'
 /// <c>AppFixture&lt;Program&gt;</c>.
 /// </summary>
 public partial class Program;

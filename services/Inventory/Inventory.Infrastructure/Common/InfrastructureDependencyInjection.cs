@@ -15,10 +15,8 @@ namespace Inventory.Infrastructure.Common;
 /// </summary>
 /// <remarks>
 /// The <see cref="ReservationExpiryWorker"/> hosted service is NOT registered here —
-/// Program.cs guards its registration behind <c>!IsTesting()</c> via
-/// <see cref="AddReservationExpiryWorker"/>, mirroring the Kafka cluster boot guard.
-/// Functional tests stand up the host but skip the worker; integration tests resolve
-/// <c>ReservationExpiryWorker</c> directly from DI without the hosted-service loop.
+/// Program.cs registers it via <see cref="AddReservationExpiryWorker"/> behind a
+/// <c>!IsTesting()</c> guard, whose comment carries the reason.
 /// </remarks>
 public static class InfrastructureDependencyInjection
 {
@@ -37,12 +35,6 @@ public static class InfrastructureDependencyInjection
         return services;
     }
 
-    /// <summary>
-    /// Registers the <see cref="ReservationExpiryWorker"/> as a hosted
-    /// service. Program.cs guards this out of the Testing environment so the
-    /// functional-test fixture's eager host start doesn't fire the worker
-    /// before EF migrations run. Production / dev / staging always register.
-    /// </summary>
     public static IServiceCollection AddReservationExpiryWorker(this IServiceCollection services)
     {
         services.AddHostedService<ReservationExpiryWorker>();
