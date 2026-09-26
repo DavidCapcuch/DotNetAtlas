@@ -4,9 +4,8 @@ using Inventory.Application.StockItems.ReceiveStock;
 using Inventory.Application.StockItems.ReserveStock;
 using Inventory.Infrastructure.Messaging.Kafka.SagaCommands;
 using Inventory.IntegrationTests.Common;
-using Microsoft.Extensions.DependencyInjection;
 using Platform.CQRS;
-using Platform.Test.Framework.Kafka;
+using Platform.SharedKernel.Exceptions;
 using AvroConfirmReservationCommand = Inventory.Reservations.ConfirmReservationCommand;
 using AvroReserveStockCommand = Inventory.Reservations.ReserveStockCommand;
 
@@ -39,7 +38,7 @@ public sealed class SagaCommandHandlerBaseTests : BaseIntegrationTest
     /// <summary>
     /// Drives the wrapper's <c>Result.Fail</c> with a NON-business error code
     /// path: a <c>ReserveStockCommand</c> with <c>ReservationId = Guid.Empty</c>
-    /// short-circuits in <c>ReserveStockCommandHandler</c> (line 54-58) with
+    /// short-circuits in <c>ReserveStockCommandHandler</c> (at <c>ReservationId.Create</c>) with
     /// <c>Result.Fail(ValidationError("ReservationId.Empty"))</c> BEFORE any
     /// outbox row is staged — exactly the case the docstring on
     /// <c>BusinessExpectedErrorCodes</c> says MUST throw. Asserts
@@ -65,12 +64,7 @@ public sealed class SagaCommandHandlerBaseTests : BaseIntegrationTest
             RequestedAtUtc = UtcNow,
         };
 
-        using var scope = Fixture.CreateScope();
-        var handler = scope.ServiceProvider.GetRequiredService<ReserveStockCommandKafkaHandler>();
-        var context = FakeKafkaMessageContext.Create(
-            cancellationToken: TestContext.Current.CancellationToken);
-
-        var act = async () => await handler.Handle(context, avroCommand);
+        var act = () => Fixture.DispatchAsync<ReserveStockCommandKafkaHandler, AvroReserveStockCommand>(avroCommand);
         var thrown = await act.Should().ThrowAsync<SagaCommandDispatchException>();
         thrown.Which.Message.Should().Contain("ReserveStockCommand");
     }
@@ -98,16 +92,11 @@ public sealed class SagaCommandHandlerBaseTests : BaseIntegrationTest
             RequestedAtUtc = UtcNow,
         };
 
-        using var scope = Fixture.CreateScope();
-        var handler = scope.ServiceProvider.GetRequiredService<ConfirmReservationCommandKafkaHandler>();
-        var context = FakeKafkaMessageContext.Create(
-            cancellationToken: TestContext.Current.CancellationToken);
-
-        var act = async () => await handler.Handle(context, avroCommand);
-        // Specifically NOT SagaCommandDispatchException -- the wrapper does
-        // not wrap unhandled exceptions; it lets them propagate.
-        await act.Should().ThrowAsync<Exception>()
-            .Where(ex => ex.GetType() != typeof(SagaCommandDispatchException));
+        var act = () => Fixture.DispatchAsync<ConfirmReservationCommandKafkaHandler, AvroConfirmReservationCommand>(avroCommand);
+        // The aggregate's own exception, unwrapped -- the wrapper does not
+        // wrap unhandled exceptions; it lets them propagate.
+        var thrown = await act.Should().ThrowExactlyAsync<DataIntegrityException>();
+        thrown.Which.ErrorCode.Should().Be("Inventory.StreamNotInitialized");
     }
 
     /// <summary>
@@ -138,12 +127,7 @@ public sealed class SagaCommandHandlerBaseTests : BaseIntegrationTest
             RequestedAtUtc = UtcNow,
         };
 
-        using var scope = Fixture.CreateScope();
-        var handler = scope.ServiceProvider.GetRequiredService<ConfirmReservationCommandKafkaHandler>();
-        var context = FakeKafkaMessageContext.Create(
-            cancellationToken: TestContext.Current.CancellationToken);
-
-        var act = async () => await handler.Handle(context, avroCommand);
+        var act = () => Fixture.DispatchAsync<ConfirmReservationCommandKafkaHandler, AvroConfirmReservationCommand>(avroCommand);
         await act.Should().NotThrowAsync();
     }
 }

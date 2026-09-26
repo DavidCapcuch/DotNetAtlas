@@ -10,13 +10,16 @@ namespace Inventory.IntegrationTests.Common;
 /// </summary>
 internal static class KafkaHandlerTestExtensions
 {
-    public static async Task DispatchAsync<THandler, TMessage>(this IntegrationTestFixture fixture, TMessage message)
+    public static async Task DispatchAsync<THandler, TMessage>(
+        this IntegrationTestFixture fixture,
+        TMessage message,
+        string origin = FakeKafkaMessageContext.DefaultOrigin)
         where THandler : IMessageHandler<TMessage>
     {
         using var scope = fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<THandler>();
         await handler.Handle(
-            FakeKafkaMessageContext.Create(cancellationToken: TestContext.Current.CancellationToken),
+            FakeKafkaMessageContext.Create(origin: origin, cancellationToken: TestContext.Current.CancellationToken),
             message);
     }
 }

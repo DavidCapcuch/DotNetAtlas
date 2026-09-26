@@ -5,7 +5,6 @@ using Inventory.Infrastructure.Persistence.Database;
 using Inventory.IntegrationTests.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Platform.Test.Framework.Kafka;
 using AvroProductCreatedEvent = Catalog.Products.ProductCreatedEvent;
 using AvroProductStatus = Catalog.Products.ProductStatus;
 
@@ -35,13 +34,7 @@ public sealed class ProductCreatedEventKafkaHandlerTests : BaseIntegrationTest
         var productId = Guid.NewGuid();
         var avroEvent = BuildAvroProductCreated(productId);
 
-        using var scope = Fixture.CreateScope();
-        var handler = scope.ServiceProvider.GetRequiredService<ProductCreatedEventKafkaHandler>();
-        var context = FakeKafkaMessageContext.Create(
-            origin: "Catalog",
-            cancellationToken: TestContext.Current.CancellationToken);
-
-        await handler.Handle(context, avroEvent);
+        await Fixture.DispatchAsync<ProductCreatedEventKafkaHandler, AvroProductCreatedEvent>(avroEvent, origin: "Catalog");
 
         using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
@@ -69,23 +62,11 @@ public sealed class ProductCreatedEventKafkaHandlerTests : BaseIntegrationTest
         var avroEvent = BuildAvroProductCreated(productId);
 
         // First delivery -> stream initialized.
-        using (var scope = Fixture.CreateScope())
-        {
-            var handler = scope.ServiceProvider.GetRequiredService<ProductCreatedEventKafkaHandler>();
-            await handler.Handle(
-                FakeKafkaMessageContext.Create(origin: "Catalog", cancellationToken: TestContext.Current.CancellationToken),
-                avroEvent);
-        }
+        await Fixture.DispatchAsync<ProductCreatedEventKafkaHandler, AvroProductCreatedEvent>(avroEvent, origin: "Catalog");
 
         // Second delivery -> aggregate's Version > 0 guard kicks in;
         // application handler returns Result.Ok with no event appended.
-        using (var scope = Fixture.CreateScope())
-        {
-            var handler = scope.ServiceProvider.GetRequiredService<ProductCreatedEventKafkaHandler>();
-            await handler.Handle(
-                FakeKafkaMessageContext.Create(origin: "Catalog", cancellationToken: TestContext.Current.CancellationToken),
-                avroEvent);
-        }
+        await Fixture.DispatchAsync<ProductCreatedEventKafkaHandler, AvroProductCreatedEvent>(avroEvent, origin: "Catalog");
 
         using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();

@@ -9,7 +9,6 @@ using Inventory.IntegrationTests.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.CQRS;
-using Platform.Test.Framework.Kafka;
 using AvroOrderCancelledEvent = Ordering.Orders.OrderCancelledEvent;
 using AvroOrderStatusAtTransition = Ordering.Orders.OrderStatusAtTransition;
 
@@ -57,13 +56,7 @@ public sealed class OrderCancelledEventKafkaHandlerTests : BaseIntegrationTest
             CancelledAtUtc = UtcNow,
         };
 
-        using var scope = Fixture.CreateScope();
-        var handler = scope.ServiceProvider.GetRequiredService<OrderCancelledEventKafkaHandler>();
-        var context = FakeKafkaMessageContext.Create(
-            origin: "Ordering",
-            cancellationToken: TestContext.Current.CancellationToken);
-
-        await handler.Handle(context, avroEvent);
+        await Fixture.DispatchAsync<OrderCancelledEventKafkaHandler, AvroOrderCancelledEvent>(avroEvent, origin: "Ordering");
 
         using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
@@ -118,13 +111,7 @@ public sealed class OrderCancelledEventKafkaHandlerTests : BaseIntegrationTest
             CancelledAtUtc = UtcNow,
         };
 
-        using var scope = Fixture.CreateScope();
-        var handler = scope.ServiceProvider.GetRequiredService<OrderCancelledEventKafkaHandler>();
-        var context = FakeKafkaMessageContext.Create(
-            origin: "Ordering",
-            cancellationToken: TestContext.Current.CancellationToken);
-
-        var act = async () => await handler.Handle(context, avroEvent);
+        var act = () => Fixture.DispatchAsync<OrderCancelledEventKafkaHandler, AvroOrderCancelledEvent>(avroEvent, origin: "Ordering");
         await act.Should().NotThrowAsync();
 
         using var verifyScope = Fixture.CreateScope();
