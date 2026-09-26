@@ -1,19 +1,19 @@
 using System.Net;
 using System.Net.Http.Json;
 using Inventory.Application.StockItems.Common;
-using Inventory.Application.StockItems.InitializeStockItem;
-using Inventory.Application.StockItems.ReceiveStock;
-using Inventory.FunctionalTests.Common;
+using Inventory.IntegrationTests.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
 
-namespace Inventory.FunctionalTests.ApiEndpoints.StockItems;
+namespace Inventory.IntegrationTests.ApiEndpoints.StockItems;
 
-[Collection<FunctionalTestCollection>]
-public sealed class AdjustStockTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public sealed class AdjustStockTests : BaseIntegrationTest
 {
-    public AdjustStockTests(ApiTestFixture app)
+    private static readonly DateTimeOffset SeedUtc = new(2026, 4, 26, 12, 0, 0, TimeSpan.Zero);
+
+    public AdjustStockTests(IntegrationTestFixture app)
         : base(app)
     {
     }
@@ -61,23 +61,36 @@ public sealed class AdjustStockTests : BaseApiTest
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    [Fact]
-    public async Task WhenCommandsScope_AndOnHandPositive_Returns200WithUpdatedSnapshot()
+    // The sign-specific arithmetic and its below-zero / below-reservations guards are owned by the
+    // unit tier (StockItemTests.AdjustStock_*).
+    [Theory]
+    [InlineData(10, -3, 7)]
+    [InlineData(4, 3, 7)]
+    public async Task WhenCommandsScope_AndOnHandPositive_Returns200WithUpdatedSnapshot(
+        int startOnHand, int delta, int expectedOnHand)
     {
+        // Arrange
         var productId = Guid.CreateVersion7();
-        await SeedStreamAsync(productId, onHand: 10);
+        await Seed.ProductWithOnHandAsync(productId, startOnHand, SeedUtc, TestContext.Current.CancellationToken);
 
         // ADR-0013 requires the Idempotency-Key header on this endpoint
         // (enforced explicitly per WhenIdempotencyKeyMissing_Returns400).
         var client = Fixture.HttpClientRegistry.CommandsClientWithIdempotencyKey(Guid.CreateVersion7().ToString());
-        var response = await client
-            .PostAsJsonAsync($"/api/v1/inventory/stock-items/{productId}/adjust", BuildBody(productId, -3), TestContext.Current.CancellationToken);
 
+        // Act
+        var response = await client
+            .PostAsJsonAsync($"/api/v1/inventory/stock-items/{productId}/adjust", BuildBody(productId, delta), TestContext.Current.CancellationToken);
+
+        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var snapshot = await response.Content.ReadFromJsonAsync<StockLevelResponse>(TestContext.Current.CancellationToken);
         snapshot.Should().NotBeNull();
-        snapshot!.OnHand.Should().Be(7);
+        using (new AssertionScope())
+        {
+            snapshot!.OnHand.Should().Be(expectedOnHand);
+            snapshot.Available.Should().Be(expectedOnHand);
+        }
     }
 
     [Fact]
@@ -109,7 +122,7 @@ public sealed class AdjustStockTests : BaseApiTest
         // Diagnostic counts + Redis key snapshot are written to the test
         // output below for human inspection on every run.
         var productId = Guid.CreateVersion7();
-        await SeedStreamAsync(productId, onHand: 20);
+        await Seed.ProductWithOnHandAsync(productId, onHand: 20, SeedUtc, TestContext.Current.CancellationToken);
 
         var idempotencyKey = Guid.CreateVersion7().ToString();
         var body = BuildBody(productId, -2);
@@ -183,26 +196,6 @@ public sealed class AdjustStockTests : BaseApiTest
         Reason = "damage-write-off",
         AdjustedByUserId = Guid.CreateVersion7(),
     };
-
-    private async Task SeedStreamAsync(Guid productId, int onHand)
-    {
-        await using var scope = Fixture.Services.CreateAsyncScope();
-        var init = scope.ServiceProvider.GetRequiredService<Platform.CQRS.ICommandHandler<InitializeStockItemCommand>>();
-        var receive = scope.ServiceProvider.GetRequiredService<Platform.CQRS.ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
-        (await init.HandleAsync(
-            new InitializeStockItemCommand { ProductId = productId, OccurredOnUtc = DateTimeOffset.UtcNow.AddMinutes(-2) },
-            TestContext.Current.CancellationToken)).IsSuccess.Should().BeTrue();
-        (await receive.HandleAsync(
-            new ReceiveStockCommand
-            {
-                ProductId = productId,
-                Quantity = onHand,
-                Source = "receiving-dock",
-                ReceivedByUserId = null,
-                OccurredOnUtc = DateTimeOffset.UtcNow.AddMinutes(-1),
-            },
-            TestContext.Current.CancellationToken)).IsSuccess.Should().BeTrue();
-    }
 
     private async Task<int> CountAdjustedEventsAsync(Guid productId)
     {

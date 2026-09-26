@@ -1,27 +1,25 @@
 using System.Net;
 using System.Net.Http.Json;
-using Inventory.Application.StockItems.Common;
 using Inventory.Application.StockItems.GetStockLevelsBulk;
-using Inventory.Application.StockItems.InitializeStockItem;
-using Inventory.Application.StockItems.ReceiveStock;
-using Inventory.FunctionalTests.Common;
-using Microsoft.Extensions.DependencyInjection;
+using Inventory.IntegrationTests.Common;
 using StackExchange.Redis;
 
-namespace Inventory.FunctionalTests.ApiEndpoints.StockItems;
+namespace Inventory.IntegrationTests.ApiEndpoints.StockItems;
 
 /// <summary>
-/// End-to-end coverage for <c>POST /api/v1/inventory/stock-items/bulk</c> (ADR-0034)
+/// Integration coverage for <c>POST /api/v1/inventory/stock-items/bulk</c> (ADR-0034)
 /// against real <c>redis-cache</c>: anonymous partial-tolerant reads, validation, the
 /// FusionCache read-through landing in Redis, and invalidate-on-projection-update keeping
 /// the display fresh well inside the TTL.
 /// </summary>
-[Collection<FunctionalTestCollection>]
-public sealed class GetStockLevelsBulkTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public sealed class GetStockLevelsBulkTests : BaseIntegrationTest
 {
     private const string BulkRoute = "/api/v1/inventory/stock-items/bulk";
 
-    public GetStockLevelsBulkTests(ApiTestFixture app)
+    private static readonly DateTimeOffset SeedUtc = new(2026, 4, 26, 12, 0, 0, TimeSpan.Zero);
+
+    public GetStockLevelsBulkTests(IntegrationTestFixture app)
         : base(app)
     {
     }
@@ -31,7 +29,7 @@ public sealed class GetStockLevelsBulkTests : BaseApiTest
     {
         var known = Guid.CreateVersion7();
         var unknown = Guid.CreateVersion7();
-        await SeedStreamAsync(known, onHand: 6);
+        await Seed.ProductWithOnHandAsync(known, onHand: 6, SeedUtc, TestContext.Current.CancellationToken);
 
         var response = await Fixture.HttpClientRegistry.NonAuthClient
             .PostAsJsonAsync(BulkRoute, new { productIds = new[] { known, unknown } }, TestContext.Current.CancellationToken);
@@ -44,6 +42,56 @@ public sealed class GetStockLevelsBulkTests : BaseApiTest
         {
             body!.Items.Should().ContainSingle(i => i.ProductId == known).Which.Available.Should().Be(6);
             body.MissingProductIds.Should().ContainSingle().Which.Should().Be(unknown);
+        }
+    }
+
+    // The two edges of the partial-tolerant contract below pin the serialized shape too — an empty
+    // missingProductIds / items array on the wire, never a null.
+    [Fact]
+    [Trait("Category", "boundary")]
+    public async Task WhenAllProductsKnown_Returns200WithEveryItem_AndNoMissing()
+    {
+        // Arrange
+        var first = Guid.CreateVersion7();
+        var second = Guid.CreateVersion7();
+        await Seed.ProductWithOnHandAsync(first, onHand: 4, SeedUtc, TestContext.Current.CancellationToken);
+        await Seed.ProductWithOnHandAsync(second, onHand: 9, SeedUtc, TestContext.Current.CancellationToken);
+
+        // Act
+        var response = await Fixture.HttpClientRegistry.NonAuthClient
+            .PostAsJsonAsync(BulkRoute, new { productIds = new[] { first, second } }, TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadFromJsonAsync<GetStockLevelsBulkResponse>(TestContext.Current.CancellationToken);
+
+        // Assert
+        using (new AssertionScope())
+        {
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            body!.MissingProductIds.Should().NotBeNull().And.BeEmpty();
+            body.Items.Should().HaveCount(2);
+            body.Items.Should().ContainSingle(i => i.ProductId == first).Which.Available.Should().Be(4);
+            body.Items.Should().ContainSingle(i => i.ProductId == second).Which.Available.Should().Be(9);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "boundary")]
+    public async Task WhenAllProductsUnknown_Returns200WithNoItems_AndAllMissing()
+    {
+        // Arrange
+        var first = Guid.CreateVersion7();
+        var second = Guid.CreateVersion7();
+
+        // Act
+        var response = await Fixture.HttpClientRegistry.NonAuthClient
+            .PostAsJsonAsync(BulkRoute, new { productIds = new[] { first, second } }, TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadFromJsonAsync<GetStockLevelsBulkResponse>(TestContext.Current.CancellationToken);
+
+        // Assert
+        using (new AssertionScope())
+        {
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            body!.Items.Should().NotBeNull().And.BeEmpty();
+            body.MissingProductIds.Should().BeEquivalentTo([first, second]);
         }
     }
 
@@ -75,7 +123,7 @@ public sealed class GetStockLevelsBulkTests : BaseApiTest
     public async Task Read_PopulatesRedisCache()
     {
         var productId = Guid.CreateVersion7();
-        await SeedStreamAsync(productId, onHand: 3);
+        await Seed.ProductWithOnHandAsync(productId, onHand: 3, SeedUtc, TestContext.Current.CancellationToken);
 
         await Fixture.HttpClientRegistry.NonAuthClient
             .PostAsJsonAsync(BulkRoute, new { productIds = new[] { productId } }, TestContext.Current.CancellationToken);
@@ -88,7 +136,7 @@ public sealed class GetStockLevelsBulkTests : BaseApiTest
     public async Task ProjectionUpdate_EvictsCache_SoSubsequentReadIsFresh()
     {
         var productId = Guid.CreateVersion7();
-        await SeedStreamAsync(productId, onHand: 5);
+        await Seed.ProductWithOnHandAsync(productId, onHand: 5, SeedUtc, TestContext.Current.CancellationToken);
 
         // Warm the cache (available = 5).
         (await ReadAvailableAsync(productId)).Should().Be(5);
@@ -111,7 +159,7 @@ public sealed class GetStockLevelsBulkTests : BaseApiTest
     public async Task CorruptCachedPayload_DegradesToProjection_NotError()
     {
         var productId = Guid.CreateVersion7();
-        await SeedStreamAsync(productId, onHand: 3);
+        await Seed.ProductWithOnHandAsync(productId, onHand: 3, SeedUtc, TestContext.Current.CancellationToken);
 
         // Warm the cache, then corrupt the stored payload in redis-cache (simulates an
         // incompatible MemoryPack shape left across a deploy). The read must treat it as a
@@ -151,25 +199,5 @@ public sealed class GetStockLevelsBulkTests : BaseApiTest
         var endpoint = Fixture.RedisMultiplexer.GetEndPoints()[0];
         var server = Fixture.RedisMultiplexer.GetServer(endpoint);
         return server.Keys(pattern: $"*{productId:D}*").First();
-    }
-
-    private async Task SeedStreamAsync(Guid productId, int onHand)
-    {
-        await using var scope = Fixture.Services.CreateAsyncScope();
-        var init = scope.ServiceProvider.GetRequiredService<Platform.CQRS.ICommandHandler<InitializeStockItemCommand>>();
-        var receive = scope.ServiceProvider.GetRequiredService<Platform.CQRS.ICommandHandler<ReceiveStockCommand, StockLevelResponse>>();
-        (await init.HandleAsync(
-            new InitializeStockItemCommand { ProductId = productId, OccurredOnUtc = DateTimeOffset.UtcNow.AddMinutes(-2) },
-            TestContext.Current.CancellationToken)).IsSuccess.Should().BeTrue();
-        (await receive.HandleAsync(
-            new ReceiveStockCommand
-            {
-                ProductId = productId,
-                Quantity = onHand,
-                Source = "receiving-dock",
-                ReceivedByUserId = null,
-                OccurredOnUtc = DateTimeOffset.UtcNow.AddMinutes(-1),
-            },
-            TestContext.Current.CancellationToken)).IsSuccess.Should().BeTrue();
     }
 }

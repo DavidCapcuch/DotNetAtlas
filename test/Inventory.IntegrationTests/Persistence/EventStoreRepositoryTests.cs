@@ -73,15 +73,7 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
         result.Value.Version.Should().Be(2);
         result.Value.OnHand.Should().Be(100);
 
-        using var readScope = Fixture.CreateScope();
-        var readCtx = readScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-
-        var rows = await readCtx.StockEvents
-            .AsNoTracking()
-            .Where(r => r.StreamId == productId)
-            .OrderBy(r => r.Version)
-            .Select(r => new { r.Version, r.EventType })
-            .ToListAsync(TestContext.Current.CancellationToken);
+        var rows = await ReadStreamAsync(productId);
 
         rows.Should().HaveCount(2);
         rows[0].Version.Should().Be(1);
@@ -190,14 +182,7 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
         result.Value.Version.Should().Be(3);
         result.Value.OnHand.Should().Be(105); // 5 (competing) + 100 (our retry)
 
-        using var verifyScope = Fixture.CreateScope();
-        var verifyCtx = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-        var rows = await verifyCtx.StockEvents
-            .AsNoTracking()
-            .Where(r => r.StreamId == productId)
-            .OrderBy(r => r.Version)
-            .Select(r => new { r.Version, r.EventType })
-            .ToListAsync(TestContext.Current.CancellationToken);
+        var rows = await ReadStreamAsync(productId);
 
         rows.Should().HaveCount(3);
         rows[0].Version.Should().Be(1);
@@ -303,5 +288,161 @@ public sealed class EventStoreRepositoryTests : BaseIntegrationTest
 
         // Only the setup events (Init + Receive) — no reservation row.
         rowCount.Should().Be(2);
+    }
+
+    /// <summary>
+    /// Example 2.3 of <c>docs/bc-design/example-mapping/inventory.md</c>. A deterministic version race has
+    /// no outer entrance, so it is driven at the repository with an injected conflict.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "concurrency")]
+    public async Task AppendAsync_ReserveLosesVersionRaceForLastUnits_RetriesThenFailsWithInsufficientStock()
+    {
+        // Arrange — stream at V=2 with OnHand=7, Reserved=0, Available=7.
+        var productId = Guid.NewGuid();
+        var winningReservationId = Guid.NewGuid();
+        var winningOrderId = Guid.NewGuid();
+        var losingReservationId = Guid.NewGuid();
+        var losingOrderId = Guid.NewGuid();
+
+        using (var setupScope = Fixture.CreateScope())
+        {
+            var setupRepo = setupScope.ServiceProvider.GetRequiredService<EventStoreRepository>();
+            (await setupRepo.AppendAsync(
+                productId,
+                a => a.Initialize(productId, UtcNow.AddMinutes(-2)),
+                TestContext.Current.CancellationToken)).Should().BeSuccess();
+            (await setupRepo.AppendAsync(
+                productId,
+                a => a.ReceiveStock(7, StockSource.ReceivingDock, null, UtcNow.AddMinutes(-1)),
+                TestContext.Current.CancellationToken)).Should().BeSuccess();
+        }
+
+        // The competing write: the winner reserves 5 units at V=3.
+        var winningReservedEvent = new StockReservedDomainEvent
+        {
+            ProductId = productId,
+            ReservationId = winningReservationId,
+            Quantity = 5,
+            OrderId = winningOrderId,
+            ExpiresAtUtc = UtcNow.AddMinutes(15),
+            OccurredOnUtc = UtcNow,
+        };
+        var interceptor = new OneShotConflictInterceptor(
+            ct => Fixture.InsertEventStoreRowAsync(productId, version: 3, @event: winningReservedEvent, ct),
+            fireCount: 1);
+
+        await using var raceCtx = Fixture.CreateInterceptedDbContext(interceptor);
+        var raceRepo = new EventStoreRepository(raceCtx, NoOpDomainEventDispatcher.Instance);
+
+        // Act — the loser also asks for 5; its retry rehydrates at V=3 (Available=2).
+        var loserResult = await raceRepo.AppendAsync(
+            productId,
+            a => a.Reserve(
+                ReservationId.Create(losingReservationId).Value,
+                quantity: 5,
+                losingOrderId,
+                TimeSpan.FromMinutes(15),
+                UtcNow).ToResult(),
+            TestContext.Current.CancellationToken);
+
+        // Assert — refused with the post-race Available, and the stream holds exactly the winner's reserve.
+        loserResult.Should().BeFailure();
+        loserResult.Errors.Should().ContainSingle()
+            .Which.Should().BeOfType<InsufficientStockError>()
+            .Which.Available.Should().Be(2,
+                "after the winner appended at V=3, the loser's retry rehydrates the up-to-date Available");
+
+        var rows = await ReadStreamAsync(productId);
+        rows.Should().HaveCount(3);
+        rows[0].EventType.Should().BeEventType<StockItemInitializedDomainEvent>();
+        rows[1].EventType.Should().BeEventType<StockReceivedDomainEvent>();
+        rows[2].EventType.Should().BeEventType<StockReservedDomainEvent>();
+        rows[2].Version.Should().Be(3);
+    }
+
+    /// <summary>
+    /// Example 3.4 of <c>docs/bc-design/example-mapping/inventory.md</c>, driven at the repository for the
+    /// same reason as Example 2.3 above.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "concurrency")]
+    public async Task AppendAsync_ConfirmLosesVersionRaceToExpiryRelease_RetriesThenFailsWithReservationNotActive()
+    {
+        // Arrange — stream at V=3 with an Active reservation.
+        var productId = Guid.NewGuid();
+        var reservationId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+
+        using (var setupScope = Fixture.CreateScope())
+        {
+            var setupRepo = setupScope.ServiceProvider.GetRequiredService<EventStoreRepository>();
+            (await setupRepo.AppendAsync(
+                productId,
+                a => a.Initialize(productId, UtcNow.AddMinutes(-3)),
+                TestContext.Current.CancellationToken)).Should().BeSuccess();
+            (await setupRepo.AppendAsync(
+                productId,
+                a => a.ReceiveStock(5, StockSource.ReceivingDock, null, UtcNow.AddMinutes(-2)),
+                TestContext.Current.CancellationToken)).Should().BeSuccess();
+            (await setupRepo.AppendAsync(
+                productId,
+                a => a.Reserve(
+                    ReservationId.Create(reservationId).Value,
+                    quantity: 2,
+                    orderId,
+                    TimeSpan.FromMinutes(15),
+                    UtcNow.AddMinutes(-1)).ToResult(),
+                TestContext.Current.CancellationToken)).Should().BeSuccess();
+        }
+
+        // The competing write: the expiry worker's release wins at V=4.
+        var competingReleasedEvent = new ReservationReleasedDomainEvent
+        {
+            ProductId = productId,
+            ReservationId = reservationId,
+            ReleaseReason = ReleaseReason.Expiry,
+            ReleasedAtUtc = UtcNow,
+            OccurredOnUtc = UtcNow,
+        };
+        var interceptor = new OneShotConflictInterceptor(
+            ct => Fixture.InsertEventStoreRowAsync(productId, version: 4, @event: competingReleasedEvent, ct),
+            fireCount: 1);
+
+        await using var raceCtx = Fixture.CreateInterceptedDbContext(interceptor);
+        var raceRepo = new EventStoreRepository(raceCtx, NoOpDomainEventDispatcher.Instance);
+
+        // Act
+        var loserResult = await raceRepo.AppendAsync(
+            productId,
+            a => a.ConfirmReservation(ReservationId.Create(reservationId).Value, UtcNow),
+            TestContext.Current.CancellationToken);
+
+        // Assert — refused on the terminal status, and no ReservationConfirmedDomainEvent at any version.
+        loserResult.Should().BeFailure();
+        loserResult.Errors.Should().ContainSingle()
+            .Which.Should().BeOfType<ReservationNotActiveError>()
+            .Which.CurrentStatus.Should().Be(ReservationStatus.Released,
+                "after the competing release wins at V=4, the retried Confirm rehydrates and sees the terminal Released status");
+
+        var rows = await ReadStreamAsync(productId);
+        rows.Should().HaveCount(4);
+        rows[0].EventType.Should().BeEventType<StockItemInitializedDomainEvent>();
+        rows[1].EventType.Should().BeEventType<StockReceivedDomainEvent>();
+        rows[2].EventType.Should().BeEventType<StockReservedDomainEvent>();
+        rows[3].Version.Should().Be(4);
+        rows[3].EventType.Should().BeEventType<ReservationReleasedDomainEvent>(
+            "exactly one resolution event — the competing release that won the version race");
+    }
+
+    private async Task<List<(int Version, string EventType)>> ReadStreamAsync(Guid productId)
+    {
+        var rows = await InventoryDbContext.StockEvents
+            .AsNoTracking()
+            .Where(r => r.StreamId == productId)
+            .OrderBy(r => r.Version)
+            .Select(r => new { r.Version, r.EventType })
+            .ToListAsync(TestContext.Current.CancellationToken);
+        return rows.Select(r => (r.Version, r.EventType)).ToList();
     }
 }

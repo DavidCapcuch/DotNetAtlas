@@ -1,11 +1,11 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net.Http.Json;
-using Inventory.FunctionalTests.Common;
+using Inventory.IntegrationTests.Common;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Trace;
 
-namespace Inventory.FunctionalTests.Observability;
+namespace Inventory.IntegrationTests.CrossCutting;
 
 /// <summary>
 /// ADR-0034 + ADR-0016: the read-through stock-availability cache reaches <c>redis-cache</c>
@@ -16,15 +16,15 @@ namespace Inventory.FunctionalTests.Observability;
 /// spans. This pins that a bulk read emits StackExchange.Redis spans on the host's
 /// TracerProvider (the same pipeline that exports to Jaeger).
 /// </summary>
-[Collection<FunctionalTestCollection>]
-public sealed class StockCacheTracingTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public sealed class StockCacheTracingTests : BaseIntegrationTest
 {
     // ActivitySource name of OpenTelemetry.Instrumentation.StackExchangeRedis (its assembly name).
     private const string RedisInstrumentationSource = "OpenTelemetry.Instrumentation.StackExchangeRedis";
 
     private const string BulkRoute = "/api/v1/inventory/stock-items/bulk";
 
-    public StockCacheTracingTests(ApiTestFixture app)
+    public StockCacheTracingTests(IntegrationTestFixture app)
         : base(app)
     {
     }

@@ -2,11 +2,14 @@
     <ItemGroup>
         <PackageReference Include="Confluent.Kafka" />
         <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro" />
+        <PackageReference Include="FastEndpoints.Testing" />
         <PackageReference Include="FluentResults.Extensions.FluentAssertions" />
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
         <PackageReference Include="NSubstitute" />
         <PackageReference Include="NSubstitute.Analyzers.CSharp" />
         <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
+        <PackageReference Include="StackExchange.Redis" />
+        <PackageReference Include="Testcontainers.Redis" />
     </ItemGroup>
 
     <ItemGroup>

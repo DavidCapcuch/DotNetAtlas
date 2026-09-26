@@ -1,27 +1,19 @@
-using Inventory.Application.StockItems.Common;
-using Inventory.Application.StockItems.InitializeStockItem;
-using Inventory.Application.StockItems.ReceiveStock;
-using Inventory.Domain.StockItems.Events;
 using Inventory.Domain.StockItems.ValueObjects;
 using Inventory.Infrastructure.Messaging.Kafka.SagaCommands;
-using Inventory.Infrastructure.Persistence.Database;
 using Inventory.IntegrationTests.Common;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Platform.CQRS;
+using Platform.Test.Framework.Assertions;
 using Platform.Test.Framework.Kafka;
 using AvroReserveStockCommand = Inventory.Reservations.ReserveStockCommand;
 
 namespace Inventory.IntegrationTests.Messaging.Kafka;
 
 /// <summary>
-/// Acceptance for <see cref="ReserveStockCommandKafkaHandler"/>. The
-/// Kafka handler is invoked directly with a synthetic
-/// <see cref="FakeKafkaMessageContext"/> and an Avro
-/// <see cref="AvroReserveStockCommand"/>; assertions cover the mapped
-/// application command's side effects (event-store + projections + outbox)
-/// — same observable surface as the application-handler tests, but
-/// driven through the Avro→app-command translation path.
+/// Slice tests for reserving stock, entered through the saga's message: the
+/// <see cref="ReserveStockCommandKafkaHandler"/> is invoked directly with a synthetic
+/// <see cref="FakeKafkaMessageContext"/> and the real Avro <see cref="AvroReserveStockCommand"/>, so
+/// the Avro→application-command translation is exercised too. Reserve has no HTTP endpoint, so this
+/// is its public entrance.
 /// </summary>
 [Collection<IntegrationTestCollection>]
 public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
@@ -37,6 +29,7 @@ public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
     [Fact]
     public async Task HappyPath_AvroCommandTranslatedAndDispatched()
     {
+        // Arrange
         var productId = Guid.NewGuid();
         var reservationId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
@@ -47,86 +40,95 @@ public sealed class ReserveStockCommandKafkaHandlerTests : BaseIntegrationTest
             new DateTimeOffset(UtcNow, TimeSpan.Zero).AddMinutes(-2),
             TestContext.Current.CancellationToken);
 
-        var avroCommand = new AvroReserveStockCommand
+        // Act
+        await Fixture.DispatchAsync<ReserveStockCommandKafkaHandler, AvroReserveStockCommand>(new AvroReserveStockCommand
         {
             OrderId = orderId,
             ProductId = productId,
             ReservationId = reservationId,
             Quantity = 3,
             RequestedAtUtc = UtcNow,
-        };
+        });
 
-        using var scope = Fixture.CreateScope();
-        var handler = scope.ServiceProvider.GetRequiredService<ReserveStockCommandKafkaHandler>();
-        var context = FakeKafkaMessageContext.Create(
-            cancellationToken: TestContext.Current.CancellationToken);
-
-        await handler.Handle(context, avroCommand);
-
-        using var verifyScope = Fixture.CreateScope();
-        var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-
-        var audit = await db.ReservationAudit
+        // Assert — the reserve reached the stream, both projections and the outbox.
+        var audit = await InventoryDbContext.ReservationAudit
             .AsNoTracking()
             .FirstAsync(r => r.ReservationId == reservationId, TestContext.Current.CancellationToken);
-        audit.Status.Should().Be(ReservationStatus.Active);
-        audit.OrderId.Should().Be(orderId);
-        audit.Quantity.Should().Be(3);
-
-        var outboxRows = await db.OutboxMessages
+        var streamLength = await InventoryDbContext.StockEvents
+            .AsNoTracking()
+            .CountAsync(e => e.StreamId == productId, TestContext.Current.CancellationToken);
+        var levels = await InventoryDbContext.CurrentStockLevels
+            .AsNoTracking()
+            .FirstAsync(r => r.ProductId == productId, TestContext.Current.CancellationToken);
+        var outboxRows = await InventoryDbContext.OutboxMessages
             .AsNoTracking()
             .Where(m => m.KafkaKey == orderId.ToString())
             .ToListAsync(TestContext.Current.CancellationToken);
-        outboxRows.Should().ContainSingle(m => m.TopicName == "inventory.reservations");
+
+        using (new AssertionScope())
+        {
+            audit.Status.Should().Be(ReservationStatus.Active);
+            audit.OrderId.Should().Be(orderId);
+            audit.Quantity.Should().Be(3);
+
+            streamLength.Should().Be(3, "Initialize + Receive seeded, then this Reserve");
+            levels.OnHand.Should().Be(10);
+            levels.Reserved.Should().Be(3);
+            levels.Available.Should().Be(7);
+
+            outboxRows.Should().ContainSingle(m => m.TopicName == "inventory.reservations")
+                .Which.Type.Should().BeMessageType<Inventory.Reservations.StockReservedEvent>();
+        }
     }
 
     [Fact]
     public async Task InsufficientStock_DoesNotThrowAndEmitsFailureEvent()
     {
+        // Arrange — seed only 2 units, then request 5.
         var productId = Guid.NewGuid();
         var reservationId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
 
-        // Seed only 2 units, then request 5 -> InsufficientStock.
         await Seed.ProductWithOnHandAsync(
             productId,
             onHand: 2,
             new DateTimeOffset(UtcNow, TimeSpan.Zero).AddMinutes(-2),
             TestContext.Current.CancellationToken);
 
-        var avroCommand = new AvroReserveStockCommand
-        {
-            OrderId = orderId,
-            ProductId = productId,
-            ReservationId = reservationId,
-            Quantity = 5,
-            RequestedAtUtc = UtcNow,
-        };
+        // Act — InsufficientStock is a business-expected outcome: the application layer writes the
+        // failure event to the outbox, so the SagaCommandHandlerBase wrapper does NOT throw.
+        var act = () => Fixture.DispatchAsync<ReserveStockCommandKafkaHandler, AvroReserveStockCommand>(
+            new AvroReserveStockCommand
+            {
+                OrderId = orderId,
+                ProductId = productId,
+                ReservationId = reservationId,
+                Quantity = 5,
+                RequestedAtUtc = UtcNow,
+            });
 
-        using var scope = Fixture.CreateScope();
-        var handler = scope.ServiceProvider.GetRequiredService<ReserveStockCommandKafkaHandler>();
-        var context = FakeKafkaMessageContext.Create(
-            cancellationToken: TestContext.Current.CancellationToken);
-
-        // InsufficientStock is a business-expected outcome -> the handler
-        // returns Result.Ok from the application layer (which itself wrote
-        // the failure event to outbox). Therefore the SagaCommandHandlerBase
-        // wrapper does NOT see Result.Fail and does NOT throw.
-        var act = async () => await handler.Handle(context, avroCommand);
+        // Assert
         await act.Should().NotThrowAsync();
 
-        using var verifyScope = Fixture.CreateScope();
-        var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-
-        var auditRow = await db.ReservationAudit
+        var auditRow = await InventoryDbContext.ReservationAudit
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.ReservationId == reservationId, TestContext.Current.CancellationToken);
-        auditRow.Should().BeNull();
-
-        var outboxRows = await db.OutboxMessages
+        var streamLength = await InventoryDbContext.StockEvents
+            .AsNoTracking()
+            .CountAsync(e => e.StreamId == productId, TestContext.Current.CancellationToken);
+        var outboxRows = await InventoryDbContext.OutboxMessages
             .AsNoTracking()
             .Where(m => m.KafkaKey == orderId.ToString())
             .ToListAsync(TestContext.Current.CancellationToken);
-        outboxRows.Should().ContainSingle(m => m.TopicName == "inventory.reservations");
+
+        using (new AssertionScope())
+        {
+            auditRow.Should().BeNull();
+            streamLength.Should().Be(2, "only the seeded Initialize + Receive");
+
+            // The outbox row is the failure event the saga compensates on — not a reserved event.
+            outboxRows.Should().ContainSingle(m => m.TopicName == "inventory.reservations")
+                .Which.Type.Should().BeMessageType<Inventory.Reservations.StockReservationFailedEvent>();
+        }
     }
 }

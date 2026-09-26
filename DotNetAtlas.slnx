@@ -134,7 +134,6 @@
     <Project Path="test/EShop.BFF.IntegrationTests/EShop.BFF.IntegrationTests.csproj" />
     <Project Path="test/EShop.BFF.UnitTests/EShop.BFF.UnitTests.csproj" />
     <Project Path="test/Inventory.ArchitectureTests/Inventory.ArchitectureTests.csproj" />
-    <Project Path="test/Inventory.FunctionalTests/Inventory.FunctionalTests.csproj" />
     <Project Path="test/Inventory.IntegrationTests/Inventory.IntegrationTests.csproj" />
     <Project Path="test/Inventory.UnitTests/Inventory.UnitTests.csproj" />
     <Project Path="test/Invoicing.ArchitectureTests/Invoicing.ArchitectureTests.csproj" />

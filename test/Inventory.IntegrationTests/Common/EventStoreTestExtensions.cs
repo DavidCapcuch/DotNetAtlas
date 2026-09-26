@@ -8,11 +8,9 @@ using Platform.SharedKernel.Base.DomainEvents;
 namespace Inventory.IntegrationTests.Common;
 
 /// <summary>
-/// Shared helpers for event-store concurrency tests. Extracts the
-/// "build an intercepted <see cref="InventoryDbContext"/> wired to the test
-/// container" and "insert a raw competing row at a given version" patterns
-/// that were originally duplicated across <c>EventStoreRepositoryTests</c>,
-/// <c>Session2CannotOversellTests</c>, and <c>Session3ConfirmIdempotencyTests</c>.
+/// Shared helpers for tests that need a write the projection handlers never see: an
+/// <see cref="InventoryDbContext"/> with an injected version conflict, and a raw competing row at a
+/// given version.
 /// </summary>
 internal static class EventStoreTestExtensions
 {

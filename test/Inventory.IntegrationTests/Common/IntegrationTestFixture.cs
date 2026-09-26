@@ -1,57 +1,58 @@
 using FastEndpoints.Testing;
-using Inventory.Application.StockItems.Common;
 using Inventory.Infrastructure.Persistence.Database;
+using Inventory.IntegrationTests.Common.TestClientInfrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using OpenTelemetry;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
+using Platform.Test.Framework.Auth;
 using Platform.Test.Framework.Database;
 using Platform.Test.Framework.Kafka;
+using Platform.Test.Framework.Redis;
 using Respawn;
 using Serilog;
 using Serilog.Sinks.XUnit.Injectable;
 using Serilog.Sinks.XUnit.Injectable.Abstract;
 using Serilog.Sinks.XUnit.Injectable.Extensions;
+using StackExchange.Redis;
 
 namespace Inventory.IntegrationTests.Common;
 
 internal sealed class IntegrationTestCollection : TestCollection<IntegrationTestFixture>;
 
 /// <summary>
-/// Inventory integration-test fixture. Boots the real <c>Inventory.Api</c>
-/// composition root inside <see cref="AppFixture{TEntryPoint}"/>, spinning a
-/// throwaway Postgres container for the EF model and applying the committed
-/// <c>V*.sql</c> scripts via Evolve (matches the production migration path).
-/// Kafka is wired in DI but its cluster is never started — Program.cs guards
-/// <c>kafkaBus.StartAsync()</c> with <c>!IsTesting()</c>, and Inventory's
-/// 5 typed Kafka handlers are exercised directly via
-/// <see cref="FakeKafkaMessageContext"/>, matching the Ordering precedent.
+/// The single Inventory integration fixture: one real <c>Program.cs</c> host on Postgres + Redis
+/// Testcontainers, shared by the whole <see cref="IntegrationTestCollection"/> (one instance, state
+/// reset between tests). Every entrance runs against it — the HTTP edge via
+/// <see cref="HttpClientRegistry"/>, the Kafka message via the typed handlers resolved from a DI
+/// scope, and, for behaviour with no outer entrance at all (the reservation-expiry worker,
+/// event-store internals), a scope off <see cref="AppFixture{TEntryPoint}.Services"/>.
+/// <para>
+/// Schema is provisioned by the same committed <c>V*.sql</c> scripts Flyway runs in compose — never
+/// a test-only <c>MigrateAsync</c>/<c>EnsureCreated</c>, so the tested schema matches the deployed
+/// one.
+/// </para>
+/// <para>
+/// The stock-level cache is deliberately <b>not</b> faked: ADR-0034's read-through cache runs for
+/// real against the <c>redis-cache</c> container, because Redis is state only Inventory observes and
+/// the display-cache behaviour is part of what the slice tests assert.
+/// </para>
+/// <para>
+/// No Kafka container: <c>Inventory.Api/Program.cs</c> guards the KafkaFlow cluster boot with
+/// <c>!IsTesting()</c>, and the typed handlers are driven directly with the real Avro contract type
+/// via <c>FakeKafkaMessageContext</c>. The broker address points at an unreachable host so a stray
+/// production code path fails instead of leaking onto a real broker.
+/// </para>
+/// <para>
+/// Per ADR-0015 the host's <c>TimeProvider.System</c> singleton is left in place — tests that need
+/// deterministic time construct <c>FakeTimeProvider</c> locally and inject it into a
+/// directly-constructed SUT, as <c>BackgroundJobs/ReservationExpiryWorkerTests</c> does.
+/// </para>
 /// </summary>
-/// <remarks>
-/// <para>
-/// No Kafka container is needed: tests resolve the typed handlers from DI and
-/// invoke <c>Handle(IMessageContext, T)</c> directly. The host's KafkaFlow
-/// registration still happens at DI time (<c>AddInfrastructure</c> calls
-/// <c>AddKafka</c>), but the broker URL points at an unreachable host so a
-/// stray production code path would fail loudly instead of leaking onto a
-/// real broker.
-/// </para>
-/// <para>
-/// <see cref="IOutboxWriter"/> is swapped for <see cref="FakeOutboxWriter"/>
-/// in <c>ConfigureTestServices</c> so writes don't touch Schema Registry —
-/// the fake preserves topic + key + CLR type, which is enough for the
-/// "the right message landed in the right topic" assertions.
-/// </para>
-/// <para>
-/// <see cref="IStockLevelCache"/> is swapped for the in-memory
-/// <see cref="FakeStockLevelCache"/> so the suite stays Redis-free; cache behaviour
-/// against real <c>redis-cache</c> is covered by the functional tests.
-/// </para>
-/// </remarks>
-[DisableWafCache]
 public class IntegrationTestFixture : AppFixture<Program>
 {
     private readonly PostgreSqlTestContainer _dbContainer = new(
@@ -62,20 +63,47 @@ public class IntegrationTestFixture : AppFixture<Program>
             SchemasToInclude = [InventoryDbContext.DefaultSchemaName]
         });
 
+    private readonly RedisTestContainer _redisContainer = new();
+
+    private readonly FakeTokenSigner _signer = new(audience: "inventory-service");
+
+    private ConnectionMultiplexer _redisMultiplexer = null!;
+
+    public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
+
+    public IConnectionMultiplexer RedisMultiplexer => _redisMultiplexer;
+
+    /// <summary>Creates a per-test DI scope; caller disposes.</summary>
+    public IServiceScope CreateScope() => Services.CreateScope();
+
+    /// <summary>Connection string for tests that bypass the DbContext (e.g. raw SQL pre-staging).</summary>
+    public string ConnectionString => _dbContainer.ConnectionString;
+
     protected override async ValueTask PreSetupAsync()
     {
         // Start sequentially: concurrent Docker.DotNet InspectContainerAsync calls over the
         // Windows named pipe interleave on the shared ChunkedReadStream and intermittently
         // raise "Invalid chunk header encountered".
         await _dbContainer.StartAsync();
+        await _redisContainer.StartAsync();
+
+        _redisMultiplexer = await ConnectionMultiplexer.ConnectAsync(_redisContainer.ConfigurationOptions);
+    }
+
+    protected override ValueTask SetupAsync()
+    {
+        HttpClientRegistry = new HttpClientRegistry<Program>(this, new FakeTokenCreator(_signer));
+        return ValueTask.CompletedTask;
     }
 
     protected override IHost ConfigureAppHost(IHostBuilder a)
     {
         a.ConfigureWebHost(webBuilder =>
         {
+            var redisConfig = _redisContainer.ConfigurationOptions;
             webBuilder
                 .UseSetting("ConnectionStrings:Inventory", _dbContainer.ConnectionString)
+                .UseSetting("ConnectionStrings:Redis:Cache", redisConfig.ToString())
                 .UseUnreachableKafkaSettings();
         });
 
@@ -101,43 +129,34 @@ public class IntegrationTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
-                // Replace the production Avro+SchemaRegistry-backed IOutboxWriter with
-                // the fake so these tests need no Schema Registry; assertions target the
-                // captured outbox row (topic, key, event type).
+                // Replace the production Avro+SchemaRegistry-backed IOutboxWriter with the fake so
+                // outbox assertions need no Schema Registry round-trip; the fake preserves topic,
+                // key and CLR type, which is what those assertions read.
                 services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
 
-                // Replace the FusionCache/redis-cache stock-level cache with an in-memory
-                // fake so integration tests need no Redis container (ADR-0034 read-through +
-                // eviction against real redis-cache is covered by the functional tests).
-                services.AddSingleton<FakeStockLevelCache>();
-                services.Replace(ServiceDescriptor.Singleton<IStockLevelCache>(
-                    sp => sp.GetRequiredService<FakeStockLevelCache>()));
+                // Wire the JwtBearer scheme to trust _signer's RSA key — keeps
+                // every TokenValidationParameters flag at its production default
+                // of TRUE. See Platform.Test.Framework.Auth.JwtBearerTestExtensions.
+                services.ConfigureJwtBearerForTests(_signer);
             });
     }
 
-    /// <summary>The in-memory stock-level cache backing this fixture (see <see cref="FakeStockLevelCache"/>).</summary>
-    internal FakeStockLevelCache StockLevelCache => Services.GetRequiredService<FakeStockLevelCache>();
-
-    /// <summary>Creates a per-test DI scope; caller disposes.</summary>
-    public IServiceScope CreateScope() => Services.CreateScope();
-
-    /// <summary>
-    /// Wipes every table in the Inventory schema (preserving schema + EF
-    /// migrations history). Invoked from <see cref="BaseIntegrationTest.DisposeAsync"/>
-    /// after each test so per-test isolation no longer relies solely on
-    /// <see cref="Guid.NewGuid"/> discipline.
-    /// </summary>
-    public Task ResetFixtureStateAsync()
+    /// <summary>Wipes every table in the Inventory schema between tests and flushes redis-cache.</summary>
+    public async Task ResetFixtureStateAsync()
     {
-        StockLevelCache.Clear();
-        return _dbContainer.CleanDataAsync();
-    }
+        using var _ = SuppressInstrumentationScope.Begin();
 
-    /// <summary>Connection string for tests that bypass the DbContext (e.g. raw SQL pre-staging).</summary>
-    public string ConnectionString => _dbContainer.ConnectionString;
+        await Task.WhenAll(
+            _dbContainer.CleanDataAsync(),
+            _redisContainer.CleanDataAsync()
+        );
+    }
 
     protected override async ValueTask TearDownAsync()
     {
+        _signer.Dispose();
+        await _redisMultiplexer.DisposeAsync();
         await _dbContainer.DisposeAsync();
+        await _redisContainer.DisposeAsync();
     }
 }

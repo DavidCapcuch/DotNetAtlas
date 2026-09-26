@@ -11,6 +11,7 @@ using Inventory.Infrastructure.Persistence.Database;
 using Inventory.IntegrationTests.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -40,6 +41,17 @@ public sealed class ReservationExpiryWorkerTests : BaseIntegrationTest
     public ReservationExpiryWorkerTests(IntegrationTestFixture fixture)
         : base(fixture)
     {
+    }
+
+    [Fact]
+    public void HostedServices_InTestingEnvironment_ExcludeTheExpiryWorker()
+    {
+        // Act
+        var hostedServices = Fixture.Services.GetServices<IHostedService>();
+
+        // Assert — the suite seeds reservations with fixed past timestamps, so a worker ticking in the
+        // shared host would release them under other tests; here it only ever runs by hand.
+        hostedServices.Should().NotContain(s => s is ReservationExpiryWorker);
     }
 
     [Fact]

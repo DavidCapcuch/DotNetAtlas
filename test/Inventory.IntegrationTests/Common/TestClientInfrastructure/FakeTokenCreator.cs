@@ -3,7 +3,7 @@ using Inventory.Api.Common.Authorization;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Platform.Test.Framework.Auth;
 
-namespace Inventory.FunctionalTests.Common.TestClientInfrastructure;
+namespace Inventory.IntegrationTests.Common.TestClientInfrastructure;
 
 /// <summary>
 /// Maps a <see cref="ClientType"/> to the claim set the Inventory authorization

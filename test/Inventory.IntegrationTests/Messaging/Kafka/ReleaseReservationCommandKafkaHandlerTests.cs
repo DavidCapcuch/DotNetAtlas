@@ -1,15 +1,9 @@
-using Inventory.Application.StockItems.Common;
-using Inventory.Application.StockItems.InitializeStockItem;
-using Inventory.Application.StockItems.ReceiveStock;
-using Inventory.Application.StockItems.ReserveStock;
+using Inventory.Domain.StockItems.Events;
 using Inventory.Domain.StockItems.ValueObjects;
 using Inventory.Infrastructure.Messaging.Kafka.SagaCommands;
-using Inventory.Infrastructure.Persistence.Database;
 using Inventory.IntegrationTests.Common;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Platform.CQRS;
-using Platform.Test.Framework.Kafka;
+using Platform.Test.Framework.Assertions;
 using AvroReleaseReason = Inventory.Reservations.ReleaseReason;
 using AvroReleaseReservationCommand = Inventory.Reservations.ReleaseReservationCommand;
 
@@ -49,32 +43,23 @@ public sealed class ReleaseReservationCommandKafkaHandlerTests : BaseIntegration
             new DateTimeOffset(UtcNow, TimeSpan.Zero).AddMinutes(-5),
             TestContext.Current.CancellationToken);
 
-        var avroCommand = new AvroReleaseReservationCommand
-        {
-            ProductId = productId,
-            ReservationId = reservationId,
-            ReleaseReason = AvroReleaseReason.Compensation,
-            RequestedAtUtc = UtcNow,
-        };
+        await Fixture.DispatchAsync<ReleaseReservationCommandKafkaHandler, AvroReleaseReservationCommand>(
+            new AvroReleaseReservationCommand
+            {
+                ProductId = productId,
+                ReservationId = reservationId,
+                ReleaseReason = AvroReleaseReason.Compensation,
+                RequestedAtUtc = UtcNow,
+            });
 
-        using var scope = Fixture.CreateScope();
-        var handler = scope.ServiceProvider.GetRequiredService<ReleaseReservationCommandKafkaHandler>();
-        var context = FakeKafkaMessageContext.Create(
-            cancellationToken: TestContext.Current.CancellationToken);
-
-        await handler.Handle(context, avroCommand);
-
-        using var verifyScope = Fixture.CreateScope();
-        var db = verifyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-
-        var audit = await db.ReservationAudit
+        var audit = await InventoryDbContext.ReservationAudit
             .AsNoTracking()
             .FirstAsync(r => r.ReservationId == reservationId, TestContext.Current.CancellationToken);
         audit.Status.Should().Be(ReservationStatus.Released);
         audit.ReleaseReason.Should().Be(ReleaseReason.Compensation);
         audit.ResolvedAtUtc.Should().NotBeNull();
 
-        var levels = await db.CurrentStockLevels
+        var levels = await InventoryDbContext.CurrentStockLevels
             .AsNoTracking()
             .FirstAsync(r => r.ProductId == productId, TestContext.Current.CancellationToken);
         // After Release: onHand=10 still (no decrement on release), reserved=0.
@@ -82,12 +67,73 @@ public sealed class ReleaseReservationCommandKafkaHandlerTests : BaseIntegration
         levels.Reserved.Should().Be(0);
         levels.Available.Should().Be(10);
 
-        var outboxRows = await db.OutboxMessages
+        var outboxRows = await InventoryDbContext.OutboxMessages
             .AsNoTracking()
             .Where(m => m.KafkaKey == orderId.ToString()
                 && m.Type == typeof(Inventory.Reservations.ReservationReleasedEvent).FullName)
             .ToListAsync(TestContext.Current.CancellationToken);
         outboxRows.Should().ContainSingle()
             .Which.TopicName.Should().Be("inventory.reservations");
+    }
+
+    /// <summary>
+    /// Example 1.4 of <c>docs/bc-design/example-mapping/inventory.md</c>: a duplicate expiry release
+    /// (a worker retry after a crash, or a saga retry) on an already-Released reservation is a no-op —
+    /// no second event on the stream, no second external event on the outbox.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "resilience")]
+    public async Task WhenReleaseReplayed_IsNoOp_WithNoSecondEvent()
+    {
+        // Arrange — the first expiry release has already landed.
+        var productId = Guid.NewGuid();
+        var reservationId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+
+        await Seed.ActiveReservationAsync(
+            productId,
+            reservationId,
+            orderId,
+            quantity: 1,
+            new DateTimeOffset(UtcNow, TimeSpan.Zero).AddMinutes(-5),
+            TestContext.Current.CancellationToken,
+            onHand: 1);
+
+        // Reserved at -3m with the default 15-min TTL, so +13m is past its expiry.
+        var release = new AvroReleaseReservationCommand
+        {
+            ProductId = productId,
+            ReservationId = reservationId,
+            ReleaseReason = AvroReleaseReason.Expiry,
+            RequestedAtUtc = UtcNow.AddMinutes(13),
+        };
+        await Fixture.DispatchAsync<ReleaseReservationCommandKafkaHandler, AvroReleaseReservationCommand>(release);
+
+        // Act
+        var replay = () => Fixture.DispatchAsync<ReleaseReservationCommandKafkaHandler, AvroReleaseReservationCommand>(release);
+
+        // Assert
+        await replay.Should().NotThrowAsync("a duplicate release on a Released reservation is an idempotent no-op");
+
+        var releasedEvents = await InventoryDbContext.StockEvents
+            .AsNoTracking()
+            .CountAsync(
+                e => e.StreamId == productId && e.EventType == nameof(ReservationReleasedDomainEvent),
+                TestContext.Current.CancellationToken);
+        var outboxRows = await InventoryDbContext.OutboxMessages
+            .AsNoTracking()
+            .Where(m => m.KafkaKey == orderId.ToString())
+            .ToListAsync(TestContext.Current.CancellationToken);
+        var audit = await InventoryDbContext.ReservationAudit
+            .AsNoTracking()
+            .FirstAsync(r => r.ReservationId == reservationId, TestContext.Current.CancellationToken);
+
+        using (new AssertionScope())
+        {
+            releasedEvents.Should().Be(1, "the replay must not append a second ReservationReleasedDomainEvent");
+            outboxRows.Should().ContainSingleMessageOfType<Inventory.Reservations.ReservationReleasedEvent>(
+                because: "the replay must not enqueue a second external ReservationReleasedEvent");
+            audit.ReleaseReason.Should().Be(ReleaseReason.Expiry, "the Avro reason maps onto the domain reason");
+        }
     }
 }

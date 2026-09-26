@@ -35,7 +35,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <InternalsVisibleTo Include="Inventory.FunctionalTests"/>
+        <InternalsVisibleTo Include="Inventory.IntegrationTests"/>
     </ItemGroup>
 
 </Project>

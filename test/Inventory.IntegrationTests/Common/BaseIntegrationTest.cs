@@ -6,28 +6,19 @@ using Serilog.Sinks.XUnit.Injectable.Abstract;
 namespace Inventory.IntegrationTests.Common;
 
 /// <summary>
-/// Base class for Inventory integration tests sharing the
-/// <see cref="IntegrationTestFixture"/>. Captures a per-test
-/// <see cref="IServiceScope"/> and an <see cref="InventoryDbContext"/> for
-/// the common "spin up DI, exercise a handler, verify DB rows" pattern, and
-/// wires <see cref="TestCaseTracer"/> so each test method shows up as its own
-/// trace in local Jaeger.
+/// Base for every Inventory integration test; fixture state is reset after each test.
 /// </summary>
-/// <remarks>
-/// The <see cref="Fixture"/> property is preserved because many tests use
-/// <c>Fixture.CreateScope()</c> and <c>Fixture.ConnectionString</c> directly
-/// to drive multi-scope scenarios (concurrency interceptors, raw-SQL seeds).
-/// Per-test reset is invoked in <see cref="DisposeAsync"/> via
-/// <see cref="IntegrationTestFixture.ResetFixtureStateAsync"/>.
-/// </remarks>
 public abstract class BaseIntegrationTest : IAsyncLifetime
 {
     private readonly TestCaseTracer _testCaseTracer;
     private readonly Func<Task> _resetFixtureStateAsync;
 
     protected IntegrationTestFixture Fixture { get; }
+
     protected IServiceScope Scope { get; }
+
     protected InventoryDbContext InventoryDbContext { get; }
+
     protected StockItemSeed Seed { get; }
 
     protected BaseIntegrationTest(IntegrationTestFixture app)
@@ -49,12 +40,11 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
             TestContext.Current.TestMethod!.MethodName,
             TestContext.Current.TestCase!.UniqueID,
             testType: "integration");
+
+        app.HttpClientRegistry.SetTraceParent(_testCaseTracer.TraceParent);
     }
 
-    public ValueTask InitializeAsync()
-    {
-        return ValueTask.CompletedTask;
-    }
+    public ValueTask InitializeAsync() => ValueTask.CompletedTask;
 
     public async ValueTask DisposeAsync()
     {

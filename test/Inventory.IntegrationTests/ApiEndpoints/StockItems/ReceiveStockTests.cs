@@ -1,16 +1,18 @@
 using System.Net;
 using System.Net.Http.Json;
 using Inventory.Application.StockItems.Common;
-using Inventory.Application.StockItems.InitializeStockItem;
-using Inventory.FunctionalTests.Common;
+using Inventory.IntegrationTests.Common;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Inventory.FunctionalTests.ApiEndpoints.StockItems;
+namespace Inventory.IntegrationTests.ApiEndpoints.StockItems;
 
-[Collection<FunctionalTestCollection>]
-public sealed class ReceiveStockTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public sealed class ReceiveStockTests : BaseIntegrationTest
 {
-    public ReceiveStockTests(ApiTestFixture app)
+    private static readonly DateTimeOffset SeedUtc = new(2026, 4, 26, 12, 0, 0, TimeSpan.Zero);
+
+    public ReceiveStockTests(IntegrationTestFixture app)
         : base(app)
     {
     }
@@ -57,22 +59,40 @@ public sealed class ReceiveStockTests : BaseApiTest
     [Fact]
     public async Task WhenCommandsScope_AndStreamInitialised_Returns200WithSnapshot()
     {
+        // Arrange
         var productId = Guid.CreateVersion7();
-        await InitializeStreamAsync(productId);
+        await Seed.InitializeAsync(productId, SeedUtc, TestContext.Current.CancellationToken);
+        var clock = Fixture.Services.GetRequiredService<TimeProvider>();
+        var sentAfterUtc = clock.GetUtcNow();
 
+        // Act
         var response = await Fixture.HttpClientRegistry.CommandsClient
             .PostAsJsonAsync($"/api/v1/inventory/stock-items/{productId}/receive", BuildBody(productId, 7), TestContext.Current.CancellationToken);
+        var answeredBeforeUtc = clock.GetUtcNow();
 
+        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var snapshot = await response.Content.ReadFromJsonAsync<StockLevelResponse>(TestContext.Current.CancellationToken);
         snapshot.Should().NotBeNull();
+
+        var projection = await InventoryDbContext.CurrentStockLevels
+            .AsNoTracking()
+            .SingleAsync(r => r.ProductId == productId, TestContext.Current.CancellationToken);
         using (new AssertionScope())
         {
             snapshot!.ProductId.Should().Be(productId);
             snapshot.OnHand.Should().Be(7);
             snapshot.Reserved.Should().Be(0);
             snapshot.Available.Should().Be(7);
+
+            // The receive is the stream's second event (Initialize was the first), and the host's clock
+            // stamped it inside the request.
+            snapshot.LastVersion.Should().Be(2);
+            snapshot.LastUpdatedUtc.Should().BeOnOrAfter(sentAfterUtc).And.BeOnOrBefore(answeredBeforeUtc);
+
+            projection.OnHand.Should().Be(7);
+            projection.Available.Should().Be(7);
         }
     }
 
@@ -80,13 +100,23 @@ public sealed class ReceiveStockTests : BaseApiTest
     [Trait("Category", "boundary")]
     public async Task WhenInvalidQuantity_Returns422()
     {
+        // Arrange
         var productId = Guid.CreateVersion7();
-        await InitializeStreamAsync(productId);
+        await Seed.InitializeAsync(productId, SeedUtc, TestContext.Current.CancellationToken);
 
+        // Act
         var response = await Fixture.HttpClientRegistry.CommandsClient
             .PostAsJsonAsync($"/api/v1/inventory/stock-items/{productId}/receive", BuildBody(productId, 0), TestContext.Current.CancellationToken);
 
-        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+        // Assert — both halves of the rejection: the 422, and no event appended past the initialize.
+        var streamLength = await InventoryDbContext.StockEvents
+            .AsNoTracking()
+            .CountAsync(e => e.StreamId == productId, TestContext.Current.CancellationToken);
+        using (new AssertionScope())
+        {
+            response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+            streamLength.Should().Be(1);
+        }
     }
 
     // [BindFrom("productId")] tells FastEndpoints to bind the route token, but
@@ -100,18 +130,4 @@ public sealed class ReceiveStockTests : BaseApiTest
         Quantity = quantity,
         Source = "receiving-dock",
     };
-
-    private async Task InitializeStreamAsync(Guid productId)
-    {
-        await using var scope = Fixture.Services.CreateAsyncScope();
-        var init = scope.ServiceProvider.GetRequiredService<Platform.CQRS.ICommandHandler<InitializeStockItemCommand>>();
-        var result = await init.HandleAsync(
-            new InitializeStockItemCommand
-            {
-                ProductId = productId,
-                OccurredOnUtc = DateTimeOffset.UtcNow.AddMinutes(-1),
-            },
-            TestContext.Current.CancellationToken);
-        result.IsSuccess.Should().BeTrue();
-    }
 }

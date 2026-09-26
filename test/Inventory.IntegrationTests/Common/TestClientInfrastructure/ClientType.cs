@@ -1,7 +1,7 @@
-namespace Inventory.FunctionalTests.Common.TestClientInfrastructure;
+namespace Inventory.IntegrationTests.Common.TestClientInfrastructure;
 
 /// <summary>
-/// Identity / scope variants for the functional-test HTTP clients. Drives
+/// Identity / scope variants for the integration-test HTTP clients. Drives
 /// <see cref="FakeTokenCreator"/> and <see cref="HttpClientRegistry{TEntryPoint}"/>.
 /// </summary>
 public enum ClientType

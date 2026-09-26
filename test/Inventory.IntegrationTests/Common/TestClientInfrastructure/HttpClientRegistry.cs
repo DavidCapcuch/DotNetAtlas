@@ -1,7 +1,7 @@
 using System.Net.Http.Headers;
 using FastEndpoints.Testing;
 
-namespace Inventory.FunctionalTests.Common.TestClientInfrastructure;
+namespace Inventory.IntegrationTests.Common.TestClientInfrastructure;
 
 public sealed class HttpClientRegistry<TEntryPoint>
     where TEntryPoint : class
