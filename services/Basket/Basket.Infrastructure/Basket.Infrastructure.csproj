@@ -74,6 +74,5 @@
         <InternalsVisibleTo Include="Basket.Api"/>
         <InternalsVisibleTo Include="Basket.UnitTests"/>
         <InternalsVisibleTo Include="Basket.IntegrationTests"/>
-        <InternalsVisibleTo Include="Basket.FunctionalTests"/>
     </ItemGroup>
 </Project>

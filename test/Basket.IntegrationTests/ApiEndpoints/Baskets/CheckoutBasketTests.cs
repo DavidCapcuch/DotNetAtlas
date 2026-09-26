@@ -1,31 +1,33 @@
 using System.Net;
 using Basket.Api.Endpoints.Baskets.AddItem;
 using Basket.Api.Endpoints.Baskets.Checkout;
-using Basket.Application.Baskets.Common.Contracts;
+using Basket.Api.Endpoints.Baskets.GetByUserId;
+using Basket.Application.Baskets.GetByUserId;
 using Basket.Domain.Baskets.ValueObjects;
-using Basket.FunctionalTests.Common;
+using Basket.IntegrationTests.Common;
 using FastEndpoints;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using Platform.SharedKernel.ValueObjects;
+using Platform.Test.Framework.Assertions;
 
-namespace Basket.FunctionalTests.ApiEndpoints.Baskets;
+namespace Basket.IntegrationTests.ApiEndpoints.Baskets;
 
-[Collection<FunctionalTestCollection>]
-public class CheckoutBasketTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public class CheckoutBasketTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset FixedCapturedAt =
         new(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
 
-    public CheckoutBasketTests(ApiTestFixture app)
+    public CheckoutBasketTests(IntegrationTestFixture app)
         : base(app)
     {
     }
 
     [Fact]
     [Trait("Category", "critical-path")]
-    public async Task Checkout_WhenValidRequest_Returns202_AndOutboxRowExists_AndRedisKeyDeleted()
+    public async Task Checkout_WhenValidRequest_Returns202_AndOutboxRowExists_AndBasketRemoved()
     {
         // Arrange
         var userId = Guid.CreateVersion7();
@@ -36,7 +38,7 @@ public class CheckoutBasketTests : BaseApiTest
         await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
             new AddItemToBasketRequest { ProductId = productId, Quantity = 1 });
 
-        var checkoutRequest = ValidCheckoutRequest();
+        var checkoutRequest = BasketTestData.ValidCheckoutRequest();
 
         client.DefaultRequestHeaders.Add("Idempotency-Key", Guid.CreateVersion7().ToString());
 
@@ -52,15 +54,23 @@ public class CheckoutBasketTests : BaseApiTest
             body.OrderId.Should().NotBe(Guid.Empty);
             body.OrderId.Version.Should().Be(7);
 
-            var redisKeyExists = await Fixture.RedisBasketDb.KeyExistsAsync($"basket:{userId}");
-            redisKeyExists.Should().BeFalse("post-checkout cleanup deletes the Redis aggregate key");
+            // Checkout keeps the basket's items, so only the post-checkout delete brings a read
+            // back to the no-basket contract.
+            var (readResponse, basketAfter) = await client.GETAsync<GetBasketEndpoint, GetBasketResponse>();
+            readResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            basketAfter.Version.Should().Be(0, "no basket exists once checkout has deleted it");
+            basketAfter.Items.Should().BeEmpty();
 
-            // Outbox row exists (one OutboxMessage per checkout). The persistence-layer
-            // integration test pins topic/key/type; here we only verify the row landed.
+            // Exactly one outbox row, carrying the published contract. Filtering on the user id
+            // is itself the partition-key assertion: the key must be the user so one user's
+            // events stay ordered, and any other key leaves this query empty.
             var outboxRows = await DbContext.Set<Platform.ReliableMessaging.Outbox.Core.OutboxMessage>()
                 .Where(m => m.KafkaKey == userId.ToString())
-                .CountAsync(TestContext.Current.CancellationToken);
-            outboxRows.Should().Be(1);
+                .ToListAsync(TestContext.Current.CancellationToken);
+            outboxRows.Should().ContainSingle()
+                .Which.TopicName.Should().Be("basket.sessions", "basket.md § 8.2 locks the topic name");
+            outboxRows[0].Type.Should().BeMessageType<Basket.Sessions.BasketCheckoutInitiatedEvent>(
+                "the CLR FullName of the Avro contract from Platform.SchemaRegistry.Contracts");
         }
     }
 
@@ -76,7 +86,7 @@ public class CheckoutBasketTests : BaseApiTest
         await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
             new AddItemToBasketRequest { ProductId = productId, Quantity = 1 });
 
-        var checkoutRequest = ValidCheckoutRequest();
+        var checkoutRequest = BasketTestData.ValidCheckoutRequest();
 
         // Act — no Idempotency-Key header; FastEndpoints' .Idempotency() filter rejects.
         var response = await client
@@ -107,7 +117,7 @@ public class CheckoutBasketTests : BaseApiTest
         await client.POSTAsync<AddItemToBasketEndpoint, AddItemToBasketRequest>(
             new AddItemToBasketRequest { ProductId = productId, Quantity = 1 });
 
-        var checkoutRequest = ValidCheckoutRequest();
+        var checkoutRequest = BasketTestData.ValidCheckoutRequest();
 
         var idempotencyKey = Guid.CreateVersion7().ToString();
         client.DefaultRequestHeaders.Add("Idempotency-Key", idempotencyKey);
@@ -173,10 +183,10 @@ public class CheckoutBasketTests : BaseApiTest
         // Act
         var (aliceResponse, _) = await aliceClient
             .POSTAsync<CheckoutBasketEndpoint, CheckoutBasketRequest, CheckoutBasketResponse>(
-                ValidCheckoutRequest());
+                BasketTestData.ValidCheckoutRequest());
         var (bobResponse, _) = await bobClient
             .POSTAsync<CheckoutBasketEndpoint, CheckoutBasketRequest, CheckoutBasketResponse>(
-                ValidCheckoutRequest());
+                BasketTestData.ValidCheckoutRequest());
 
         // Assert
         using (new AssertionScope())
@@ -214,7 +224,7 @@ public class CheckoutBasketTests : BaseApiTest
             "/api/v1/basket/items",
             TestContext.Current.CancellationToken);
 
-        var checkoutRequest = ValidCheckoutRequest();
+        var checkoutRequest = BasketTestData.ValidCheckoutRequest();
         client.DefaultRequestHeaders.Add("Idempotency-Key", Guid.CreateVersion7().ToString());
 
         // Act
@@ -226,25 +236,11 @@ public class CheckoutBasketTests : BaseApiTest
         {
             response.StatusCode.Should().Be(HttpStatusCode.Conflict);
             problemDetails.Errors.Should().ContainSingle(e => e.Code == "Basket.Empty");
+
+            var outboxRowWritten = await DbContext.Set<Platform.ReliableMessaging.Outbox.Core.OutboxMessage>()
+                .AnyAsync(m => m.KafkaKey == userId.ToString(), TestContext.Current.CancellationToken);
+            outboxRowWritten.Should().BeFalse("a rejected checkout publishes nothing");
         }
-    }
-
-    private static CheckoutBasketRequest ValidCheckoutRequest()
-    {
-        var address = new CheckoutAddressDto
-        {
-            Street1 = "Wenceslas Square 1",
-            City = "Prague",
-            PostalCode = "11000",
-            CountryCode = "CZ",
-        };
-
-        return new CheckoutBasketRequest
-        {
-            ShippingAddress = address,
-            BillingAddress = address,
-            PaymentMethodId = Guid.CreateVersion7(),
-        };
     }
 
     private void StubCatalog(Guid productId)

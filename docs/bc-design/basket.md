@@ -719,10 +719,9 @@ Basket:
 
 | Layer | Scope |
 |-------|-------|
-| Unit | `Basket` aggregate invariants; VO construction/equality; Money arithmetic |
-| Integration | `RedisBasketRepository` against Testcontainers Redis; `ProductCatalogHttpAdapter` against WireMock; full outbox-write round-trip against Testcontainers Postgres |
-| Architecture | Layer boundary enforcement (§ 14.1) |
-| Integration | Full HTTP surface via `WebApplicationFactory` — at minimum one lifecycle journey: add → refresh → checkout → verify outbox row → verify Redis deletion |
+| Unit | `Basket` aggregate invariants; VO construction/equality; Money arithmetic; `ProductCatalogHttpAdapter` against a stub `HttpMessageHandler` |
+| Integration | Full HTTP surface via `WebApplicationFactory` on Testcontainers Postgres + Redis — the real `RedisBasketRepository`, the outbox write committed with the checkout, the Catalog ACL port stubbed. One lifecycle journey (cap: [master design § 11.4](../eshop-master-design.md)): add → refresh → checkout, asserting checkout publishes the refreshed snapshot (§ 12.2) and the basket is gone afterwards |
+| Architecture | Layer boundary enforcement (§ 14.1); slice independence |
 
 ---
 

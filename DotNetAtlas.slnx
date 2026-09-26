@@ -124,7 +124,6 @@
     <Project Path="platform/Platform.Test.Framework.UnitTests/Platform.Test.Framework.UnitTests.csproj" />
     <Project Path="test/Platform.SharedKernel.ArchitectureTests/Platform.SharedKernel.ArchitectureTests.csproj" />
     <Project Path="test/Basket.ArchitectureTests/Basket.ArchitectureTests.csproj" />
-    <Project Path="test/Basket.FunctionalTests/Basket.FunctionalTests.csproj" />
     <Project Path="test/Basket.IntegrationTests/Basket.IntegrationTests.csproj" />
     <Project Path="test/Basket.UnitTests/Basket.UnitTests.csproj" />
     <Project Path="test/Catalog.ArchitectureTests/Catalog.ArchitectureTests.csproj" />

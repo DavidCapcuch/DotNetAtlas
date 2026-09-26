@@ -35,7 +35,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <InternalsVisibleTo Include="Basket.FunctionalTests" />
         <InternalsVisibleTo Include="Basket.IntegrationTests" />
         <InternalsVisibleTo Include="Basket.ArchitectureTests" />
         <InternalsVisibleTo Include="Basket.UnitTests" />

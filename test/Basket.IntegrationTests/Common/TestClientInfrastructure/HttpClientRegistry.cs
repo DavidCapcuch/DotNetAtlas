@@ -1,7 +1,7 @@
 using System.Net.Http.Headers;
 using FastEndpoints.Testing;
 
-namespace Basket.FunctionalTests.Common.TestClientInfrastructure;
+namespace Basket.IntegrationTests.Common.TestClientInfrastructure;
 
 public sealed class HttpClientRegistry<TEntryPoint>
     where TEntryPoint : class

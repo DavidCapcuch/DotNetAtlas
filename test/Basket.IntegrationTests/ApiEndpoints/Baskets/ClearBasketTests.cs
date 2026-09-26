@@ -1,21 +1,21 @@
 using System.Net;
 using Basket.Api.Endpoints.Baskets.AddItem;
 using Basket.Domain.Baskets.ValueObjects;
-using Basket.FunctionalTests.Common;
+using Basket.IntegrationTests.Common;
 using FastEndpoints;
 using FluentResults;
 using NSubstitute;
 using Platform.SharedKernel.ValueObjects;
 
-namespace Basket.FunctionalTests.ApiEndpoints.Baskets;
+namespace Basket.IntegrationTests.ApiEndpoints.Baskets;
 
-[Collection<FunctionalTestCollection>]
-public class ClearBasketTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public class ClearBasketTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset FixedCapturedAt =
         new(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
 
-    public ClearBasketTests(ApiTestFixture app)
+    public ClearBasketTests(IntegrationTestFixture app)
         : base(app)
     {
     }

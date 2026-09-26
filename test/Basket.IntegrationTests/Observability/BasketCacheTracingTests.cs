@@ -1,11 +1,11 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using Basket.Application.Abstractions;
-using Basket.FunctionalTests.Common;
+using Basket.IntegrationTests.Common;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Trace;
 
-namespace Basket.FunctionalTests.Observability;
+namespace Basket.IntegrationTests.Observability;
 
 /// <summary>
 /// basket.md § 5.4 + ADR-0016: the basket store reaches <c>redis-basket</c> through a
@@ -16,13 +16,13 @@ namespace Basket.FunctionalTests.Observability;
 /// never surface as spans. This pins that a repository read emits StackExchange.Redis spans on
 /// the host's TracerProvider (the same pipeline that exports to Jaeger).
 /// </summary>
-[Collection<FunctionalTestCollection>]
-public sealed class BasketCacheTracingTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public sealed class BasketCacheTracingTests : BaseIntegrationTest
 {
     // ActivitySource name of OpenTelemetry.Instrumentation.StackExchangeRedis (its assembly name).
     private const string RedisInstrumentationSource = "OpenTelemetry.Instrumentation.StackExchangeRedis";
 
-    public BasketCacheTracingTests(ApiTestFixture app)
+    public BasketCacheTracingTests(IntegrationTestFixture app)
         : base(app)
     {
     }

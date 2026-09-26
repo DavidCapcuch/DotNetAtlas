@@ -2,21 +2,21 @@ using System.Net;
 using Basket.Api.Endpoints.Baskets.AddItem;
 using Basket.Api.Endpoints.Baskets.ChangeItemQuantity;
 using Basket.Domain.Baskets.ValueObjects;
-using Basket.FunctionalTests.Common;
+using Basket.IntegrationTests.Common;
 using FastEndpoints;
 using FluentResults;
 using NSubstitute;
 using Platform.SharedKernel.ValueObjects;
 
-namespace Basket.FunctionalTests.ApiEndpoints.Baskets;
+namespace Basket.IntegrationTests.ApiEndpoints.Baskets;
 
-[Collection<FunctionalTestCollection>]
-public class ChangeItemQuantityTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public class ChangeItemQuantityTests : BaseIntegrationTest
 {
     private static readonly DateTimeOffset FixedCapturedAt =
         new(2026, 01, 15, 09, 30, 00, TimeSpan.Zero);
 
-    public ChangeItemQuantityTests(ApiTestFixture app)
+    public ChangeItemQuantityTests(IntegrationTestFixture app)
         : base(app)
     {
     }

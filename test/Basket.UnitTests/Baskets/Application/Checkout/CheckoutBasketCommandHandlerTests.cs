@@ -34,8 +34,8 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
         // _outbox.Database.EnsureTransactionAsync(...). Without a Database substitute
         // every test would NRE on the wrap. Wire an EF InMemory DbContext whose
         // BeginTransactionAsync is a configured no-op so the wrap simply invokes the
-        // lambda. Real transactional semantics are exercised by
-        // BasketCheckoutOutboxIntegrationTests against a Postgres Testcontainer.
+        // lambda. Real transactional semantics are exercised against a Postgres Testcontainer
+        // by Basket.IntegrationTests' CheckoutBasketTests and CheckoutConcurrencyTests.
         _outbox.Database.Returns(_fakeDbContext.Database);
     }
 
@@ -230,7 +230,7 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
     [Trait("Category", "regression")]
     public async Task Handle_WhenFirstSaveConflicts_RetriesOnceAndSucceeds()
     {
-        // The C-1 fix relies on BasketConcurrencyRetry — exactly one retry on CAS loss.
+        // The CAS guard relies on BasketConcurrencyRetry — exactly one retry on CAS loss.
         // This pins the policy at the handler level so a future refactor that drops the
         // retry wrap fails loudly here. Each attempt MUST reload the aggregate so the
         // second try operates on the winner's persisted state.
@@ -275,7 +275,7 @@ public class CheckoutBasketCommandHandlerTests : IDisposable
     [Trait("Category", "regression")]
     public async Task Handle_WhenBothSavesConflict_PropagatesConcurrencyError_AndNoOutboxRowWritten()
     {
-        // C-1 fail-loud surface: when CAS loses twice, the loser MUST NOT emit an
+        // Fail-loud surface of the CAS guard: when CAS loses twice, the loser MUST NOT emit an
         // integration event. Otherwise two parallel checkouts would still produce two
         // BasketCheckoutInitiatedEvent records on the basket.sessions topic.
 

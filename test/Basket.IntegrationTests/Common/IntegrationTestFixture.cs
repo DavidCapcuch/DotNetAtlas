@@ -1,15 +1,19 @@
 using Basket.Application.Abstractions;
+using Basket.Infrastructure.Common.Config;
 using Basket.Infrastructure.Persistence.Database;
+using Basket.IntegrationTests.Common.TestClientInfrastructure;
 using FastEndpoints.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
+using NSubstitute.ClearExtensions;
+using OpenTelemetry;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
+using Platform.Test.Framework.Auth;
 using Platform.Test.Framework.Database;
 using Platform.Test.Framework.Kafka;
 using Platform.Test.Framework.Redis;
@@ -23,16 +27,39 @@ namespace Basket.IntegrationTests.Common;
 
 internal sealed class IntegrationTestCollection : TestCollection<IntegrationTestFixture>;
 
-[DisableWafCache]
+/// <summary>
+/// The single Basket integration fixture: one real <c>Program.cs</c> host on Postgres + Redis
+/// Testcontainers, shared by the whole <see cref="IntegrationTestCollection"/> (one instance,
+/// state reset between tests). Both entrances run against it — the HTTP edge via
+/// <see cref="HttpClientRegistry"/> and, for behaviour with no outer entrance, a DI scope off
+/// <see cref="AppFixture{TEntryPoint}.Services"/>.
+/// <para>
+/// Schema is provisioned by the same idempotent <c>V*.sql</c> scripts Flyway runs in compose —
+/// never a test-only <c>MigrateAsync</c>/<c>EnsureCreated</c>, so the tested schema matches the
+/// deployed one. The production Avro+SchemaRegistry <see cref="IOutboxWriter"/> is replaced with
+/// <see cref="FakeOutboxWriter"/> so outbox assertions need no Schema Registry round-trip; the
+/// fake leaves the <c>AvroPayload</c> empty and captures topic + CLR type.
+/// </para>
+/// <para>
+/// Basket's one unmanaged upstream — the Catalog ACL port <see cref="IProductCatalogQueryPort"/>
+/// (<c>basket.md</c> § 12.2) — is an NSubstitute mock, cleared between tests, so tests stub
+/// product snapshots without a Catalog service; which upstream HTTP shapes map to which error is
+/// settled in the unit tier (<c>ProductCatalogHttpAdapterTests</c>). The
+/// <see cref="FakeTokenSigner"/>'s RSA key is trusted via
+/// <see cref="JwtBearerTestExtensions.ConfigureJwtBearerForTests"/>.
+/// </para>
+/// <para>
+/// The host keeps the real <c>RedisBasketRepository</c> (so the basket store's cache behaviour and
+/// keyed-multiplexer tracing stay observable) and <c>TimeProvider.System</c> (ADR-0015). A test
+/// needing a deterministic CAS outcome or clock substitutes it into a directly-constructed SUT.
+/// </para>
+/// </summary>
+// No [DisableWafCache]: FastEndpoints caches the host per fixture type, and IntegrationTestCollection
+// builds this type once. Add it if the type is ever instantiated twice (a second collection, an
+// IClassFixture or TestBase<IntegrationTestFixture>) — the second instance would reuse the first's
+// host and never run PreSetupAsync.
 public class IntegrationTestFixture : AppFixture<Program>
 {
-    /// <summary>
-    /// Stable test clock — shared with tests that want to assert on
-    /// deterministic timestamps without re-importing FakeTimeProvider.
-    /// </summary>
-    public static readonly DateTimeOffset Now =
-        new(2026, 04, 25, 12, 00, 00, TimeSpan.Zero);
-
     private readonly PostgreSqlTestContainer _dbContainer = new(
         databaseName: "Basket",
         sqlScriptsMigrationsPath: SolutionPaths.SqlScriptMigrationsDirectoryFor("services/Basket/Basket.Infrastructure"),
@@ -43,30 +70,11 @@ public class IntegrationTestFixture : AppFixture<Program>
 
     private readonly RedisTestContainer _redisContainer = new();
 
-    /// <summary>
-    /// Test-controlled <see cref="IBasketRepository"/>. Tests configure return
-    /// values per-scenario; the fixture exposes the substitute so they don't
-    /// have to re-resolve from DI. The production
-    /// <c>RedisBasketRepository</c> registration in
-    /// <c>Basket.Infrastructure.Persistence.PersistenceDependencyInjection</c>
-    /// is swapped via <c>Replace</c> in <see cref="ConfigureApp"/>.
-    /// </summary>
-    public IBasketRepository Repository { get; } = Substitute.For<IBasketRepository>();
+    private readonly FakeTokenSigner _signer = new(audience: "basket-service");
 
-    /// <summary>
-    /// Test-controlled <see cref="IProductCatalogQueryPort"/>. Registered
-    /// because Application DI requires it; not exercised by Checkout
-    /// (snapshot-validation runs at AddItem time, not Checkout). The
-    /// production HTTP adapter is swapped via <c>Replace</c> in
-    /// <see cref="ConfigureApp"/>.
-    /// </summary>
     public IProductCatalogQueryPort Catalog { get; } = Substitute.For<IProductCatalogQueryPort>();
 
-    /// <summary>
-    /// Stable <see cref="FakeTimeProvider"/> pinned at <see cref="Now"/>.
-    /// Exposed for tests that want to advance time deterministically.
-    /// </summary>
-    public FakeTimeProvider FakeTime { get; } = new(Now);
+    public HttpClientRegistry<Program> HttpClientRegistry { get; private set; } = null!;
 
     protected override async ValueTask PreSetupAsync()
     {
@@ -77,13 +85,19 @@ public class IntegrationTestFixture : AppFixture<Program>
         await _redisContainer.StartAsync();
     }
 
+    protected override ValueTask SetupAsync()
+    {
+        HttpClientRegistry = new HttpClientRegistry<Program>(this, new FakeTokenCreator(_signer));
+        return ValueTask.CompletedTask;
+    }
+
     protected override IHost ConfigureAppHost(IHostBuilder a)
     {
         a.ConfigureWebHost(webBuilder =>
         {
             var redisConnectionString = _redisContainer.ConfigurationOptions.ToString();
             webBuilder
-                .UseSetting("ConnectionStrings:Basket", _dbContainer.ConnectionString)
+                .UseSetting($"ConnectionStrings:{nameof(ConnectionStringsOptions.Basket)}", _dbContainer.ConnectionString)
                 .UseSetting("ConnectionStrings:Redis:Basket", redisConnectionString)
                 .UseSetting("ConnectionStrings:Redis:Cache", redisConnectionString)
                 .UseUnreachableKafkaSettings();
@@ -111,36 +125,30 @@ public class IntegrationTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
-                // Pin the clock so deterministic timestamp assertions work without
-                // each test re-creating a FakeTimeProvider.
-                services.Replace(ServiceDescriptor.Singleton<TimeProvider>(FakeTime));
-
-                // Swap the production RedisBasketRepository with the NSubstitute so tests
-                // can stub repository responses without standing up basket state in Redis.
-                // Use Replace so the production scoped registration is removed — AddSingleton
-                // would only add a second descriptor with the proxy's runtime type, leaving
-                // the real adapter live for resolution.
-                services.Replace(ServiceDescriptor.Singleton<IBasketRepository>(Repository));
-
-                // Swap the Catalog HTTP adapter for the substitute — application DI requires
-                // the port, but DB-backed integration tests don't exercise the HTTP roundtrip.
                 services.Replace(ServiceDescriptor.Singleton<IProductCatalogQueryPort>(Catalog));
-
-                // Replace the production Avro+SchemaRegistry-backed IOutboxWriter with the
-                // fake so these tests need no Schema Registry; assertions target the
-                // captured outbox row (topic, key, event type).
                 services.Replace(ServiceDescriptor.Singleton<IOutboxWriter, FakeOutboxWriter>());
+                services.ConfigureJwtBearerForTests(_signer);
             });
     }
 
-    /// <summary>Creates a per-test DI scope; caller disposes.</summary>
-    public IServiceScope CreateScope() => Services.CreateScope();
+    /// <summary>
+    /// Resolves the singleton <see cref="FakeOutboxWriter"/> so a test can read the integration
+    /// events it captured — the committed outbox row carries an empty Avro payload.
+    /// </summary>
+    public FakeOutboxWriter GetFakeOutbox() =>
+        (FakeOutboxWriter)Services.GetRequiredService<IOutboxWriter>();
 
-    /// <summary>Connection string for tests that bypass the DbContext.</summary>
-    public string ConnectionString => _dbContainer.ConnectionString;
-
+    /// <summary>
+    /// Wipes every table in the Basket schema between tests, flushes Redis, and clears the
+    /// captured outbox messages.
+    /// </summary>
     public async Task ResetFixtureStateAsync()
     {
+        using var _ = SuppressInstrumentationScope.Begin();
+
+        Catalog.ClearSubstitute(ClearOptions.All);
+        GetFakeOutbox().Clear();
+
         await Task.WhenAll(
             _dbContainer.CleanDataAsync(),
             _redisContainer.CleanDataAsync()
@@ -149,6 +157,7 @@ public class IntegrationTestFixture : AppFixture<Program>
 
     protected override async ValueTask TearDownAsync()
     {
+        _signer.Dispose();
         await _dbContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();
     }

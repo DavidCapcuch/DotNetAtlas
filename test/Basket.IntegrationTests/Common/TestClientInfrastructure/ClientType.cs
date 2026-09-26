@@ -1,4 +1,4 @@
-namespace Basket.FunctionalTests.Common.TestClientInfrastructure;
+namespace Basket.IntegrationTests.Common.TestClientInfrastructure;
 
 public enum ClientType
 {

@@ -2,7 +2,7 @@ using System.Security.Claims;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Platform.Test.Framework.Auth;
 
-namespace Basket.FunctionalTests.Common.TestClientInfrastructure;
+namespace Basket.IntegrationTests.Common.TestClientInfrastructure;
 
 /// <summary>
 /// Builds claims for Basket's regular-user persona (Basket only carries a
