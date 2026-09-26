@@ -48,7 +48,7 @@ internal sealed class IntegrationTestCollection : TestCollection<IntegrationTest
 /// <para>
 /// Per ADR-0015 the host's <c>TimeProvider.System</c> singleton is left in place — tests that need
 /// deterministic time construct <c>FakeTimeProvider</c> locally and inject it into a
-/// directly-constructed SUT (ADR-0015 line 104).
+/// directly-constructed SUT.
 /// </para>
 /// </summary>
 // No [DisableWafCache]: FastEndpoints caches the host per fixture type, and IntegrationTestCollection
@@ -151,12 +151,16 @@ public class IntegrationTestFixture : AppFixture<Program>
             });
     }
 
-    /// <summary>Wipes every table in the Catalog schema between tests and flushes Redis.</summary>
+    /// <summary>
+    /// Returns everything a test can mutate through this fixture to its baseline — a fake or
+    /// substitute added to the fixture gets its reset here.
+    /// </summary>
     public async Task ResetFixtureStateAsync()
     {
         using var _ = SuppressInstrumentationScope.Begin();
 
         FeatureClient.ClearSubstitute(ClearOptions.All);
+        ((FakeOutboxWriter)Services.GetRequiredService<IOutboxWriter>()).Clear();
 
         await Task.WhenAll(
             _dbContainer.CleanDataAsync(),
