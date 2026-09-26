@@ -1,5 +1,4 @@
 using AwesomeAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Notifications.Application.Common.Data;
@@ -13,7 +12,7 @@ using Notifications.Domain.Templates;
 using Notifications.Infrastructure.Dispatch;
 using Notifications.Infrastructure.Persistence.Database;
 using Notifications.IntegrationTests.Common;
-using NSubstitute;
+using Platform.ReliableMessaging.Outbox.EFCore;
 using Xunit;
 
 namespace Notifications.IntegrationTests.Dispatch;
@@ -22,15 +21,13 @@ namespace Notifications.IntegrationTests.Dispatch;
 /// The fake SMS channel (ADR-0032 § 3, #315) entered through its durable dispatch job, against a real
 /// <see cref="NotificationsDbContext"/>. The log line is the channel's only transport, so the happy
 /// path asserts it alongside the shared durable-channel contract — the <c>(NotificationId, Sms)</c>
-/// ledger row and the delivery event on the fixture's outbox substitute. The transient-failure UPSERT
+/// ledger row and the delivery event. The transient-failure UPSERT
 /// branch is the email dispatcher's covered contract (#312); the fake send cannot fail, so it has no
 /// SMS-side test.
 /// </summary>
 [Collection<IntegrationTestCollection>]
 public sealed class SmsChannelDispatcherTests : BaseIntegrationTest
 {
-    private const string NotifyEventsTopic = "notifications.notify-events";
-
     public SmsChannelDispatcherTests(IntegrationTestFixture fixture)
         : base(fixture)
     {
@@ -61,16 +58,9 @@ public sealed class SmsChannelDispatcherTests : BaseIntegrationTest
             m.Contains("+420600000042")
             && m.Contains("Your order ORD-2026-000007 shipped. Track: https://shipping.example.com/ORD-2026-000007"));
 
-        (await LoadLedgerStatusAsync(notificationId, ct)).Should().Be(DeliveryStatus.Dispatched);
-
-        Fixture.OutboxSubstitute.Received(1).AddOutboxMessage(
-            NotifyEventsTopic,
-            recipientUserId.ToString(),
-            Arg.Is<NotificationDeliveryStatusChangedEvent>(e =>
-                e.NotificationId == notificationId
-                && e.RecipientUserId == recipientUserId
-                && e.Channel == "Sms"
-                && e.Status == NotificationDeliveryStatus.Dispatched));
+        (await Fixture.LoadLedgerStatusAsync(notificationId, ChannelType.Sms, ct)).Should().Be(DeliveryStatus.Dispatched);
+        await Fixture.AssertCommittedDeliveryEventsAsync(
+            ChannelType.Sms, dispatch, [NotificationDeliveryStatus.Dispatched], ct);
     }
 
     [Fact]
@@ -86,10 +76,8 @@ public sealed class SmsChannelDispatcherTests : BaseIntegrationTest
         await Fixture.RunDispatchJobAsync(ChannelType.Sms, dispatch, ct);
         await Fixture.RunDispatchJobAsync(ChannelType.Sms, dispatch, ct); // ledger already Dispatched → skip
 
-        Fixture.OutboxSubstitute.Received(1).AddOutboxMessage(
-            NotifyEventsTopic,
-            Arg.Any<string>(),
-            Arg.Any<NotificationDeliveryStatusChangedEvent>());
+        await Fixture.AssertCommittedDeliveryEventsAsync(
+            ChannelType.Sms, dispatch, [NotificationDeliveryStatus.Dispatched], ct);
     }
 
     [Fact]
@@ -103,8 +91,7 @@ public sealed class SmsChannelDispatcherTests : BaseIntegrationTest
         await Fixture.AssertDispatchJobFailsAsync(
             ChannelType.Sms, dispatch, "Notifications.MissingSmsTemplateChannel", ct);
 
-        Fixture.OutboxSubstitute.DidNotReceive().AddOutboxMessage(
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<NotificationDeliveryStatusChangedEvent>());
+        (await Fixture.LoadOutboxRowsAsync(ct)).Should().BeEmpty("a missing template must fail before recording anything");
     }
 
     [Fact]
@@ -128,8 +115,7 @@ public sealed class SmsChannelDispatcherTests : BaseIntegrationTest
             ChannelType.Sms, dispatch, "Notifications.UnresolvedTemplateTokens", ct);
 
         exception.Message.Should().Contain("TrackingUrl");
-        Fixture.OutboxSubstitute.DidNotReceive().AddOutboxMessage(
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<NotificationDeliveryStatusChangedEvent>());
+        (await Fixture.LoadOutboxRowsAsync(ct)).Should().BeEmpty("an incomplete payload must fail before recording anything");
     }
 
     private static NotificationDispatch BuildDispatch(Guid notificationId, Guid recipientUserId) => new()
@@ -149,7 +135,7 @@ public sealed class SmsChannelDispatcherTests : BaseIntegrationTest
         var sp = scope.ServiceProvider;
         return new SmsChannelDispatcher(
             sp.GetRequiredService<INotificationsDbContext>(),
-            Fixture.OutboxSubstitute,
+            sp.GetRequiredService<ITransactionalOutbox<INotificationsDbContext>>(),
             sp.GetRequiredService<IRecipientResolver>(),
             sp.GetRequiredService<IOptions<TopicsOptions>>(),
             sp.GetRequiredService<TimeProvider>(),
@@ -188,14 +174,5 @@ public sealed class SmsChannelDispatcherTests : BaseIntegrationTest
             quietHoursEnd: null,
             timeZone: "Europe/Prague"));
         await db.SaveChangesAsync(ct);
-    }
-
-    private async Task<DeliveryStatus> LoadLedgerStatusAsync(Guid notificationId, CancellationToken ct)
-    {
-        await using var scope = Fixture.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
-        var row = await db.NotificationDeliveries.SingleAsync(
-            d => d.NotificationId == notificationId && d.Channel == ChannelType.Sms, ct);
-        return row.Status;
     }
 }

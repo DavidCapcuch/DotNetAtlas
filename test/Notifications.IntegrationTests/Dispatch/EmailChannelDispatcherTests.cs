@@ -16,21 +16,18 @@ using Notifications.Domain.Templates;
 using Notifications.Infrastructure.Dispatch;
 using Notifications.Infrastructure.Persistence.Database;
 using Notifications.IntegrationTests.Common;
-using NSubstitute;
+using Platform.ReliableMessaging.Outbox.EFCore;
 using Xunit;
 
 namespace Notifications.IntegrationTests.Dispatch;
 
 /// <summary>
 /// The email channel (ADR-0032 § 2) entered through its durable dispatch job, against a real
-/// <see cref="NotificationsDbContext"/> and the Mailpit testcontainer. The ledger is asserted against
-/// the real DB; the delivery event on the fixture's outbox substitute (no Schema Registry stood up).
+/// <see cref="NotificationsDbContext"/> and the Mailpit testcontainer.
 /// </summary>
 [Collection<IntegrationTestCollection>]
 public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
 {
-    private const string NotifyEventsTopic = "notifications.notify-events";
-
     public EmailChannelDispatcherTests(IntegrationTestFixture fixture)
         : base(fixture)
     {
@@ -68,15 +65,9 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
         detail.Text.Should().Contain("Total: 152.00 EUR");
         detail.Text.Should().Contain("00000000-0000-0000-0000-000000000001");
 
-        (await LoadLedgerStatusAsync(notificationId, ct)).Should().Be(DeliveryStatus.Dispatched);
-
-        Fixture.OutboxSubstitute.Received(1).AddOutboxMessage(
-            NotifyEventsTopic,
-            recipientUserId.ToString(),
-            Arg.Is<NotificationDeliveryStatusChangedEvent>(e =>
-                e.NotificationId == notificationId
-                && e.Channel == "Email"
-                && e.Status == NotificationDeliveryStatus.Dispatched));
+        (await Fixture.LoadLedgerStatusAsync(notificationId, ChannelType.Email, ct)).Should().Be(DeliveryStatus.Dispatched);
+        await Fixture.AssertCommittedDeliveryEventsAsync(
+            ChannelType.Email, dispatch, [NotificationDeliveryStatus.Dispatched], ct);
     }
 
     [Fact]
@@ -94,11 +85,8 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
 
         var messages = await Fixture.Mailpit.GetMessagesAsync(ct);
         messages.Should().ContainSingle("the second dispatch must skip on the Dispatched ledger row");
-
-        Fixture.OutboxSubstitute.Received(1).AddOutboxMessage(
-            NotifyEventsTopic,
-            Arg.Any<string>(),
-            Arg.Any<NotificationDeliveryStatusChangedEvent>());
+        await Fixture.AssertCommittedDeliveryEventsAsync(
+            ChannelType.Email, dispatch, [NotificationDeliveryStatus.Dispatched], ct);
     }
 
     [Fact]
@@ -122,7 +110,7 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
             await Assert.ThrowsAsync<EmailDispatchFailedException>(() => dispatcher.DispatchAsync(dispatch, ct));
         }
 
-        (await LoadLedgerStatusAsync(notificationId, ct)).Should().Be(DeliveryStatus.Failed);
+        (await Fixture.LoadLedgerStatusAsync(notificationId, ChannelType.Email, ct)).Should().Be(DeliveryStatus.Failed);
 
         // Retry in a fresh scope (as a Hangfire retry would): same row UPDATEs to Dispatched —
         // a second INSERT on the (NotificationId, Channel) key would throw a unique violation.
@@ -142,14 +130,11 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
             rows[0].Status.Should().Be(DeliveryStatus.Dispatched);
         }
 
-        Fixture.OutboxSubstitute.Received(1).AddOutboxMessage(
-            NotifyEventsTopic,
-            Arg.Any<string>(),
-            Arg.Is<NotificationDeliveryStatusChangedEvent>(e => e.Status == NotificationDeliveryStatus.Failed));
-        Fixture.OutboxSubstitute.Received(1).AddOutboxMessage(
-            NotifyEventsTopic,
-            Arg.Any<string>(),
-            Arg.Is<NotificationDeliveryStatusChangedEvent>(e => e.Status == NotificationDeliveryStatus.Dispatched));
+        await Fixture.AssertCommittedDeliveryEventsAsync(
+            ChannelType.Email,
+            dispatch,
+            [NotificationDeliveryStatus.Failed, NotificationDeliveryStatus.Dispatched],
+            ct);
     }
 
     [Fact]
@@ -164,8 +149,7 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
             ChannelType.Email, dispatch, "Notifications.MissingEmailTemplateChannel", ct);
 
         (await Fixture.Mailpit.GetMessagesAsync(ct)).Should().BeEmpty("a missing template must fail before sending");
-        Fixture.OutboxSubstitute.DidNotReceive().AddOutboxMessage(
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<NotificationDeliveryStatusChangedEvent>());
+        (await Fixture.LoadOutboxRowsAsync(ct)).Should().BeEmpty("a missing template must fail before recording anything");
     }
 
     [Fact]
@@ -195,8 +179,7 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
             ChannelType.Email, dispatch, "Notifications.MissingRecipientPreference", ct);
 
         (await Fixture.Mailpit.GetMessagesAsync(ct)).Should().BeEmpty("an unresolvable recipient must fail before sending");
-        Fixture.OutboxSubstitute.DidNotReceive().AddOutboxMessage(
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<NotificationDeliveryStatusChangedEvent>());
+        (await Fixture.LoadOutboxRowsAsync(ct)).Should().BeEmpty("an unresolvable recipient must fail before recording anything");
     }
 
     [Fact]
@@ -229,8 +212,7 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
 
         exception.Message.Should().Contain("ViewInvoiceUrl");
         (await Fixture.Mailpit.GetMessagesAsync(ct)).Should().BeEmpty("an incomplete payload must fail before sending");
-        Fixture.OutboxSubstitute.DidNotReceive().AddOutboxMessage(
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<NotificationDeliveryStatusChangedEvent>());
+        (await Fixture.LoadOutboxRowsAsync(ct)).Should().BeEmpty("an incomplete payload must fail before recording anything");
     }
 
     private static NotificationDispatch BuildDispatch(Guid notificationId, Guid recipientUserId) => new()
@@ -252,7 +234,7 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
         var sp = scope.ServiceProvider;
         return new EmailChannelDispatcher(
             sp.GetRequiredService<INotificationsDbContext>(),
-            Fixture.OutboxSubstitute,
+            sp.GetRequiredService<ITransactionalOutbox<INotificationsDbContext>>(),
             sp.GetRequiredService<IRecipientResolver>(),
             gateway,
             sp.GetRequiredService<IOptions<TopicsOptions>>(),
@@ -314,15 +296,6 @@ public sealed class EmailChannelDispatcherTests : BaseIntegrationTest
             quietHoursEnd: null,
             timeZone: "Europe/Prague"));
         await db.SaveChangesAsync(ct);
-    }
-
-    private async Task<DeliveryStatus> LoadLedgerStatusAsync(Guid notificationId, CancellationToken ct)
-    {
-        await using var scope = Fixture.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
-        var row = await db.NotificationDeliveries.SingleAsync(
-            d => d.NotificationId == notificationId && d.Channel == ChannelType.Email, ct);
-        return row.Status;
     }
 
     private sealed class SequencedEmailGateway : IEmailGateway

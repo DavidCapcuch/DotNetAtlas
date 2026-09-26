@@ -5,11 +5,9 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Notifications.Application.Common.Data;
 using Notifications.Application.Dispatch;
 using Notifications.Infrastructure.Persistence.Database;
 using Notifications.IntegrationTests.Common.TestClientInfrastructure;
-using NSubstitute;
 using Platform.ReliableMessaging.Outbox.EFCore;
 using Platform.Test.Framework;
 using Platform.Test.Framework.Auth;
@@ -78,14 +76,13 @@ public class IntegrationTestFixture : AppFixture<Program>
     /// <summary>Mints the bearer tokens bell clients connect with.</summary>
     public FakeTokenCreator TokenCreator { get; private set; } = null!;
 
-    /// <summary>NSubstitute transactional-outbox stub. Tests assert on its <c>Received</c> AddOutboxMessage calls.</summary>
-    public ITransactionalOutbox<INotificationsDbContext> OutboxSubstitute { get; } =
-        Substitute.For<ITransactionalOutbox<INotificationsDbContext>>();
-
     /// <summary>
     /// Replaces the Hangfire enqueuer the fan-out handler writes to; drain it to run the recorded jobs.
     /// </summary>
     internal RecordingChannelDispatchEnqueuer DispatchEnqueuer { get; } = new();
+
+    /// <summary>Captures each delivery event the dispatchers add to the outbox.</summary>
+    public FakeOutboxWriter OutboxWriter { get; } = new();
 
     /// <summary>Mailpit SMTP sink the email dispatcher delivers to; assert captured mail via its REST API.</summary>
     public MailpitTestContainer Mailpit => _mailpit;
@@ -139,10 +136,10 @@ public class IntegrationTestFixture : AppFixture<Program>
             })
             .ConfigureTestServices(services =>
             {
-                // Swap the production Avro+SchemaRegistry-backed ITransactionalOutbox for an
-                // NSubstitute stub. Tests assert on received AddOutboxMessage calls — production
-                // wiring requires a live Schema Registry which we don't stand up here.
-                services.Replace(ServiceDescriptor.Singleton<ITransactionalOutbox<INotificationsDbContext>>(OutboxSubstitute));
+                // Only the Avro serialization is replaced — it needs a live Schema Registry. The
+                // transactional outbox above it stays real, so an event commits or rolls back with
+                // the ledger row it was saved alongside.
+                services.Replace(ServiceDescriptor.Singleton<IOutboxWriter>(OutboxWriter));
 
                 // No Hangfire server runs in the test host, so record the fan-out's enqueues instead.
                 services.Replace(ServiceDescriptor.Singleton<IChannelDispatchEnqueuer>(DispatchEnqueuer));
@@ -156,10 +153,10 @@ public class IntegrationTestFixture : AppFixture<Program>
     /// <summary>Creates a per-test DI scope; caller disposes (supports <c>await using</c>).</summary>
     public AsyncServiceScope CreateScope() => Services.CreateAsyncScope();
 
-    /// <summary>Wipes the Notifications schema, the captured Mailpit mail and the recorded outbox calls and enqueues between tests.</summary>
+    /// <summary>Resets the database, Mailpit and every per-test double between tests.</summary>
     public async Task ResetFixtureStateAsync()
     {
-        OutboxSubstitute.ClearReceivedCalls();
+        OutboxWriter.Clear();
         DispatchEnqueuer.Clear();
         await _dbContainer.CleanDataAsync();
         await _mailpit.DeleteAllAsync();

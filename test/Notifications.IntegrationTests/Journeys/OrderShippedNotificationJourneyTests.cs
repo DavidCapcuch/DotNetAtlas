@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Notifications.Application.Bell;
 using Notifications.Domain.Channels;
@@ -8,7 +7,6 @@ using Notifications.Infrastructure.NotifyUser;
 using Notifications.Infrastructure.Persistence.Database;
 using Notifications.IntegrationTests.Common;
 using Notifications.IntegrationTests.Common.TestClientInfrastructure;
-using NSubstitute;
 using Platform.Test.Framework.Kafka;
 
 namespace Notifications.IntegrationTests.Journeys;
@@ -58,10 +56,10 @@ public sealed class OrderShippedNotificationJourneyTests : BaseIntegrationTest
             // The bell is ephemeral (ADR-0032 § 2): asserting the absence of the durable-channel
             // contract on the same run that proved the push is what makes it mean "ephemeral", not
             // "never ran".
-            (await LedgerRowExistsAsync(notificationId, ChannelType.Bell, ct)).Should().BeFalse(
+            (await Fixture.LoadLedgerStatusAsync(notificationId, ChannelType.Bell, ct)).Should().BeNull(
                 "the bell is ephemeral — no (NotificationId, Bell) ledger row (ADR-0032 § 2)");
-            Fixture.OutboxSubstitute.DidNotReceive().AddOutboxMessage(
-                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<NotificationDeliveryStatusChangedEvent>());
+            (await Fixture.LoadOutboxRowsAsync(ct)).Should().BeEmpty(
+                "the bell is ephemeral — it records no delivery event (ADR-0032 § 4)");
         }
     }
 
@@ -119,13 +117,5 @@ public sealed class OrderShippedNotificationJourneyTests : BaseIntegrationTest
             quietHoursEnd: null,
             timeZone: "Europe/Prague"));
         await db.SaveChangesAsync(ct);
-    }
-
-    private async Task<bool> LedgerRowExistsAsync(Guid notificationId, ChannelType channel, CancellationToken ct)
-    {
-        await using var scope = Fixture.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
-        return await db.NotificationDeliveries.AnyAsync(
-            d => d.NotificationId == notificationId && d.Channel == channel, ct);
     }
 }
