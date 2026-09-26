@@ -84,6 +84,9 @@ public class IntegrationTestFixture : AppFixture<Program>
     /// <summary>Captures each delivery event the dispatchers add to the outbox.</summary>
     public FakeOutboxWriter OutboxWriter { get; } = new();
 
+    /// <summary>Armed per test; the per-test reset disarms it.</summary>
+    internal OutboxSaveFaultInterceptor OutboxSaveFault { get; } = new();
+
     /// <summary>Mailpit SMTP sink the email dispatcher delivers to; assert captured mail via its REST API.</summary>
     public MailpitTestContainer Mailpit => _mailpit;
 
@@ -140,6 +143,7 @@ public class IntegrationTestFixture : AppFixture<Program>
                 // transactional outbox above it stays real, so an event commits or rolls back with
                 // the ledger row it was saved alongside.
                 services.Replace(ServiceDescriptor.Singleton<IOutboxWriter>(OutboxWriter));
+                services.ConfigureDbContext<NotificationsDbContext>(options => options.AddInterceptors(OutboxSaveFault));
 
                 // No Hangfire server runs in the test host, so record the fan-out's enqueues instead.
                 services.Replace(ServiceDescriptor.Singleton<IChannelDispatchEnqueuer>(DispatchEnqueuer));
@@ -157,6 +161,7 @@ public class IntegrationTestFixture : AppFixture<Program>
     public async Task ResetFixtureStateAsync()
     {
         OutboxWriter.Clear();
+        OutboxSaveFault.Disarm();
         DispatchEnqueuer.Clear();
         await _dbContainer.CleanDataAsync();
         await _mailpit.DeleteAllAsync();

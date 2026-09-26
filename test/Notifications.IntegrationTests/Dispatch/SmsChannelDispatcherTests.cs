@@ -81,6 +81,29 @@ public sealed class SmsChannelDispatcherTests : BaseIntegrationTest
     }
 
     [Fact]
+    public async Task Dispatch_OutboxSaveFails_RollsBackTheLedgerRowWithIt()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await ArrangeOrderShippedSmsTemplateAsync(ct);
+        var notificationId = Guid.CreateVersion7();
+        var recipientUserId = Guid.CreateVersion7();
+        await ArrangePreferenceAsync(recipientUserId, phoneNumber: "+420600000042", ct);
+        var dispatch = BuildDispatch(notificationId, recipientUserId);
+        Fixture.OutboxSaveFault.Arm();
+
+        var act = () => Fixture.RunDispatchJobAsync(ChannelType.Sms, dispatch, ct);
+
+        // Pinned to the injected fault — DI and EF Core throw InvalidOperationException too.
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage(OutboxSaveFaultInterceptor.FaultMessage);
+        using (new AssertionScope())
+        {
+            (await Fixture.LoadLedgerStatusAsync(notificationId, ChannelType.Sms, ct)).Should().BeNull(
+                "the ledger change must roll back with the delivery event it was saved alongside");
+            (await Fixture.LoadOutboxRowsAsync(ct)).Should().BeEmpty();
+        }
+    }
+
+    [Fact]
     public async Task Dispatch_NoSmsTemplateChannel_Throws_AndEmitsNothing()
     {
         var ct = TestContext.Current.CancellationToken;
