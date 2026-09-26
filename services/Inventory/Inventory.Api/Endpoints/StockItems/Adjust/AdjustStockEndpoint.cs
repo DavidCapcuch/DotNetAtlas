@@ -28,11 +28,9 @@ internal sealed class AdjustStockEndpoint : Endpoint<AdjustStockRequest, StockLe
         Policies(AuthPolicies.WritePolicy);
         Idempotency(opts =>
         {
-            // ADR-0013: 24h TTL, header `Idempotency-Key`, redis-cache backing
-            // (configured at the platform level via AddIdempotencyKeyOutputCache).
-            // FastEndpoints 7.0.1's IdempotencyOptions.AdditionalHeaders defaults
-            // include `Authorization` so two callers reusing the same UUID don't
-            // share responses.
+            // ADR-0013. A request without the header is rejected with 400 before the handler runs.
+            // IdempotencyOptions.AdditionalHeaders includes `Authorization` by default, so a cached
+            // response is keyed to the caller's bearer token and never served to another caller.
             opts.HeaderName = "Idempotency-Key";
             opts.CacheDuration = TimeSpan.FromHours(24);
         });
@@ -57,23 +55,6 @@ internal sealed class AdjustStockEndpoint : Endpoint<AdjustStockRequest, StockLe
 
     public override async Task HandleAsync(AdjustStockRequest request, CancellationToken ct)
     {
-        // ADR-0013 makes the Idempotency-Key header REQUIRED on this admin
-        // endpoint. FastEndpoints 7.0.1's built-in .Idempotency() filter only
-        // enables response caching when the header is present; in this BC's
-        // wiring it does NOT 400 on absence (verified empirically by
-        // AdjustStockTests.WhenIdempotencyKeyMissing_Returns400). We enforce
-        // the contract explicitly so a retry that omits the header cannot
-        // silently bypass dedup and double-mutate OnHand. Mirrors Basket's
-        // CheckoutBasketEndpoint guard.
-        if (!HttpContext.Request.Headers.ContainsKey("Idempotency-Key"))
-        {
-            AddError(
-                "Idempotency-Key header is required (ADR-0013).",
-                "Inventory.IdempotencyKeyMissing");
-            await Send.ErrorsAsync(StatusCodes.Status400BadRequest, ct);
-            return;
-        }
-
         var command = new AdjustStockCommand
         {
             ProductId = request.ProductId,

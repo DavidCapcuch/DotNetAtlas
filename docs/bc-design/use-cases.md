@@ -1248,7 +1248,7 @@ public sealed class CreateOrderKafkaHandler
 
 - **HTTP:** `POST /api/v1/inventory/stock-items/{productId}/adjust`
 - **Authorization:** `AuthPolicies.WritePolicy` (`InventoryWriteScope`: requires the `admin` realm role **and** the `inventory.write` scope — ADR-0010). Ops adjustment — damage write-off, recount.
-- **Idempotency-Key:** **required** — the endpoint returns 400 (`Inventory.IdempotencyKeyMissing`) when the header is absent; cached 24 h per ADR-0013.
+- **Idempotency-Key:** **required** — an authorized request without the header gets 400, a ProblemDetails whose `detail` names the missing header. While `redis-cache` is reachable, a retry with the same key, body, bearer token and client headers gets the first response back — whatever its status — for 24 h without re-running the adjustment, so retry a 409 under a new key. A different body or token under the same key runs as a new adjustment, and so does any retry while `redis-cache` is down ([ADR-0013](../adr/0013-idempotency-key-http.md)).
 - **Interface:** `ICommand<StockLevelResponse>` — returns the post-mutation projection snapshot.
 - **Request shape:**
   ```
@@ -1267,10 +1267,9 @@ public sealed class CreateOrderKafkaHandler
   - `Reason` — NotEmpty; MaximumLength(500).
   - `UserId` — NotEmpty (admin must be identifiable for audit).
 - **Flow:**
-  1. Idempotency via command inbox.
-  2. Rehydrate stream; 404 if uninitialized.
-  3. Call `stockItem.AdjustStock(delta, reason, userId)` — `Result.Fail(StockItemErrors.AdjustmentBelowZero)` if precondition fails.
-  4. Append `StockAdjustedDomainEvent`; UPSERT projections; outbox write for `StockLevelChangedEvent` if threshold crossed.
+  1. Rehydrate stream; 404 if uninitialized.
+  2. Call `stockItem.AdjustStock(delta, reason, userId)` — `Result.Fail(StockItemErrors.AdjustmentBelowZero)` if precondition fails.
+  3. Append `StockAdjustedDomainEvent`; UPSERT projections; outbox write for `StockLevelChangedEvent` if threshold crossed.
 - **Emits internal event(s):** `StockAdjustedDomainEvent` (ES). Projection updates `OnHand`. Conditional external event.
 
 ### 4.3 Saga command intake — plumbing

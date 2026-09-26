@@ -46,11 +46,14 @@ try
 
     app.UseStatusCodePages();
 
+    // Output cache after auth: the idempotency cache answers a replay (or rejects a missing key)
+    // before the endpoint runs, so ahead of auth it would do so for a caller auth would reject
+    // (401/403).
     app.UseRouting()
         .UseCors(InventoryCorsOptions.DefaultCorsPolicyName)
-        .UseOutputCache()
         .UseAuthentication()
-        .UseAuthorization();
+        .UseAuthorization()
+        .UseOutputCache();
 
     app.UseInventoryFastEndpoints();
 

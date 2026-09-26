@@ -1,3 +1,4 @@
+using FastEndpoints;
 using Platform.ServiceDefaults.Idempotency;
 
 namespace Inventory.Api.Common;
@@ -21,6 +22,9 @@ internal static class ApiDependencyInjection
 
         services.AddProblemDetails();
 
+        // AddIdempotency registers the output-cache policy FastEndpoints' .Idempotency() runs on —
+        // without it that endpoint option is inert and a retry re-runs the handler.
+        services.AddIdempotency();
         services.AddIdempotencyKeyOutputCache(configuration, serviceName: "inventory-service");
 
         services.AddRazorPages();
