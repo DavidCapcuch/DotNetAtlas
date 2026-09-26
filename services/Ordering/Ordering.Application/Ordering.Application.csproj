@@ -21,7 +21,6 @@
     <ItemGroup>
         <InternalsVisibleTo Include="Ordering.Infrastructure"/>
         <InternalsVisibleTo Include="Ordering.UnitTests"/>
-        <InternalsVisibleTo Include="Ordering.IntegrationTests"/>
     </ItemGroup>
 
     <ItemGroup>
