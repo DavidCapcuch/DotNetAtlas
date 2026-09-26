@@ -2,7 +2,6 @@ using Catalog.Infrastructure.Common.Config;
 using Catalog.Infrastructure.Persistence.Database;
 using Catalog.IntegrationTests.Common.TestClientInfrastructure;
 using FastEndpoints.Testing;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -133,16 +132,6 @@ public class IntegrationTestFixture : AppFixture<Program>
                 // Replace the OpenFeature client so per-test feature-flag flips don't depend on a
                 // JSON file on disk (e.g. catalog.show-discontinued-in-search, ADR-0014).
                 services.Replace(ServiceDescriptor.Singleton(FeatureClient));
-
-                // Relax the OIDC scheme's HTTPS-metadata requirement BEFORE the framework's
-                // default IPostConfigureOptions<OpenIdConnectOptions> runs. Using Configure
-                // (IConfigureNamedOptions) ensures ordering: all IConfigureOptions run before
-                // any IPostConfigureOptions, so the default post-configure sees
-                // RequireHttpsMetadata=false and skips the HTTPS-authority throw.
-                // PostConfigure would fire too late (after the default already threw).
-                services.Configure<OpenIdConnectOptions>(
-                    OpenIdConnectDefaults.AuthenticationScheme,
-                    options => options.RequireHttpsMetadata = false);
 
                 // Wire the JwtBearer scheme to trust _signer's RSA key — keeps every
                 // TokenValidationParameters flag at its production default of TRUE. See
