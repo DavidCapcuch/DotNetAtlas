@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using FastEndpoints;
 using Inventory.Application.StockItems.Common;
 using Inventory.IntegrationTests.Common;
+using Microsoft.EntityFrameworkCore;
 
 namespace Inventory.IntegrationTests.ApiEndpoints.StockItems;
 
@@ -80,5 +81,34 @@ public sealed class GetStockLevelTests : BaseIntegrationTest
             .GetAsync($"/api/v1/inventory/stock-items/{productId}", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task RepeatRead_IsServedFromCache_NotTheProjectionRow()
+    {
+        // Arrange — warm the read-through cache, then change the projection row behind it. A raw
+        // UPDATE appends no stock event, so nothing evicts the cached entry.
+        var productId = Guid.CreateVersion7();
+        var url = $"/api/v1/inventory/stock-items/{productId}";
+        await Seed.ProductWithOnHandAsync(productId, onHand: 9, SeedUtc, TestContext.Current.CancellationToken);
+        await Fixture.HttpClientRegistry.NonAuthClient.GetAsync(url, TestContext.Current.CancellationToken);
+
+        var updatedRows = await InventoryDbContext.CurrentStockLevels
+            .Where(r => r.ProductId == productId)
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(r => r.OnHand, 2).SetProperty(r => r.Available, 2),
+                TestContext.Current.CancellationToken);
+        updatedRows.Should().Be(1, "the projection row must change behind the cache");
+
+        // Act
+        var snapshot = await Fixture.HttpClientRegistry.NonAuthClient
+            .GetFromJsonAsync<StockLevelResponse>(url, TestContext.Current.CancellationToken);
+
+        // Assert — ADR-0034: inside the TTL the warmed entry answers, not current_stock_levels.
+        using (new AssertionScope())
+        {
+            snapshot!.OnHand.Should().Be(9);
+            snapshot.Available.Should().Be(9);
+        }
     }
 }

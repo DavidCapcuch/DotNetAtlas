@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Inventory.Application.StockItems.GetStockLevelsBulk;
 using Inventory.IntegrationTests.Common;
+using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 
 namespace Inventory.IntegrationTests.ApiEndpoints.StockItems;
@@ -130,6 +131,29 @@ public sealed class GetStockLevelsBulkTests : BaseIntegrationTest
 
         RedisKeyExistsFor(productId).Should().BeTrue(
             "the read-through cache stores the row in redis-cache under the inventory:stock namespace");
+    }
+
+    [Fact]
+    public async Task RepeatRead_IsServedFromCache_NotTheProjectionRow()
+    {
+        // Arrange — warm the read-through cache, then change the projection row behind it. A raw
+        // UPDATE appends no stock event, so nothing evicts the cached entry.
+        var productId = Guid.CreateVersion7();
+        await Seed.ProductWithOnHandAsync(productId, onHand: 5, SeedUtc, TestContext.Current.CancellationToken);
+        await ReadAvailableAsync(productId);
+
+        var updatedRows = await InventoryDbContext.CurrentStockLevels
+            .Where(r => r.ProductId == productId)
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(r => r.OnHand, 1).SetProperty(r => r.Available, 1),
+                TestContext.Current.CancellationToken);
+        updatedRows.Should().Be(1, "the projection row must change behind the cache");
+
+        // Act
+        var available = await ReadAvailableAsync(productId);
+
+        // Assert — ADR-0034: inside the TTL the warmed entry answers, not current_stock_levels.
+        available.Should().Be(5);
     }
 
     [Fact]
