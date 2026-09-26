@@ -6,19 +6,11 @@ using Platform.SharedKernel.ValueObjects;
 namespace Ordering.IntegrationTests.Common;
 
 /// <summary>
-/// Hand-rolled fluent seed for the <see cref="Order"/> aggregate. Each
-/// <c>Build*</c> overload walks the FSM via the aggregate's own factory and
-/// transition methods so the seed produces real domain events / row-version
-/// bumps — i.e., it is byte-identical to a production-emitted order.
-/// integration tests use this to set up source-state preconditions for
-/// each example-mapping scenario.
+/// Hand-rolled seed for the <see cref="Order"/> aggregate. Each <c>Create*Async</c> method walks
+/// the FSM via the aggregate's own factory and transitions, so seeded rows carry real domain events
+/// and row-version bumps. Tests use it to set up the source state a scenario starts from, at either
+/// entrance.
 /// </summary>
-/// <remarks>
-/// Mirrors the FunctionalTests sibling at
-/// <c>test/Ordering.FunctionalTests/Common/OrderSeed.cs</c>. The two
-/// helpers are intentionally siblings — keeping both ports tied to their
-/// project's own namespace keeps the cross-project surface minimal.
-/// </remarks>
 internal sealed class OrderSeed
 {
     private readonly OrderingDbContext _db;
@@ -35,10 +27,9 @@ internal sealed class OrderSeed
     /// </summary>
     public async Task<Order> CreateOrderAsync(
         Guid? buyerId = null,
-        Guid? paymentMethodId = null,
         CancellationToken cancellationToken = default)
     {
-        var order = BuildCreatedOrder(buyerId ?? Guid.CreateVersion7(), paymentMethodId);
+        var order = BuildCreatedOrder(buyerId ?? Guid.CreateVersion7());
         _db.Orders.Add(order);
         await _db.SaveChangesAsync(cancellationToken);
         return order;
@@ -103,9 +94,7 @@ internal sealed class OrderSeed
         return order;
     }
 
-    private Order BuildCreatedOrder(
-        Guid buyerId,
-        Guid? paymentMethodId = null)
+    private Order BuildCreatedOrder(Guid buyerId)
     {
         var basket = new BasketSnapshot(
             BuyerId: buyerId,
@@ -120,11 +109,8 @@ internal sealed class OrderSeed
                     UnitPriceAmount: 9.99m),
             ]);
 
-        // EF Core's owned-type change-tracker treats a single shared
-        // Address instance attached to two owners as the same entity; we
-        // construct two distinct instances for shipping vs billing.
         var shipping = Address.Create("1 Test Street", null, "Prague", null, "11000", "CZ").Value;
-        var billing = Address.Create("1 Test Street", null, "Prague", null, "11000", "CZ").Value;
+        var billing = Address.Create("2 Billing Road", null, "Brno", null, "60200", "CZ").Value;
 
         return Order.CreateFromBasket(
             orderId: Guid.CreateVersion7(),
@@ -132,7 +118,7 @@ internal sealed class OrderSeed
             basket: basket,
             shippingAddress: shipping,
             billingAddress: billing,
-            paymentMethodId: paymentMethodId ?? Guid.CreateVersion7(),
+            paymentMethodId: Guid.CreateVersion7(),
             utcNow: _time.GetUtcNow());
     }
 }

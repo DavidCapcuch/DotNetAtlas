@@ -52,11 +52,10 @@ try
 
     await app.MigrateOnStartupIfDevelopmentAsync<OrderingDbContext>();
 
-    // Skip the Kafka saga-command consumer in the test host. The
-    // functional-test slice exercises the HTTP surface only; the consumer
-    // is integration-tested against a real broker elsewhere. Booting the
-    // consumer in tests would require a Kafka + schema-registry container
-    // pair the HTTP-surface tests don't need.
+    // Skip the Kafka saga-command consumer in the test host. Ordering.IntegrationTests
+    // drives the typed saga-command handlers directly with a fake message context, so
+    // booting the consumer would only add a Kafka + schema-registry container pair that
+    // no test reads from.
     if (!app.Environment.IsTesting())
     {
         var kafkaBus = app.Services.CreateKafkaBus();
@@ -80,7 +79,7 @@ finally
 }
 
 /// <summary>
-/// Partial <c>Program</c> marker so integration / functional tests can use
+/// Partial <c>Program</c> marker so integration tests can use
 /// <c>WebApplicationFactory&lt;Program&gt;</c>.
 /// </summary>
 public partial class Program;

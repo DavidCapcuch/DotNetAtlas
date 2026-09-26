@@ -34,7 +34,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <InternalsVisibleTo Include="Ordering.FunctionalTests"/>
+        <InternalsVisibleTo Include="Ordering.IntegrationTests"/>
     </ItemGroup>
 
 </Project>

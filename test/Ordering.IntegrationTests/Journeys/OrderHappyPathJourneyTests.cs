@@ -16,7 +16,7 @@ using AvroOrderAddress = Ordering.Orders.OrderAddress;
 using AvroOrderConfirmedEvent = Ordering.Orders.OrderConfirmedEvent;
 using AvroOrderCreatedEvent = Ordering.Orders.OrderCreatedEvent;
 
-namespace Ordering.IntegrationTests.Sessions;
+namespace Ordering.IntegrationTests.Journeys;
 
 /// <summary>
 /// <c>example-mapping/ordering.md</c> Session 1 Example 2 — the saga
@@ -28,15 +28,18 @@ namespace Ordering.IntegrationTests.Sessions;
 /// StockReserved and PaymentCompleted transitions are domain-internal in
 /// v1 and have no external event (per the Avro schema inventory in
 /// <c>events-catalog.md § 5.3</c>).
+/// <para>
+/// A journey (<c>eshop-master-design.md § 11.4</c>). Steps 2–3 have no production entrance
+/// today — the saga sends Ordering no stock or payment command — so they are driven through their
+/// application handlers.
+/// </para>
 /// </summary>
 [Collection<IntegrationTestCollection>]
-public sealed class HappyPathIntegrationTests
+public sealed class OrderHappyPathJourneyTests : BaseIntegrationTest
 {
-    private readonly IntegrationTestFixture _fixture;
-
-    public HappyPathIntegrationTests(IntegrationTestFixture fixture)
+    public OrderHappyPathJourneyTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -44,11 +47,11 @@ public sealed class HappyPathIntegrationTests
     public async Task SagaDrivesOrderEndToEnd_AllStatusesAndTwoOutboxEvents()
     {
         var correlationId = Guid.CreateVersion7();
-        var fakeOutbox = _fixture.GetFakeOutbox();
+        var fakeOutbox = Fixture.GetFakeOutbox();
         fakeOutbox.Clear();
 
         // 1) Create — via Kafka handler.
-        using (var scope = _fixture.CreateScope())
+        using (var scope = Fixture.CreateScope())
         {
             var handler = scope.ServiceProvider.GetRequiredService<CreateOrderCommandKafkaHandler>();
             var avro = NewValidCreateCommand(correlationId);
@@ -58,7 +61,7 @@ public sealed class HappyPathIntegrationTests
         }
 
         Guid orderId;
-        using (var lookupScope = _fixture.CreateScope())
+        using (var lookupScope = Fixture.CreateScope())
         {
             var db = lookupScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             orderId = (await db.Orders.AsNoTracking()
@@ -66,7 +69,7 @@ public sealed class HappyPathIntegrationTests
         }
 
         // 2) MarkStockReserved — application handler only (no Kafka in v1).
-        using (var scope = _fixture.CreateScope())
+        using (var scope = Fixture.CreateScope())
         {
             var handler = scope.ServiceProvider
                 .GetRequiredService<ICommandHandler<MarkOrderStockReservedCommand>>();
@@ -81,7 +84,7 @@ public sealed class HappyPathIntegrationTests
         }
 
         // 3) MarkPaymentCompleted — application handler only.
-        using (var scope = _fixture.CreateScope())
+        using (var scope = Fixture.CreateScope())
         {
             var handler = scope.ServiceProvider
                 .GetRequiredService<ICommandHandler<MarkOrderPaymentCompletedCommand>>();
@@ -96,7 +99,7 @@ public sealed class HappyPathIntegrationTests
         }
 
         // 4) Confirm — Kafka handler.
-        using (var scope = _fixture.CreateScope())
+        using (var scope = Fixture.CreateScope())
         {
             var handler = scope.ServiceProvider.GetRequiredService<ConfirmOrderCommandKafkaHandler>();
             var avro = new AvroConfirmOrderCommand
@@ -110,7 +113,7 @@ public sealed class HappyPathIntegrationTests
         }
 
         using (new AssertionScope())
-        using (var verifyScope = _fixture.CreateScope())
+        using (var verifyScope = Fixture.CreateScope())
         {
             var db = verifyScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             var final = await db.Orders.AsNoTracking()

@@ -16,13 +16,11 @@ namespace Ordering.IntegrationTests.Messaging.Kafka;
 /// every example in <c>example-mapping/ordering.md</c> Session 2.
 /// </summary>
 [Collection<IntegrationTestCollection>]
-public sealed class CancelOrderCommandKafkaHandlerTests
+public sealed class CancelOrderCommandKafkaHandlerTests : BaseIntegrationTest
 {
-    private readonly IntegrationTestFixture _fixture;
-
     public CancelOrderCommandKafkaHandlerTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     /// <summary>
@@ -34,7 +32,7 @@ public sealed class CancelOrderCommandKafkaHandlerTests
     {
         Guid orderId;
         Guid buyerId;
-        using (var seedScope = _fixture.CreateScope())
+        using (var seedScope = Fixture.CreateScope())
         {
             var seedDb = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             var seed = new OrderSeed(seedDb, TimeProvider.System);
@@ -44,13 +42,13 @@ public sealed class CancelOrderCommandKafkaHandlerTests
             buyerId = seeded.BuyerId;
         }
 
-        var fakeOutbox = _fixture.GetFakeOutbox();
+        var fakeOutbox = Fixture.GetFakeOutbox();
         fakeOutbox.Clear();
 
         await DispatchCancelAsync(orderId, "buyer abandoned");
 
         using (new AssertionScope())
-        using (var verifyScope = _fixture.CreateScope())
+        using (var verifyScope = Fixture.CreateScope())
         {
             var db = verifyScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             var saved = await db.Orders.AsNoTracking()
@@ -73,7 +71,7 @@ public sealed class CancelOrderCommandKafkaHandlerTests
     public async Task CancelFromConfirmed_EmitsOrderCancelledEvent_AtStatusConfirmed()
     {
         Guid orderId;
-        using (var seedScope = _fixture.CreateScope())
+        using (var seedScope = Fixture.CreateScope())
         {
             var seedDb = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             var seed = new OrderSeed(seedDb, TimeProvider.System);
@@ -82,13 +80,13 @@ public sealed class CancelOrderCommandKafkaHandlerTests
             orderId = seeded.Id;
         }
 
-        var fakeOutbox = _fixture.GetFakeOutbox();
+        var fakeOutbox = Fixture.GetFakeOutbox();
         fakeOutbox.Clear();
 
         await DispatchCancelAsync(orderId, "operator override");
 
         using (new AssertionScope())
-        using (var verifyScope = _fixture.CreateScope())
+        using (var verifyScope = Fixture.CreateScope())
         {
             var db = verifyScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             var saved = await db.Orders.AsNoTracking()
@@ -113,7 +111,7 @@ public sealed class CancelOrderCommandKafkaHandlerTests
     public async Task CancelFromShipped_ThrowsSagaCommandDispatchException_NoEventEmitted()
     {
         Guid orderId;
-        using (var seedScope = _fixture.CreateScope())
+        using (var seedScope = Fixture.CreateScope())
         {
             var seedDb = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             var seed = new OrderSeed(seedDb, TimeProvider.System);
@@ -122,14 +120,14 @@ public sealed class CancelOrderCommandKafkaHandlerTests
             orderId = seeded.Id;
         }
 
-        var fakeOutbox = _fixture.GetFakeOutbox();
+        var fakeOutbox = Fixture.GetFakeOutbox();
         fakeOutbox.Clear();
 
         var act = () => DispatchCancelAsync(orderId, "buyer changed mind");
         await act.Should().ThrowAsync<SagaCommandDispatchException>();
 
         using (new AssertionScope())
-        using (var verifyScope = _fixture.CreateScope())
+        using (var verifyScope = Fixture.CreateScope())
         {
             var db = verifyScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             var saved = await db.Orders.AsNoTracking()
@@ -150,7 +148,7 @@ public sealed class CancelOrderCommandKafkaHandlerTests
     public async Task CancelFromDelivered_ThrowsSagaCommandDispatchException_NoEventEmitted()
     {
         Guid orderId;
-        using (var seedScope = _fixture.CreateScope())
+        using (var seedScope = Fixture.CreateScope())
         {
             var seedDb = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             var seed = new OrderSeed(seedDb, TimeProvider.System);
@@ -159,14 +157,14 @@ public sealed class CancelOrderCommandKafkaHandlerTests
             orderId = seeded.Id;
         }
 
-        var fakeOutbox = _fixture.GetFakeOutbox();
+        var fakeOutbox = Fixture.GetFakeOutbox();
         fakeOutbox.Clear();
 
         var act = () => DispatchCancelAsync(orderId, "buyer dispute");
         await act.Should().ThrowAsync<SagaCommandDispatchException>();
 
         using (new AssertionScope())
-        using (var verifyScope = _fixture.CreateScope())
+        using (var verifyScope = Fixture.CreateScope())
         {
             var db = verifyScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             var saved = await db.Orders.AsNoTracking()
@@ -181,7 +179,7 @@ public sealed class CancelOrderCommandKafkaHandlerTests
 
     private async Task DispatchCancelAsync(Guid orderId, string reason)
     {
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<CancelOrderCommandKafkaHandler>();
         var avro = new AvroCancelOrderCommand
         {

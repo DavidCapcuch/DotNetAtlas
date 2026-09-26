@@ -6,16 +6,16 @@ using Microsoft.EntityFrameworkCore;
 using Ordering.Api.Common.Authorization;
 using Ordering.Api.Endpoints.Orders.MarkOrderShipped;
 using Ordering.Domain.Orders;
-using Ordering.FunctionalTests.Common;
-using Ordering.FunctionalTests.Common.TestClientInfrastructure;
+using Ordering.IntegrationTests.Common;
+using Ordering.IntegrationTests.Common.TestClientInfrastructure;
 using Platform.Test.Framework.Auth;
 
-namespace Ordering.FunctionalTests.ApiEndpoints.Orders;
+namespace Ordering.IntegrationTests.ApiEndpoints.Orders;
 
-[Collection<FunctionalTestCollection>]
-public class MarkOrderShippedTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public class MarkOrderShippedTests : BaseIntegrationTest
 {
-    public MarkOrderShippedTests(ApiTestFixture app)
+    public MarkOrderShippedTests(IntegrationTestFixture app)
         : base(app)
     {
     }
@@ -72,7 +72,7 @@ public class MarkOrderShippedTests : BaseApiTest
     public async Task WhenOrderConfirmed_ReturnsNoContentAndStatusShipped()
     {
         var seed = new OrderSeed(DbContext, TimeProvider.System);
-        var order = await seed.CreateConfirmedOrderAsync(TestUsers.BuyerId);
+        var order = await seed.CreateConfirmedOrderAsync(TestUsers.BuyerId, cancellationToken: TestContext.Current.CancellationToken);
 
         var response = await HttpClientRegistry.AdminClient
             .POSTAsync<MarkOrderShippedEndpoint, MarkOrderShippedRequest>(
@@ -127,7 +127,7 @@ public class MarkOrderShippedTests : BaseApiTest
         // across every BC consuming AddPlatformJwtBearer would break in
         // production at the same time.
         var seed = new OrderSeed(DbContext, TimeProvider.System);
-        var order = await seed.CreateConfirmedOrderAsync(TestUsers.BuyerId);
+        var order = await seed.CreateConfirmedOrderAsync(TestUsers.BuyerId, cancellationToken: TestContext.Current.CancellationToken);
 
         var claims = new[]
         {
@@ -135,9 +135,9 @@ public class MarkOrderShippedTests : BaseApiTest
             new Claim(ClaimTypes.Name, "admin@dotnetatlas.com"),
             new Claim("roles", Roles.Admin),
         };
-        var token = FakeTokenBuilder.SignToken(App.Signer, claims);
+        var token = FakeTokenBuilder.SignToken(Fixture.Signer, claims);
 
-        using var client = App.CreateClient(c =>
+        using var client = Fixture.CreateClient(c =>
             c.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", token));
 

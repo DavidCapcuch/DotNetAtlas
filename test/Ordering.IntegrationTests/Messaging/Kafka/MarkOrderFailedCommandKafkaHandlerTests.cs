@@ -19,13 +19,11 @@ namespace Ordering.IntegrationTests.Messaging.Kafka;
 /// green and no saga-driven failure path remains).
 /// </summary>
 [Collection<IntegrationTestCollection>]
-public sealed class MarkOrderFailedCommandKafkaHandlerTests
+public sealed class MarkOrderFailedCommandKafkaHandlerTests : BaseIntegrationTest
 {
-    private readonly IntegrationTestFixture _fixture;
-
     public MarkOrderFailedCommandKafkaHandlerTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -33,7 +31,7 @@ public sealed class MarkOrderFailedCommandKafkaHandlerTests
     public async Task HappyPath_FromCreated_TransitionsToFailedAndEmitsEvent()
     {
         Guid orderId;
-        using (var seedScope = _fixture.CreateScope())
+        using (var seedScope = Fixture.CreateScope())
         {
             var seedDb = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             var seed = new OrderSeed(seedDb, TimeProvider.System);
@@ -42,10 +40,10 @@ public sealed class MarkOrderFailedCommandKafkaHandlerTests
             orderId = seeded.Id;
         }
 
-        var fakeOutbox = _fixture.GetFakeOutbox();
+        var fakeOutbox = Fixture.GetFakeOutbox();
         fakeOutbox.Clear();
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<MarkOrderFailedCommandKafkaHandler>();
         var avro = new AvroMarkOrderFailedCommand
         {
@@ -59,7 +57,7 @@ public sealed class MarkOrderFailedCommandKafkaHandlerTests
 
         await handler.Handle(ctx, avro);
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
 
         using (new AssertionScope())
@@ -87,7 +85,7 @@ public sealed class MarkOrderFailedCommandKafkaHandlerTests
     public async Task MarkFailedFromConfirmed_ThrowsDataIntegrityException()
     {
         Guid orderId;
-        using (var seedScope = _fixture.CreateScope())
+        using (var seedScope = Fixture.CreateScope())
         {
             var seedDb = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             var seed = new OrderSeed(seedDb, TimeProvider.System);
@@ -96,7 +94,7 @@ public sealed class MarkOrderFailedCommandKafkaHandlerTests
             orderId = seeded.Id;
         }
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<MarkOrderFailedCommandKafkaHandler>();
         var avro = new AvroMarkOrderFailedCommand
         {

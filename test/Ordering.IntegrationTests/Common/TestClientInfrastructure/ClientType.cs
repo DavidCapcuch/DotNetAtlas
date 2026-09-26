@@ -1,7 +1,7 @@
-namespace Ordering.FunctionalTests.Common.TestClientInfrastructure;
+namespace Ordering.IntegrationTests.Common.TestClientInfrastructure;
 
 /// <summary>
-/// Caller archetypes the Ordering API recognises in functional tests.
+/// Caller archetypes the Ordering API recognises in integration tests.
 /// </summary>
 public enum ClientType
 {

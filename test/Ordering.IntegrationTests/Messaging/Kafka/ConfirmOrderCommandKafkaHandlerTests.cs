@@ -22,20 +22,18 @@ namespace Ordering.IntegrationTests.Messaging.Kafka;
 /// which the FSM also rejects).
 /// </summary>
 [Collection<IntegrationTestCollection>]
-public sealed class ConfirmOrderCommandKafkaHandlerTests
+public sealed class ConfirmOrderCommandKafkaHandlerTests : BaseIntegrationTest
 {
-    private readonly IntegrationTestFixture _fixture;
-
     public ConfirmOrderCommandKafkaHandlerTests(IntegrationTestFixture fixture)
+        : base(fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
     [Trait("Category", "critical-path")]
     public async Task HappyPath_ConfirmedFromPaymentCompleted_EmitsOrderConfirmedEvent()
     {
-        var fakeOutbox = _fixture.GetFakeOutbox();
+        var fakeOutbox = Fixture.GetFakeOutbox();
         fakeOutbox.Clear();
 
         // Seed a Created order, then walk it to PaymentCompleted via the
@@ -43,7 +41,7 @@ public sealed class ConfirmOrderCommandKafkaHandlerTests
         // handler in v1 — saga drives them via direct app-command
         // dispatch).
         Guid orderId;
-        using (var seedScope = _fixture.CreateScope())
+        using (var seedScope = Fixture.CreateScope())
         {
             var seedDb = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             var seed = new OrderSeed(seedDb, TimeProvider.System);
@@ -80,7 +78,7 @@ public sealed class ConfirmOrderCommandKafkaHandlerTests
         // assertion only counts the Confirm emission.
         fakeOutbox.Clear();
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ConfirmOrderCommandKafkaHandler>();
         var avro = new AvroConfirmOrderCommand
         {
@@ -92,7 +90,7 @@ public sealed class ConfirmOrderCommandKafkaHandlerTests
 
         await handler.Handle(ctx, avro);
 
-        using var verifyScope = _fixture.CreateScope();
+        using var verifyScope = Fixture.CreateScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
 
         using (new AssertionScope())
@@ -120,7 +118,7 @@ public sealed class ConfirmOrderCommandKafkaHandlerTests
     public async Task ConfirmFromShipped_ThrowsDataIntegrityException()
     {
         Guid orderId;
-        using (var seedScope = _fixture.CreateScope())
+        using (var seedScope = Fixture.CreateScope())
         {
             var seedDb = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             var seed = new OrderSeed(seedDb, TimeProvider.System);
@@ -129,7 +127,7 @@ public sealed class ConfirmOrderCommandKafkaHandlerTests
             orderId = seeded.Id;
         }
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ConfirmOrderCommandKafkaHandler>();
         var avro = new AvroConfirmOrderCommand
         {
@@ -155,7 +153,7 @@ public sealed class ConfirmOrderCommandKafkaHandlerTests
     public async Task ConfirmFromCreated_ThrowsDataIntegrityException()
     {
         Guid orderId;
-        using (var seedScope = _fixture.CreateScope())
+        using (var seedScope = Fixture.CreateScope())
         {
             var seedDb = seedScope.ServiceProvider.GetRequiredService<OrderingDbContext>();
             var seed = new OrderSeed(seedDb, TimeProvider.System);
@@ -164,7 +162,7 @@ public sealed class ConfirmOrderCommandKafkaHandlerTests
             orderId = seeded.Id;
         }
 
-        using var scope = _fixture.CreateScope();
+        using var scope = Fixture.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ConfirmOrderCommandKafkaHandler>();
         var avro = new AvroConfirmOrderCommand
         {

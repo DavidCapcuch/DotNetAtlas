@@ -2,21 +2,18 @@ using System.Net;
 using System.Net.Http.Json;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Ordering.Api.Endpoints.Orders.CancelOrder;
 using Ordering.Domain.Orders;
-using Ordering.FunctionalTests.Common;
-using Ordering.FunctionalTests.Common.TestClientInfrastructure;
+using Ordering.IntegrationTests.Common;
+using Ordering.IntegrationTests.Common.TestClientInfrastructure;
 using Ordering.Orders;
-using Platform.ReliableMessaging.Outbox.EFCore;
-using Platform.Test.Framework.Kafka;
 
-namespace Ordering.FunctionalTests.ApiEndpoints.Orders;
+namespace Ordering.IntegrationTests.ApiEndpoints.Orders;
 
-[Collection<FunctionalTestCollection>]
-public class CancelOrderTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public class CancelOrderTests : BaseIntegrationTest
 {
-    public CancelOrderTests(ApiTestFixture app)
+    public CancelOrderTests(IntegrationTestFixture app)
         : base(app)
     {
     }
@@ -55,7 +52,7 @@ public class CancelOrderTests : BaseApiTest
     public async Task WhenReasonEmpty_ReturnsClientError()
     {
         var seed = new OrderSeed(DbContext, TimeProvider.System);
-        var order = await seed.CreateOrderAsync(TestUsers.BuyerId);
+        var order = await seed.CreateOrderAsync(TestUsers.BuyerId, cancellationToken: TestContext.Current.CancellationToken);
 
         var response = await PostCancelAsync(
             HttpClientRegistry.BuyerClient,
@@ -73,7 +70,7 @@ public class CancelOrderTests : BaseApiTest
     public async Task WhenBuyerCancelsOwnCreatedOrder_ReturnsNoContent()
     {
         var seed = new OrderSeed(DbContext, TimeProvider.System);
-        var order = await seed.CreateOrderAsync(TestUsers.BuyerId);
+        var order = await seed.CreateOrderAsync(TestUsers.BuyerId, cancellationToken: TestContext.Current.CancellationToken);
 
         var response = await PostCancelAsync(
             HttpClientRegistry.BuyerClient,
@@ -95,7 +92,7 @@ public class CancelOrderTests : BaseApiTest
     public async Task WhenAnotherBuyerTriesToCancel_ReturnsNotFound()
     {
         var seed = new OrderSeed(DbContext, TimeProvider.System);
-        var order = await seed.CreateOrderAsync(TestUsers.BuyerId);
+        var order = await seed.CreateOrderAsync(TestUsers.BuyerId, cancellationToken: TestContext.Current.CancellationToken);
 
         var response = await PostCancelAsync(
             HttpClientRegistry.OtherBuyerClient,
@@ -117,27 +114,38 @@ public class CancelOrderTests : BaseApiTest
     public async Task WhenOrderShipped_ReturnsConflict()
     {
         var seed = new OrderSeed(DbContext, TimeProvider.System);
-        var order = await seed.CreateShippedOrderAsync(TestUsers.AdminId);
+        var order = await seed.CreateShippedOrderAsync(TestUsers.AdminId, cancellationToken: TestContext.Current.CancellationToken);
+        var fakeOutbox = Fixture.GetFakeOutbox();
+        fakeOutbox.Clear();
 
         var response = await PostCancelAsync(
             HttpClientRegistry.AdminClient,
             order.Id,
             "too late");
 
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        using (new AssertionScope())
+        {
+            response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+            // A rejected cancel leaves the order where it was and publishes nothing.
+            var refreshed = await DbContext.Orders.AsNoTracking()
+                .SingleAsync(o => o.Id == order.Id, TestContext.Current.CancellationToken);
+            refreshed.Status.Should().Be(OrderStatus.Shipped);
+            fakeOutbox.GetMessages<OrderCancelledEvent>().Should().BeEmpty();
+        }
     }
 
     [Fact]
     public async Task WhenSameIdempotencyKeyReplayed_HandlerInvokedOnceOnly()
     {
         var seed = new OrderSeed(DbContext, TimeProvider.System);
-        var order = await seed.CreateOrderAsync(TestUsers.BuyerId);
+        var order = await seed.CreateOrderAsync(TestUsers.BuyerId, cancellationToken: TestContext.Current.CancellationToken);
 
         // The fixture replaces IOutboxWriter with FakeOutboxWriter so we can
         // count handler invocations via captured Avro messages without a
         // real schema registry. Reset captures from the seed-time
         // OrderCreatedEvent so the assertion below counts cancellations only.
-        var fakeOutbox = (FakeOutboxWriter)App.Services.GetRequiredService<IOutboxWriter>();
+        var fakeOutbox = Fixture.GetFakeOutbox();
         fakeOutbox.Clear();
 
         var idempotencyKey = Guid.NewGuid().ToString();
@@ -191,7 +199,7 @@ public class CancelOrderTests : BaseApiTest
         // the defaults, this test fails loudly instead of silently leaking
         // 204s across buyers.
         var seed = new OrderSeed(DbContext, TimeProvider.System);
-        var ownerOrder = await seed.CreateOrderAsync(TestUsers.BuyerId);
+        var ownerOrder = await seed.CreateOrderAsync(TestUsers.BuyerId, cancellationToken: TestContext.Current.CancellationToken);
 
         var sharedKey = Guid.NewGuid().ToString();
 

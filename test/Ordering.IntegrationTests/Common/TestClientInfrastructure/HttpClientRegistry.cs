@@ -1,12 +1,11 @@
 using System.Net.Http.Headers;
 using FastEndpoints.Testing;
 
-namespace Ordering.FunctionalTests.Common.TestClientInfrastructure;
+namespace Ordering.IntegrationTests.Common.TestClientInfrastructure;
 
 /// <summary>
-/// Pre-built typed <see cref="HttpClient"/>s, one per <see cref="ClientType"/>,
-/// each carrying a properly signed Bearer token issued by
-/// <see cref="FakeTokenCreator"/>.
+/// One pre-built <see cref="HttpClient"/> per <see cref="ClientType"/>, each carrying a properly
+/// signed Bearer token issued by <see cref="FakeTokenCreator"/>.
 /// </summary>
 public sealed class HttpClientRegistry<TEntryPoint>
     where TEntryPoint : class
@@ -25,30 +24,15 @@ public sealed class HttpClientRegistry<TEntryPoint>
         }
     }
 
-    public HttpClient this[ClientType clientType] => _clients[clientType];
-
     public HttpClient NonAuthClient => _clients[ClientType.NonAuth];
     public HttpClient BuyerClient => _clients[ClientType.Buyer];
     public HttpClient OtherBuyerClient => _clients[ClientType.OtherBuyer];
     public HttpClient AdminClient => _clients[ClientType.Admin];
 
-    public HttpClient CreateHttpClient(
-        ClientType clientType,
-        string? traceParent = null)
-    {
-        return _appFixture.CreateClient(client =>
-        {
-            var token = _tokenCreator.CreateUserToken(clientType);
-            client.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", string.IsNullOrEmpty(token) ? null : token);
-
-            if (!string.IsNullOrWhiteSpace(traceParent))
-            {
-                client.DefaultRequestHeaders.Add("traceparent", traceParent);
-            }
-        });
-    }
-
+    /// <summary>
+    /// Points every pre-built client at the current test's trace, so the server spans a request
+    /// produces join that test's trace instead of starting a detached one.
+    /// </summary>
     public void SetTraceParent(string? traceParent)
     {
         foreach (var (_, client) in _clients)
@@ -59,5 +43,15 @@ public sealed class HttpClientRegistry<TEntryPoint>
                 client.DefaultRequestHeaders.Add("traceparent", traceParent);
             }
         }
+    }
+
+    private HttpClient CreateHttpClient(ClientType clientType)
+    {
+        return _appFixture.CreateClient(client =>
+        {
+            var token = _tokenCreator.CreateUserToken(clientType);
+            client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", string.IsNullOrEmpty(token) ? null : token);
+        });
     }
 }

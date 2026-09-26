@@ -28,7 +28,7 @@ namespace Ordering.Api.Endpoints.Orders.CancelOrder;
 /// buyers reusing the same UUID never share responses. The cross-buyer
 /// partition is pinned by
 /// <c>WhenSameIdempotencyKeyUsedByDifferentBuyer_HandlerStillRuns</c>
-/// in the functional test suite — if a future FastEndpoints minor drops
+/// in <c>Ordering.IntegrationTests</c> — if a future FastEndpoints minor drops
 /// Authorization from the defaults, that test fails loudly.
 /// </remarks>
 internal sealed class CancelOrderEndpoint : Endpoint<CancelOrderRequest>

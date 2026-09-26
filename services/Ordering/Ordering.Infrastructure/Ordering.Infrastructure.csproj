@@ -58,7 +58,6 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="Ordering.Api"/>
-        <InternalsVisibleTo Include="Ordering.FunctionalTests"/>
         <InternalsVisibleTo Include="Ordering.IntegrationTests"/>
         <InternalsVisibleTo Include="Ordering.UnitTests"/>
     </ItemGroup>

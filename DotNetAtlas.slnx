@@ -143,7 +143,6 @@
     <Project Path="test/Notifications.IntegrationTests/Notifications.IntegrationTests.csproj" />
     <Project Path="test/Notifications.UnitTests/Notifications.UnitTests.csproj" />
     <Project Path="test/Ordering.ArchitectureTests/Ordering.ArchitectureTests.csproj" />
-    <Project Path="test/Ordering.FunctionalTests/Ordering.FunctionalTests.csproj" />
     <Project Path="test/Ordering.IntegrationTests/Ordering.IntegrationTests.csproj" />
     <Project Path="test/Ordering.UnitTests/Ordering.UnitTests.csproj" />
     <Project Path="test/Payments.ArchitectureTests/Payments.ArchitectureTests.csproj" />

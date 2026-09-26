@@ -3,15 +3,15 @@ using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Ordering.Api.Endpoints.Orders.MarkOrderDelivered;
 using Ordering.Domain.Orders;
-using Ordering.FunctionalTests.Common;
-using Ordering.FunctionalTests.Common.TestClientInfrastructure;
+using Ordering.IntegrationTests.Common;
+using Ordering.IntegrationTests.Common.TestClientInfrastructure;
 
-namespace Ordering.FunctionalTests.ApiEndpoints.Orders;
+namespace Ordering.IntegrationTests.ApiEndpoints.Orders;
 
-[Collection<FunctionalTestCollection>]
-public class MarkOrderDeliveredTests : BaseApiTest
+[Collection<IntegrationTestCollection>]
+public class MarkOrderDeliveredTests : BaseIntegrationTest
 {
-    public MarkOrderDeliveredTests(ApiTestFixture app)
+    public MarkOrderDeliveredTests(IntegrationTestFixture app)
         : base(app)
     {
     }
@@ -42,7 +42,7 @@ public class MarkOrderDeliveredTests : BaseApiTest
     public async Task WhenOrderShipped_ReturnsNoContentAndStatusDelivered()
     {
         var seed = new OrderSeed(DbContext, TimeProvider.System);
-        var order = await seed.CreateShippedOrderAsync(TestUsers.BuyerId);
+        var order = await seed.CreateShippedOrderAsync(TestUsers.BuyerId, cancellationToken: TestContext.Current.CancellationToken);
 
         var response = await HttpClientRegistry.AdminClient
             .POSTAsync<MarkOrderDeliveredEndpoint, MarkOrderDeliveredRequest>(

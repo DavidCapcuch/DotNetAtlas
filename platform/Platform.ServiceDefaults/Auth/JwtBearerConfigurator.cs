@@ -121,7 +121,7 @@ public static class JwtBearerConfigurator
                 // The contract is pinned at this layer by
                 // Platform.ServiceDefaults.UnitTests.Auth.JwtBearerConfiguratorTests
                 // (validates a flat-"roles"-only token through these very options) and
-                // end-to-end by Ordering.FunctionalTests
+                // through the real HTTP auth pipeline by Ordering.IntegrationTests
                 // MarkOrderShippedTests.WhenTokenCarriesOnlyKeycloakFlatRolesClaim_AdminAuthSucceeds.
                 // If a future ASP.NET Core flips MapInboundClaims=false by
                 // default, or someone overrides it here, those tests fail

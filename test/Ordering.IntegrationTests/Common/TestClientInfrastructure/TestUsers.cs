@@ -1,8 +1,8 @@
-namespace Ordering.FunctionalTests.Common.TestClientInfrastructure;
+namespace Ordering.IntegrationTests.Common.TestClientInfrastructure;
 
 /// <summary>
 /// Stable buyer ids used by <see cref="FakeTokenCreator"/> + the test seed
-/// helpers. Hard-coded so the same buyer is recognised across functional
+/// helpers. Hard-coded so the same buyer is recognised across integration
 /// tests in the same fixture lifetime.
 /// </summary>
 internal static class TestUsers
