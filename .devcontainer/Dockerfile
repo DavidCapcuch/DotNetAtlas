@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/dotnet:10.0-noble
+FROM mcr.microsoft.com/devcontainers/dotnet:10.0-noble@sha256:694076b55f447d4b9f5b49bc6616c2e904d63e1a61e43680b2bbea46011b6783
 
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends \
